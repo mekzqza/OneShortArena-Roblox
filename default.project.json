@@ -8,30 +8,26 @@
       "Assets": {
         "$path": "src/ReplicatedStorage/Assets"
       },
-      "Config": {
-        "$path": "src/ReplicatedStorage/Config"
+      "Configs": {
+        "$path": "src/ReplicatedStorage/Configs"
       },
       "Shared": {
         "$path": "src/ReplicatedStorage/Shared"
       },
-      "UI":{
+      "UI": {
         "$path": "src/ReplicatedStorage/UI"
       },
-      "SystemsShared" : {
+      "SystemsShared": {
         "$path": "src/ReplicatedStorage/SystemsShared"
       }
-  
-    },
 
+    },
     "ServerScriptService": {
       "$className": "ServerScriptService"
     },
-
     "StarterPlayer": {
       "$className": "StarterPlayer"
-      }
     },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
@@ -78,3 +74,4 @@
       }
     }
   }
+}
