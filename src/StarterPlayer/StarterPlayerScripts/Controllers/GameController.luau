@@ -106,7 +106,8 @@ end
 --]]
 function GameController:ShowDebugInfo()
 	-- ใช้ task.defer เพื่อให้ controllers อื่นๆ มีโอกาสลงทะเบียนก่อน
-	-- ไม่ใช้เวลาคงที่เพื่อป้องกัน timing issues
+	-- หมายเหตุ: นี่เป็นฟังก์ชัน debug เท่านั้น
+	-- ในระบบจริงควรใช้ proper initialization system แทนการพึ่งพา timing
 	task.defer(function()
 		local events = EventBus:GetEventNames()
 		if #events > 0 then

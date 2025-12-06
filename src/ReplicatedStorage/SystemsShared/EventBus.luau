@@ -144,6 +144,7 @@ end
 function EventBus:Emit(eventName: string, ...: any)
 	assert(type(eventName) == "string", "eventName must be a string")
 	
+	-- ตรวจสอบว่ามี signal หรือไม่ (ไม่สร้างใหม่ถ้ายังไม่มี)
 	local signal = EventBus.signals[eventName]
 	if signal then
 		-- Fire ตรงๆ เพราะ BindableEvent มี error handling ภายในอยู่แล้ว
@@ -151,6 +152,7 @@ function EventBus:Emit(eventName: string, ...: any)
 		signal:Fire(...)
 	end
 	-- ถ้าไม่มี signal ก็ไม่ต้องทำอะไร (ไม่มีใครสมัครรับฟัง)
+	-- หมายเหตุ: เราไม่ใช้ getSignal() เพราะไม่ต้องการสร้าง signal ใหม่เมื่อยังไม่มีใครฟัง
 end
 
 --[[
