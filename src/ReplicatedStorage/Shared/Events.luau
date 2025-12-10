@@ -42,6 +42,9 @@ Events.PLAYER_STATS_UPDATED = "Player_StatsUpdated"
 Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
 
+
+Events.INPUT_ACTION= " INPUT_ACTION"
+
 -- ============================================================================
 -- 🖼️ UI Events
 -- ============================================================================
