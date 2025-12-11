@@ -4,7 +4,7 @@
 -- InputSettings: centralized input action names and default bindings.
 -- Note: ready for future dynamic remapping; current module provides read-only helpers.
 
-export type ActionId = "ATTACK" | "DASH" | "INTERACT" | "JUMP"
+export type ActionId = "ATTACK" | "DASH" | "INTERACT" 
 export type ActionNameMap = { [ActionId]: string }
 export type Binding = Enum.KeyCode | Enum.UserInputType
 export type BindingMap = { [ActionId]: { Binding } }

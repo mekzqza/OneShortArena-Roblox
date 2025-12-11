@@ -43,7 +43,7 @@ Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
 
 
-Events.INPUT_ACTION= " INPUT_ACTION"
+Events.INPUT_ACTION= "INPUT_ACTION"
 
 -- ============================================================================
 -- 🖼️ UI Events
