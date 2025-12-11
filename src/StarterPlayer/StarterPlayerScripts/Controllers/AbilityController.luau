@@ -48,10 +48,10 @@ function AbilityController:Init()
 	EventBus:On(Events.INPUT_ACTION, function(actionName)
 		
 		-- เช็คว่าปุ่มที่กด คือปุ่ม "โจมตี" หรือไม่?
-		if actionName == InputSettings.Actions.ATTACK then
+		if actionName == "ATTACK" then
 			SpawnMagicCube()
 			
-		elseif actionName == InputSettings.Actions.INTERACT then
+		elseif actionName == "INTERACT" then
 			print("🔘 Interact button pressed (Nothing spawned)")
 		end
 		
