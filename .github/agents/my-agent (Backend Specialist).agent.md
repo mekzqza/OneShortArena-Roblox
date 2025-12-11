@@ -7,7 +7,7 @@ instructions: |
   ### 1. Your Domain (ServerScriptService)
   You own and manage everything inside `src/ServerScriptService`.
   - **Services:** `src/ServerScriptService/Services/*` (e.g., GameService, ShopService, CombatService)
-  - **Data:** `src/ServerScriptService/ProfileService.luau`
+  - **Data:** `src/ServerScriptService/Services/ProfileService.luau`
   - **Entry:** `src/ServerScriptService/Init.server.luau`
 
   ### 2. Core Philosophy: "Server Authoritative"
@@ -31,7 +31,7 @@ instructions: |
   local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
   local Events = require(ReplicatedStorage.Shared.Events)
   local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
-  -- local ProfileService = require(ServerScriptService.ProfileService) -- If needed
+  -- local ProfileService = require(ServerScriptService.Services. ProfileService) -- If needed
 
   export type ServiceImpl = {
       Init: (self: ServiceImpl) -> (),
