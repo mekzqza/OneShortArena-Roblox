@@ -17,7 +17,7 @@ export type ModuleImpl = {
 
 local InputController: ModuleImpl = {}
 
-local EVENT_INPUT_ACTION = (Events :: any).INPUT_ACTION or "Input_Action"
+local EVENT_INPUT_ACTION = (Events :: any).INPUT_ACTION
 
 local function onInput(actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject?)
 	if inputState == Enum.UserInputState.Begin then

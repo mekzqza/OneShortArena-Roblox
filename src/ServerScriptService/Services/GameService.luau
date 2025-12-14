@@ -1,169 +1,157 @@
---[[
-	GameService - ตัวอย่างการใช้งาน EventBus ฝั่ง Server
-	
-	📌 หน้าที่:
-	Service นี้แสดงตัวอย่างการใช้งาน EventBus สำหรับการสื่อสารระหว่าง Server-Server
-	
-	🔧 ฟีเจอร์ตัวอย่าง:
-	- รับฟังอีเวนต์เมื่อผู้เล่นเข้าเกม
-	- ส่งอีเวนต์เมื่อเกมเริ่ม
-	- ใช้ Once สำหรับอีเวนต์ที่เกิดครั้งเดียว
---]]
-
+--!strict
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- เรียกใช้ระบบ EventBus และ Events ที่เราเตรียมไว้
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
 local GameService = {}
-GameService.isGameRunning = false
-GameService.playerConnections = {} -- เก็บ connections เพื่อ cleanup
 
---[[
-	Init: เริ่มต้น Service
-	เรียกโดย Init.server.luau เมื่อเซิร์ฟเวอร์เริ่มทำงาน
+-- ============================================================================
+-- ⚙️ Config (ตั้งค่าเกม)
+-- ============================================================================
+local CONFIG = {
+	MIN_PLAYERS = 1,        -- จำนวนคนขั้นต่ำเพื่อเริ่มนับถอยหลัง (ตั้ง 1 เพื่อเทสต์คนเดียว)
+	WAIT_TIME = 10,         -- เวลารอใน Lobby (วินาที)
+	INTERMISSION = 5        -- เวลาพักหลังจบเกม
+}
+
+-- ============================================================================
+-- 📊 State (ตัวแปรเก็บสถานะ)
+-- ============================================================================
+local isMatchActive = false
+local lobbyTimer = CONFIG.WAIT_TIME
+
+--[[\
+	Init: เตรียมความพร้อมก่อน Server เริ่ม
+	สร้างโฟลเดอร์สำหรับเก็บจุดเกิด ถ้ายังไม่มี
 --]]
 function GameService:Init()
-	print("🎮 GameService: Initializing...")
+	print("🏗️ GameService: Initializing...")
 	
-	-- ตัวอย่าง: ฟังอีเวนต์เมื่อเกมเริ่ม (แค่ครั้งเดียว)
-	EventBus:Once(Events.GAME_STARTED, function(gameMode)
-		self.isGameRunning = true
-		print("🎮 Game has started! Mode:", gameMode)
-	end)
-	
-	-- ตัวอย่าง: ฟังอีเวนต์เมื่อเกมจบ
-	EventBus:On(Events.GAME_ENDED, function(winner)
-		self.isGameRunning = false
-		print("🎮 Game ended! Winner:", winner or "None")
-		
-		-- ทำความสะอาดข้อมูลเกม
-		self:CleanupGame()
-	end)
-	
-	-- ตัวอย่าง: ฟังอีเวนต์เมื่อผู้เล่นทำคะแนน
-	EventBus:On(Events.PLAYER_SCORED, function(playerName, points)
-		print("⭐ " .. playerName .. " scored " .. points .. " points!")
-		
-		-- ส่งอีเวนต์อื่นต่อ (Event Chain)
-		EventBus:Emit(Events.PLAYER_STATS_UPDATED, playerName, { score = points })
-	end)
-	
-	-- ตัวอย่าง: รับฟังอีเวนต์สำหรับ debug
-	EventBus:On(Events.DEBUG_SHOW_EVENTS, function()
-		local events = EventBus:GetEventNames()
-		print("📋 Active Events:", table.concat(events, ", "))
-	end)
+	if not Workspace:FindFirstChild("Spawns") then
+		local folder = Instance.new("Folder")
+		folder.Name = "Spawns"
+		folder.Parent = Workspace
+		warn("⚠️ Auto-created 'Spawns' folder. Please add 'LobbySpawn' inside it!")
+	end
+end
 
-	EventBus:On(Events.INPUT_ACTION, function(actionId)
-	    print("🕹️ Input action received on server:", actionId)
-	end)
-	
-	-- เชื่อมต่อกับ Players service
+--[[\
+	Start: เริ่มทำงานจริง
+	เชื่อมต่อ Event ผู้เล่น และเริ่ม Game Loop
+--]]
+function GameService:Start()
+	print("🏁 GameService: Lobby System Started")
+
+	-- 1. เมื่อมีคนเข้าเกม -> ส่งไปเกิดที่ Lobby
 	Players.PlayerAdded:Connect(function(player)
-		self:OnPlayerJoined(player)
+		self:OnPlayerJoin(player)
 	end)
-	
+
+	-- 2. เมื่อมีคนออกเกม -> แจ้งระบบอื่น
 	Players.PlayerRemoving:Connect(function(player)
-		self:OnPlayerLeft(player)
+		EventBus:Emit(Events.PLAYER_LEFT, player)
 	end)
 	
-	-- ส่งอีเวนต์ว่า GameService พร้อมแล้ว
-	EventBus:Emit(Events.SERVICE_READY, "GameService")
-	
-	print("✅ GameService initialized.")
-end
-
---[[
-	OnPlayerJoined: เมื่อผู้เล่นเข้าเกม
-	@param player: Player - ผู้เล่นที่เข้าเกม
---]]
-function GameService:OnPlayerJoined(player: Player)
-	print("👋 Player joined:", player.Name)
-	
-	-- ส่งอีเวนต์แจ้งว่ามีผู้เล่นเข้ามา
-	EventBus:Emit(Events.PLAYER_JOINED, player.Name, player.UserId)
-	
-	-- ตัวอย่าง: สร้าง connection เฉพาะสำหรับผู้เล่น
-	local connection = EventBus:On("Player_RequestInfo_" .. player.UserId, function()
-		print("📊 Info requested for:", player.Name)
-		-- ส่งข้อมูลผู้เล่นกลับไป
-		EventBus:Emit("Player_InfoResponse_" .. player.UserId, {
-			name = player.Name,
-			userId = player.UserId,
-			isInGame = self.isGameRunning
-		})
+	-- 3. ฟังคำสั่งจบเกม (จาก ArenaService หรือ Admin)
+	EventBus:On(Events.GAME_ENDED, function()
+		self:EndMatch()
 	end)
-	
-	-- เก็บ connection ไว้สำหรับ cleanup
-	self.playerConnections[player.UserId] = connection
+
+	-- 4. รันลูปของเกมแยกเป็น Thread ใหม่ (ไม่ให้ขวางการทำงานอื่น)
+	task.spawn(function()
+		while true do
+			self:GameLoop()
+			task.wait(1) -- เช็คสถานะทุกๆ 1 วินาที
+		end
+	end)
 end
 
---[[
-	OnPlayerLeft: เมื่อผู้เล่นออกจากเกม
-	@param player: Player - ผู้เล่นที่ออกจากเกม
+--[[\
+	OnPlayerJoin: จัดการผู้เล่นใหม่
+	บังคับให้เกิดที่จุด LobbySpawn เท่านั้น
 --]]
-function GameService:OnPlayerLeft(player: Player)
-	print("👋 Player left:", player.Name)
+function GameService:OnPlayerJoin(player: Player)
+	print("👋 " .. player.Name .. " joined the lobby.")
 	
-	-- ส่งอีเวนต์แจ้งว่าผู้เล่นออกไป
-	EventBus:Emit(Events.PLAYER_LEFT, player.Name, player.UserId)
+	-- ค้นหาจุดเกิด Lobby
+	local spawns = Workspace:FindFirstChild("Spawns")
+	local lobbySpawn = spawns and spawns:FindFirstChild("LobbySpawn")
 	
-	-- ทำความสะอาด connection ของผู้เล่น
-	local connection = self.playerConnections[player.UserId]
-	if connection then
-		connection:Disconnect()
-		self.playerConnections[player.UserId] = nil
+	if lobbySpawn and lobbySpawn:IsA("SpawnLocation") then
+		player.RespawnLocation = lobbySpawn -- ✅ ตั้งจุดเกิดถาวร
+	else
+		warn("⚠️ CRITICAL: 'LobbySpawn' not found in Workspace/Spawns!")
+	end
+	
+	-- สั่งโหลดตัวละครทันที
+	player:LoadCharacter()
+	
+	-- แจ้งระบบอื่น
+	EventBus:Emit(Events.PLAYER_JOINED, player)
+end
+
+--[[\
+	GameLoop: สมองของเกม
+	คอยนับจำนวนคน และนับเวลาถอยหลัง
+--]]
+function GameService:GameLoop()
+	-- ถ้าเกมเริ่มไปแล้ว (อยู่ใน Arena) ไม่ต้องทำอะไรใน Lobby Loop
+	if isMatchActive then return end
+
+	local playerCount = #Players:GetPlayers()
+
+	-- เช็คจำนวนคน
+	if playerCount >= CONFIG.MIN_PLAYERS then
+		-- คนครบ! นับถอยหลัง
+		lobbyTimer -= 1
+		
+		-- ส่งข้อความแจ้งเตือนทุกวินาที (เช่น "Starting in 5...")
+		-- ใช้ Events.UI_SHOW_NOTIFICATION ที่คุณมีอยู่แล้ว
+		if lobbyTimer <= 5 or lobbyTimer % 5 == 0 then
+			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Match starts in: " .. lobbyTimer)
+			print("⏳ Lobby Countdown: " .. lobbyTimer)
+		end
+
+		-- เวลาหมด -> เริ่มเกม!
+		if lobbyTimer <= 0 then
+			self:StartMatch()
+		end
+	else
+		-- คนไม่พอ -> รีเซ็ตเวลา
+		if lobbyTimer ~= CONFIG.WAIT_TIME then
+			lobbyTimer = CONFIG.WAIT_TIME
+			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Waiting for players...")
+			print("❌ Not enough players. Timer reset.")
+		end
 	end
 end
 
---[[
-	StartGame: เริ่มเกม
-	@param gameMode: string - โหมดเกม
-	
-	ตัวอย่างการเรียกใช้จาก Service อื่น:
-	local GameService = require(...)
-	GameService:StartGame("FreeForAll")
+--[[\
+	StartMatch: สั่งเริ่มแมตช์
 --]]
-function GameService:StartGame(gameMode: string)
-	if self.isGameRunning then
-		warn("⚠️ Game is already running!")
-		return
-	end
+function GameService:StartMatch()
+	print("🚀 STARTING MATCH!")
+	isMatchActive = true
 	
-	print("🎮 Starting game with mode:", gameMode)
-	
-	-- ส่งอีเวนต์เกมเริ่ม
-	EventBus:Emit(Events.GAME_STARTED, gameMode)
+	-- ส่งสัญญาณ "GAME_STARTED"
+	-- ArenaService จะรับ Event นี้แล้ววาร์ปคนไปสู้กันเอง
+	EventBus:Emit(Events.GAME_STARTED)
 end
 
---[[
-	EndGame: จบเกม
-	@param winner: string? - ชื่อผู้ชนะ (optional)
+--[[\
+	EndMatch: จบแมตช์ (พักยก)
 --]]
-function GameService:EndGame(winner: string?)
-	if not self.isGameRunning then
-		warn("⚠️ No game is running!")
-		return
-	end
+function GameService:EndMatch()
+	print("🛑 Match Ended. Cooldown before lobby...")
+	task.wait(CONFIG.INTERMISSION)
 	
-	print("🎮 Ending game...")
-	
-	-- ส่งอีเวนต์เกมจบ
-	EventBus:Emit(Events.GAME_ENDED, winner)
-end
-
---[[
-	CleanupGame: ทำความสะอาดข้อมูลเกม
-	ใช้เมื่อเกมจบหรือต้องการ reset
---]]
-function GameService:CleanupGame()
-	print("🧹 Cleaning up game data...")
-	
-	-- ทำความสะอาดข้อมูลต่างๆ
-	-- (เพิ่มโค้ด cleanup ตามต้องการ)
-	
-	EventBus:Emit(Events.GAME_CLEANUP_COMPLETE)
+	isMatchActive = false
+	lobbyTimer = CONFIG.WAIT_TIME
+	print("🔄 Back to Lobby Loop")
 end
 
 return GameService
