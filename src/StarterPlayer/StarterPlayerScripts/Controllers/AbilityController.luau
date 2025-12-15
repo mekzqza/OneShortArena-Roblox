@@ -50,6 +50,9 @@ function AbilityController:Init()
 		-- เช็คว่าปุ่มที่กด คือปุ่ม "โจมตี" หรือไม่?
 		if actionName == "ATTACK" then
 			SpawnMagicCube()
+		
+		elseif actionName =="RESPAWN" then
+			print("🔄 Respawn button pressed (No respawn logic yet)")
 			
 		elseif actionName == "INTERACT" then
 			print("🔘 Interact button pressed (Nothing spawned)")
