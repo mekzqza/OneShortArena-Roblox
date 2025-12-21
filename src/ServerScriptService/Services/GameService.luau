@@ -11,87 +11,77 @@ local GameService = {}
 export type PlayerState = "LOBBY" | "ARENA_ALIVE" | "ARENA_DEAD"
 
 type PlayerData = {
-	State: PlayerState,
-	Character: Model?,
+    State: PlayerState,
+    Character: Model?,
 }
 
 local playerStates: { [Player]: PlayerData } = {}
 
 function GameService:Init()
-	-- Listen for player join/leave
-	Players.PlayerAdded:Connect(function(player)
-		self:_onPlayerAdded(player)
-	end)
+    Players.PlayerAdded:Connect(function(player)
+        self:_onPlayerAdded(player)
+    end)
 
-	Players.PlayerRemoving:Connect(function(player)
-		self:_onPlayerRemoving(player)
-	end)
+    Players.PlayerRemoving:Connect(function(player)
+        self:_onPlayerRemoving(player)
+    end)
 
-	-- Listen for play requests
-	EventBus:Subscribe(Events.PLAYER_REQUEST_PLAY, function(player: Player)
-		self:_handlePlayRequest(player)
-	end)
+    EventBus:Subscribe(Events.PLAYER_REQUEST_PLAY, function(player: Player)
+        self:_handlePlayRequest(player)
+    end)
 
-	-- Listen for death events
-	EventBus:Subscribe(Events.PLAYER_DIED, function(player: Player)
-		self:_handlePlayerDeath(player)
-	end)
+    EventBus:Subscribe(Events.PLAYER_DIED, function(player: Player)
+        self:_handlePlayerDeath(player)
+    end)
 end
 
 function GameService:_onPlayerAdded(player: Player)
-	playerStates[player] = {
-		State = "LOBBY",
-		Character = nil,
-	}
+    playerStates[player] = {
+        State = "LOBBY",
+        Character = nil,
+    }
 
-	player.CharacterAdded:Connect(function(character)
-		playerStates[player].Character = character
-		
-		-- Ensure correct state on respawn
-		if playerStates[player].State == "LOBBY" then
-			EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false) -- false = lobby
-		end
-	end)
+    player.CharacterAdded:Connect(function(character)
+        playerStates[player].Character = character
+        
+        if playerStates[player].State == "LOBBY" then
+            EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false)
+        end
+    end)
 end
 
 function GameService:_onPlayerRemoving(player: Player)
-	playerStates[player] = nil
+    playerStates[player] = nil
 end
 
 function GameService:_handlePlayRequest(player: Player)
-	local data = playerStates[player]
-	if not data then return end
+    local data = playerStates[player]
+    if not data then return end
 
-	-- Only allow requests from LOBBY
-	if data.State ~= "LOBBY" then
-		warn(`Player {player.Name} tried to play from state {data.State}`)
-		return
-	end
+    if data.State ~= "LOBBY" then
+        warn(`Player {player.Name} tried to play from state {data.State}`)
+        return
+    end
 
-	-- Transition to ARENA_ALIVE
-	data.State = "ARENA_ALIVE"
-	EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, true) -- true = arena
+    data.State = "ARENA_ALIVE"
+    EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, true)
 end
 
 function GameService:_handlePlayerDeath(player: Player)
-	local data = playerStates[player]
-	if not data then return end
+    local data = playerStates[player]
+    if not data then return end
 
-	-- Only process deaths from ARENA_ALIVE
-	if data.State ~= "ARENA_ALIVE" then
-		return
-	end
+    if data.State ~= "ARENA_ALIVE" then
+        return
+    end
 
-	-- Transition back to LOBBY
-	data.State = "LOBBY"
-	
-	-- Request teleport back to lobby
-	EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false) -- false = lobby
+    data.State = "LOBBY"
+    EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false)
 end
 
 function GameService:GetPlayerState(player: Player): PlayerState?
-	local data = playerStates[player]
-	return if data then data.State else nil
+    local data = playerStates[player]
+    return if data then data.State else nil
 end
 
 return GameService
