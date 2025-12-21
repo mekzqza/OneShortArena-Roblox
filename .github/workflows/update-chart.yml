@@ -1,4 +1,20 @@
-steps:
+name: Update Mermaid Chart
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/deps.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-chart:
+    runs-on: ubuntu-latest
+    
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -10,12 +26,10 @@ steps:
       - name: Install Mermaid CLI
         run: npm install -g @mermaid-js/mermaid-cli
 
-      # [ส่วนที่เพิ่ม] สร้างไฟล์ตั้งค่าให้ Chrome ทำงานได้บน Server
       - name: Create Puppeteer Config
         run: echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
 
-      - name: Generate PNG
-        # [แก้ตรงนี้] เพิ่ม -p เพื่อเรียกใช้ Config ที่เราเพิ่งสร้าง
+      - name: Generate PNG from Mermaid
         run: mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
 
       - name: Commit and Push changes
@@ -23,6 +37,5 @@ steps:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add docs/deps.png
-          # เพิ่มบรรทัดนี้เพื่อเช็คว่ามีอะไรเปลี่ยนแปลงไหม ถ้าไม่มีก็ไม่ Error
           git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
           git push
