@@ -3,12 +3,12 @@
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local EventBus = require(script.Parent.Parent.Core.EventBus)
+local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
 local ArenaService = {}
 
-local LOBBY_SPAWN = Workspace:WaitForChild("LobbySpawn") :: BasePart
+local LOBBY_SPAWN = Workspace:WaitForChild("Spawns") :: BasePart
 local ARENA_SPAWN = Workspace:WaitForChild("ArenaSpawn") :: BasePart
 
 function ArenaService:Init()
