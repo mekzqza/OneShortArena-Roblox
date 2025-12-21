@@ -2,7 +2,7 @@ name: Update Mermaid Chart
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, dev ]
     paths:
       - 'docs/deps.md'
   workflow_dispatch:
@@ -31,12 +31,22 @@ jobs:
           echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
 
       - name: Generate PNG from Mermaid
-        run: mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
+        run: |
+          mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
+          # ถ้า mermaid-cli สร้างเป็น deps-1.png ให้เปลี่ยนชื่อ
+          if [ -f deps-1.png ]; then
+            mv deps-1.png docs/deps.png
+          fi
 
       - name: Commit and Push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/deps.png
-          git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
-          git push
+          if [ -f docs/deps.png ]; then
+            git add docs/deps.png
+            git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
+            git push
+          else
+            echo "Warning: docs/deps.png was not created"
+            exit 1
+          fi
