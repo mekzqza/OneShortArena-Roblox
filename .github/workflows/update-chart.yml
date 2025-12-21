@@ -1,16 +1,19 @@
-name: Auto Generate Mermaid Chart
+name: Update Mermaid Chart
+
 on:
   push:
+    branches: [ main, master ]
     paths:
-      - 'docs/deps.md'  # แก้ตรงนี้ให้ตรงกับชื่อไฟล์กราฟของคุณ
-    branches:
-      - main            # หรือ master/dev ตาม Branch หลักของคุณ
+      - 'docs/deps.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  generate-chart:
+  update-chart:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,15 +26,16 @@ jobs:
       - name: Install Mermaid CLI
         run: npm install -g @mermaid-js/mermaid-cli
 
-      - name: Generate PNG
-        # บรรทัดนี้คือคำสั่งแปลงไฟล์: -i (input) -> -o (output)
-        # ถ้าไฟล์คุณชื่ออื่น อย่าลืมแก้ตรงนี้ด้วย
-        run: mmdc -i docs/deps.md -o docs/deps.png -b transparent
+      - name: Create Puppeteer Config
+        run: echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
+
+      - name: Generate PNG from Mermaid
+        run: mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
 
       - name: Commit and Push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add docs/deps.png
-          git commit -m "Auto-update mermaid chart [skip ci]" || echo "No changes to commit"
+          git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
           git push
