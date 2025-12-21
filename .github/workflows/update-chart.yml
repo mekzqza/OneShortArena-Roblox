@@ -30,32 +30,40 @@ jobs:
         run: |
           echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
 
+      - name: Verify deps.md exists
+        run: |
+          echo "Checking docs/deps.md..."
+          cat docs/deps.md
+          echo "---END OF FILE---"
+
       - name: Generate PNG from Mermaid
         run: |
-          mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
-          # เช็คว่าไฟล์ถูกสร้างที่ไหน แล้วย้ายไปที่ถูกต้อง
+          echo "Running mermaid-cli..."
+          mmdc -i docs/deps.md -o ./deps.png -p puppeteer-config.json -b transparent || echo "mmdc failed with exit code $?"
+          echo "Listing current directory:"
           ls -la
-          ls -la docs/ || true
-          if [ -f deps-1.png ]; then
-            mv deps-1.png docs/deps.png
-            echo "Moved deps-1.png to docs/deps.png"
-          fi
+          echo "Listing docs directory:"
+          ls -la docs/
+          
+          # ย้ายไฟล์ไปที่ถูกต้อง
           if [ -f ./deps.png ]; then
             mv ./deps.png docs/deps.png
-            echo "Moved deps.png to docs/deps.png"
+            echo "SUCCESS: Moved deps.png to docs/"
+          elif [ -f ./deps-1.png ]; then
+            mv ./deps-1.png docs/deps.png
+            echo "SUCCESS: Moved deps-1.png to docs/"
+          elif [ -f docs/deps.png ]; then
+            echo "SUCCESS: deps.png already in docs/"
+          else
+            echo "ERROR: No PNG file was created!"
+            find . -name "*.png" -type f
+            exit 1
           fi
-          ls -la docs/
 
       - name: Commit and Push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          if [ -f docs/deps.png ]; then
-            git add docs/deps.png
-            git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
-            git push
-          else
-            echo "Error: docs/deps.png was not created"
-            ls -la
-            exit 1
-          fi
+          git add docs/deps.png
+          git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
+          git push
