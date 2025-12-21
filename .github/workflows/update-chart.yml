@@ -27,7 +27,8 @@ jobs:
         run: npm install -g @mermaid-js/mermaid-cli
 
       - name: Create Puppeteer Config
-        run: echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
+        run: |
+          echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
 
       - name: Generate PNG from Mermaid
         run: mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
