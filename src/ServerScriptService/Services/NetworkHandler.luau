@@ -10,6 +10,8 @@ local RunService = game:GetService("RunService")
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
+local systemsShared = ReplicatedStorage:WaitForChild("SystemsShared")
+
 export type NetworkHandler = {
 	Init: (self: NetworkHandler) -> (),
 	Start: (self: NetworkHandler) -> (),
@@ -206,7 +208,6 @@ local function trackEvent(player: Player, eventName: string)
 end
 
 local function ensureRemoteEvent(): RemoteEvent
-	local systemsShared = ReplicatedStorage:WaitForChild("SystemsShared")
 	local folder = systemsShared:FindFirstChild(REMOTE_FOLDER_NAME)
 	if not folder then
 		folder = Instance.new("Folder")
@@ -247,13 +248,13 @@ local function forwardToClients(eventName: string, ...: any)
 		local ok, args = sanitizeArgs(table.unpack(packed, 2, packed.n))
 		if ok then
 			log("-> FireClient", first.Name, eventName)
-			remoteEvent:FireClient(first, eventName, table.unpack(args, 1, #args))
+			remoteEvent:FireClient(first, eventName, table.unpack(args, 1, args.n))
 		end
 	else
 		local ok, args = sanitizeArgs(table.unpack(packed, 1, packed.n))
 		if ok then
 			log("-> FireAllClients", eventName)
-			remoteEvent:FireAllClients(eventName, table.unpack(args, 1, #args))
+			remoteEvent:FireAllClients(eventName, table.unpack(args, 1, args.n))
 		end
 	end
 end
@@ -306,7 +307,7 @@ local function handleClientEvent(player: Player, eventName: string, ...: any)
 	trackEvent(player, eventName)
 
 	log("<- From", player.Name, eventName)
-	EventBus:Emit(eventName, player, table.unpack(args, 1, #args))
+	EventBus:Emit(eventName, player, table.unpack(args, 1, args.n))
 end
 
 function NetworkHandler:Init()
