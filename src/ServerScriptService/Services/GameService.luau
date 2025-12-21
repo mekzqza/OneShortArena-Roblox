@@ -1,87 +1,156 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
 
-local EventBus = require(script.Parent.Parent.Core.EventBus)
+local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
+local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
 
-local GameService = {}
-
-export type PlayerState = "LOBBY" | "ARENA_ALIVE" | "ARENA_DEAD"
-
-type PlayerData = {
-    State: PlayerState,
-    Character: Model?,
+export type GameService = {
+	Init: (self: GameService) -> (),
+	Start: (self: GameService) -> (),
+	[string]: any,
 }
 
-local playerStates: { [Player]: PlayerData } = {}
+local GameService: GameService = {}
+
+local gameState = {
+	isRunning = false,
+	currentRound = 0,
+	playersInGame = {},
+}
 
 function GameService:Init()
-    Players.PlayerAdded:Connect(function(player)
-        self:_onPlayerAdded(player)
-    end)
-
-    Players.PlayerRemoving:Connect(function(player)
-        self:_onPlayerRemoving(player)
-    end)
-
-    EventBus:Subscribe(Events.PLAYER_REQUEST_PLAY, function(player: Player)
-        self:_handlePlayRequest(player)
-    end)
-
-    EventBus:Subscribe(Events.PLAYER_DIED, function(player: Player)
-        self:_handlePlayerDeath(player)
-    end)
+	-- Initialize game state
+	gameState.isRunning = false
+	gameState.currentRound = 0
+	gameState.playersInGame = {}
+	
+	print("[GameService] Initialized")
 end
 
-function GameService:_onPlayerAdded(player: Player)
-    playerStates[player] = {
-        State = "LOBBY",
-        Character = nil,
-    }
-
-    player.CharacterAdded:Connect(function(character)
-        playerStates[player].Character = character
-        
-        if playerStates[player].State == "LOBBY" then
-            EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false)
-        end
-    end)
+function GameService:Start()
+	-- Listen for game events
+	EventBus:On(Events.GAME_START_REQUESTED, function(player)
+		self:HandleGameStartRequest(player)
+	end)
+	
+	EventBus:On(Events.PLAYER_REQUEST_PLAY, function(player)
+		self:HandlePlayerJoinRequest(player)
+	end)
+	
+	-- Handle player connections
+	Players.PlayerAdded:Connect(function(player)
+		self:OnPlayerJoined(player)
+	end)
+	
+	Players.PlayerRemoving:Connect(function(player)
+		self:OnPlayerLeft(player)
+	end)
+	
+	print("[GameService] Started")
 end
 
-function GameService:_onPlayerRemoving(player: Player)
-    playerStates[player] = nil
+function GameService:HandleGameStartRequest(player: Player)
+	-- Validate: Is player authorized to start game?
+	if gameState.isRunning then
+		NetworkHandler:SendToClient(player, Events.GAME_START_FAILED, "Game already running")
+		return
+	end
+	
+	-- Validate: Minimum players
+	if #gameState.playersInGame < 2 then
+		NetworkHandler:SendToClient(player, Events.GAME_START_FAILED, "Need at least 2 players")
+		return
+	end
+	
+	-- Start game
+	self:StartGame()
 end
 
-function GameService:_handlePlayRequest(player: Player)
-    local data = playerStates[player]
-    if not data then return end
-
-    if data.State ~= "LOBBY" then
-        warn(`Player {player.Name} tried to play from state {data.State}`)
-        return
-    end
-
-    data.State = "ARENA_ALIVE"
-    EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, true)
+function GameService:StartGame()
+	gameState.isRunning = true
+	gameState.currentRound += 1
+	
+	print(`[GameService] Starting game - Round {gameState.currentRound}`)
+	
+	-- Broadcast to all players
+	NetworkHandler:Broadcast(Events.GAME_STARTED, {
+		round = gameState.currentRound,
+		players = gameState.playersInGame,
+	})
+	
+	-- Emit internal event for other services
+	EventBus:Emit(Events.GAME_STARTED, gameState.currentRound)
 end
 
-function GameService:_handlePlayerDeath(player: Player)
-    local data = playerStates[player]
-    if not data then return end
-
-    if data.State ~= "ARENA_ALIVE" then
-        return
-    end
-
-    data.State = "LOBBY"
-    EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false)
+function GameService:HandlePlayerJoinRequest(player: Player)
+	-- Validate: Player not already in game
+	if table.find(gameState.playersInGame, player.UserId) then
+		NetworkHandler:SendToClient(player, Events.JOIN_FAILED, "Already in game")
+		return
+	end
+	
+	-- Validate: Game not full
+	local MAX_PLAYERS = 10
+	if #gameState.playersInGame >= MAX_PLAYERS then
+		NetworkHandler:SendToClient(player, Events.JOIN_FAILED, "Game is full")
+		return
+	end
+	
+	-- Add player to game
+	table.insert(gameState.playersInGame, player.UserId)
+	
+	NetworkHandler:SendToClient(player, Events.JOIN_SUCCESS, {
+		playersInGame = #gameState.playersInGame,
+	})
+	
+	print(`[GameService] Player {player.Name} joined game`)
 end
 
-function GameService:GetPlayerState(player: Player): PlayerState?
-    local data = playerStates[player]
-    return if data then data.State else nil
+function GameService:OnPlayerJoined(player: Player)
+	print(`[GameService] Player {player.Name} connected to server`)
+	
+	-- Send initial game state to player
+	NetworkHandler:SendToClient(player, Events.GAME_STATE_UPDATE, {
+		isRunning = gameState.isRunning,
+		currentRound = gameState.currentRound,
+		playersInGame = #gameState.playersInGame,
+	})
+end
+
+function GameService:OnPlayerLeft(player: Player)
+	-- Remove from active game
+	local index = table.find(gameState.playersInGame, player.UserId)
+	if index then
+		table.remove(gameState.playersInGame, index)
+		print(`[GameService] Player {player.Name} left game`)
+		
+		-- Check if game should end
+		if gameState.isRunning and #gameState.playersInGame < 2 then
+			self:EndGame("Not enough players")
+		end
+	end
+end
+
+function GameService:EndGame(reason: string)
+	gameState.isRunning = false
+	
+	print(`[GameService] Game ended - Reason: {reason}`)
+	
+	NetworkHandler:Broadcast(Events.GAME_ENDED, {
+		reason = reason,
+		round = gameState.currentRound,
+	})
+	
+	-- Clear player list
+	gameState.playersInGame = {}
+end
+
+function GameService:GetGameState()
+	return gameState
 end
 
 return GameService
