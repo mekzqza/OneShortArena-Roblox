@@ -33,10 +33,18 @@ jobs:
       - name: Generate PNG from Mermaid
         run: |
           mmdc -i docs/deps.md -o docs/deps.png -p puppeteer-config.json -b transparent
-          # ถ้า mermaid-cli สร้างเป็น deps-1.png ให้เปลี่ยนชื่อ
+          # เช็คว่าไฟล์ถูกสร้างที่ไหน แล้วย้ายไปที่ถูกต้อง
+          ls -la
+          ls -la docs/ || true
           if [ -f deps-1.png ]; then
             mv deps-1.png docs/deps.png
+            echo "Moved deps-1.png to docs/deps.png"
           fi
+          if [ -f ./deps.png ]; then
+            mv ./deps.png docs/deps.png
+            echo "Moved deps.png to docs/deps.png"
+          fi
+          ls -la docs/
 
       - name: Commit and Push changes
         run: |
@@ -47,6 +55,7 @@ jobs:
             git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
             git push
           else
-            echo "Warning: docs/deps.png was not created"
+            echo "Error: docs/deps.png was not created"
+            ls -la
             exit 1
           fi
