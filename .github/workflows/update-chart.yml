@@ -1,0 +1,37 @@
+name: Auto Generate Mermaid Chart
+on:
+  push:
+    paths:
+      - 'docs/deps.md'  # แก้ตรงนี้ให้ตรงกับชื่อไฟล์กราฟของคุณ
+    branches:
+      - main            # หรือ master/dev ตาม Branch หลักของคุณ
+
+jobs:
+  generate-chart:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Mermaid CLI
+        run: npm install -g @mermaid-js/mermaid-cli
+
+      - name: Generate PNG
+        # บรรทัดนี้คือคำสั่งแปลงไฟล์: -i (input) -> -o (output)
+        # ถ้าไฟล์คุณชื่ออื่น อย่าลืมแก้ตรงนี้ด้วย
+        run: mmdc -i docs/deps.md -o docs/deps.png -b transparent
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/deps.png
+          git commit -m "Auto-update mermaid chart [skip ci]" || echo "No changes to commit"
+          git push
