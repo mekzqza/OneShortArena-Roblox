@@ -1,4 +1,4 @@
-```mermaid
+﻿```mermaid
 graph TD
     %% --- Style Definitions ---
     classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
@@ -54,3 +54,4 @@ graph TD
     
     %% Services using Libraries/Utils
     MonsterSpawnService -->|Uses| ProfileService
+```
