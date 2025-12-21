@@ -43,6 +43,10 @@ Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
 Events.PLAYER_REQUEST_PLAY = "Player_Request_Play"
 
+-- Gameplay Loop Events
+Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Request to enter arena
+Events.PLAYER_ENTER_ARENA = "PlayerEnterArena"        -- Server → Client: Confirmation of arena entry
+Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player was eliminated
 
 Events.INPUT_ACTION= "INPUT_ACTION"
 

@@ -1,157 +1,97 @@
 --!strict
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 
--- เรียกใช้ระบบ EventBus และ Events ที่เราเตรียมไว้
-local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
+local EventBus = require(script.Parent.Parent.Core.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
 local GameService = {}
 
--- ============================================================================
--- ⚙️ Config (ตั้งค่าเกม)
--- ============================================================================
-local CONFIG = {
-	MIN_PLAYERS = 1,        -- จำนวนคนขั้นต่ำเพื่อเริ่มนับถอยหลัง (ตั้ง 1 เพื่อเทสต์คนเดียว)
-	WAIT_TIME = 10,         -- เวลารอใน Lobby (วินาที)
-	INTERMISSION = 5        -- เวลาพักหลังจบเกม
+export type PlayerState = "LOBBY" | "ARENA_ALIVE" | "ARENA_DEAD"
+
+type PlayerData = {
+	State: PlayerState,
+	Character: Model?,
 }
 
--- ============================================================================
--- 📊 State (ตัวแปรเก็บสถานะ)
--- ============================================================================
-local isMatchActive = false
-local lobbyTimer = CONFIG.WAIT_TIME
+local playerStates: { [Player]: PlayerData } = {}
 
---[[\
-	Init: เตรียมความพร้อมก่อน Server เริ่ม
-	สร้างโฟลเดอร์สำหรับเก็บจุดเกิด ถ้ายังไม่มี
---]]
 function GameService:Init()
-	print("🏗️ GameService: Initializing...")
-	
-	if not Workspace:FindFirstChild("Spawns") then
-		local folder = Instance.new("Folder")
-		folder.Name = "Spawns"
-		folder.Parent = Workspace
-		warn("⚠️ Auto-created 'Spawns' folder. Please add 'LobbySpawn' inside it!")
-	end
-end
-
---[[\
-	Start: เริ่มทำงานจริง
-	เชื่อมต่อ Event ผู้เล่น และเริ่ม Game Loop
---]]
-function GameService:Start()
-	print("🏁 GameService: Lobby System Started")
-
-	-- 1. เมื่อมีคนเข้าเกม -> ส่งไปเกิดที่ Lobby
+	-- Listen for player join/leave
 	Players.PlayerAdded:Connect(function(player)
-		self:OnPlayerJoin(player)
+		self:_onPlayerAdded(player)
 	end)
 
-	-- 2. เมื่อมีคนออกเกม -> แจ้งระบบอื่น
 	Players.PlayerRemoving:Connect(function(player)
-		EventBus:Emit(Events.PLAYER_LEFT, player)
-	end)
-	
-	-- 3. ฟังคำสั่งจบเกม (จาก ArenaService หรือ Admin)
-	EventBus:On(Events.GAME_ENDED, function()
-		self:EndMatch()
+		self:_onPlayerRemoving(player)
 	end)
 
-	-- 4. รันลูปของเกมแยกเป็น Thread ใหม่ (ไม่ให้ขวางการทำงานอื่น)
-	task.spawn(function()
-		while true do
-			self:GameLoop()
-			task.wait(1) -- เช็คสถานะทุกๆ 1 วินาที
-		end
+	-- Listen for play requests
+	EventBus:Subscribe(Events.PLAYER_REQUEST_PLAY, function(player: Player)
+		self:_handlePlayRequest(player)
+	end)
+
+	-- Listen for death events
+	EventBus:Subscribe(Events.PLAYER_DIED, function(player: Player)
+		self:_handlePlayerDeath(player)
 	end)
 end
 
---[[\
-	OnPlayerJoin: จัดการผู้เล่นใหม่
-	บังคับให้เกิดที่จุด LobbySpawn เท่านั้น
---]]
-function GameService:OnPlayerJoin(player: Player)
-	print("👋 " .. player.Name .. " joined the lobby.")
-	
-	-- ค้นหาจุดเกิด Lobby
-	local spawns = Workspace:FindFirstChild("Spawns")
-	local lobbySpawn = spawns and spawns:FindFirstChild("LobbySpawn")
-	
-	if lobbySpawn and lobbySpawn:IsA("SpawnLocation") then
-		player.RespawnLocation = lobbySpawn -- ✅ ตั้งจุดเกิดถาวร
-	else
-		warn("⚠️ CRITICAL: 'LobbySpawn' not found in Workspace/Spawns!")
-	end
-	
-	-- สั่งโหลดตัวละครทันที
-	player:LoadCharacter()
-	
-	-- แจ้งระบบอื่น
-	EventBus:Emit(Events.PLAYER_JOINED, player)
-end
+function GameService:_onPlayerAdded(player: Player)
+	playerStates[player] = {
+		State = "LOBBY",
+		Character = nil,
+	}
 
---[[\
-	GameLoop: สมองของเกม
-	คอยนับจำนวนคน และนับเวลาถอยหลัง
---]]
-function GameService:GameLoop()
-	-- ถ้าเกมเริ่มไปแล้ว (อยู่ใน Arena) ไม่ต้องทำอะไรใน Lobby Loop
-	if isMatchActive then return end
-
-	local playerCount = #Players:GetPlayers()
-
-	-- เช็คจำนวนคน
-	if playerCount >= CONFIG.MIN_PLAYERS then
-		-- คนครบ! นับถอยหลัง
-		lobbyTimer -= 1
+	player.CharacterAdded:Connect(function(character)
+		playerStates[player].Character = character
 		
-		-- ส่งข้อความแจ้งเตือนทุกวินาที (เช่น "Starting in 5...")
-		-- ใช้ Events.UI_SHOW_NOTIFICATION ที่คุณมีอยู่แล้ว
-		if lobbyTimer <= 5 or lobbyTimer % 5 == 0 then
-			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Match starts in: " .. lobbyTimer)
-			print("⏳ Lobby Countdown: " .. lobbyTimer)
+		-- Ensure correct state on respawn
+		if playerStates[player].State == "LOBBY" then
+			EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false) -- false = lobby
 		end
+	end)
+end
 
-		-- เวลาหมด -> เริ่มเกม!
-		if lobbyTimer <= 0 then
-			self:StartMatch()
-		end
-	else
-		-- คนไม่พอ -> รีเซ็ตเวลา
-		if lobbyTimer ~= CONFIG.WAIT_TIME then
-			lobbyTimer = CONFIG.WAIT_TIME
-			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Waiting for players...")
-			print("❌ Not enough players. Timer reset.")
-		end
+function GameService:_onPlayerRemoving(player: Player)
+	playerStates[player] = nil
+end
+
+function GameService:_handlePlayRequest(player: Player)
+	local data = playerStates[player]
+	if not data then return end
+
+	-- Only allow requests from LOBBY
+	if data.State ~= "LOBBY" then
+		warn(`Player {player.Name} tried to play from state {data.State}`)
+		return
 	end
+
+	-- Transition to ARENA_ALIVE
+	data.State = "ARENA_ALIVE"
+	EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, true) -- true = arena
 end
 
---[[\
-	StartMatch: สั่งเริ่มแมตช์
---]]
-function GameService:StartMatch()
-	print("🚀 STARTING MATCH!")
-	isMatchActive = true
+function GameService:_handlePlayerDeath(player: Player)
+	local data = playerStates[player]
+	if not data then return end
+
+	-- Only process deaths from ARENA_ALIVE
+	if data.State ~= "ARENA_ALIVE" then
+		return
+	end
+
+	-- Transition back to LOBBY
+	data.State = "LOBBY"
 	
-	-- ส่งสัญญาณ "GAME_STARTED"
-	-- ArenaService จะรับ Event นี้แล้ววาร์ปคนไปสู้กันเอง
-	EventBus:Emit(Events.GAME_STARTED)
+	-- Request teleport back to lobby
+	EventBus:Publish(Events.PLAYER_ENTER_ARENA, player, false) -- false = lobby
 end
 
---[[\
-	EndMatch: จบแมตช์ (พักยก)
---]]
-function GameService:EndMatch()
-	print("🛑 Match Ended. Cooldown before lobby...")
-	task.wait(CONFIG.INTERMISSION)
-	
-	isMatchActive = false
-	lobbyTimer = CONFIG.WAIT_TIME
-	print("🔄 Back to Lobby Loop")
+function GameService:GetPlayerState(player: Player): PlayerState?
+	local data = playerStates[player]
+	return if data then data.State else nil
 end
 
 return GameService

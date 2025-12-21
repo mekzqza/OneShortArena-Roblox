@@ -3,6 +3,16 @@ local Services = serverScriptService:WaitForChild("Services") -- ใช้ WaitF
 
 print("🔌 Server Init: Starting Services...")
 
+-- Initialize gameplay services
+local GameService = require(script.Services.GameService)
+local ArenaService = require(script.Services.ArenaService)
+local CombatService = require(script.Services.CombatService)
+
+-- Initialize in dependency order
+GameService:Init()
+ArenaService:Init()
+CombatService:Init()
+
 for _, serviceModule in pairs(Services:GetChildren()) do
     if serviceModule:IsA("ModuleScript") then
         -- ใช้ task.spawn เพื่อแยก Thread (ตัวใครตัวมัน ไม่รอกัน)
