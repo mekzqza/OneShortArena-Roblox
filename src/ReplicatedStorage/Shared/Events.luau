@@ -41,6 +41,7 @@ Events.PLAYER_SELF_SCORED = "Player_SelfScored"
 Events.PLAYER_STATS_UPDATED = "Player_StatsUpdated"
 Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
+Events.PLAYER_REQUEST_PLAY = "Player_Request_Play"
 
 
 Events.INPUT_ACTION= "INPUT_ACTION"
