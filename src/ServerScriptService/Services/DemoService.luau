@@ -92,10 +92,11 @@ function DemoService:Start()
 		local data = {}
 		
 		if dataType == "stats" then
+			local playerRecord = playerData[player.UserId]
 			data = {
 				playerName = player.Name,
 				userId = player.UserId,
-				clicks = playerData[player.UserId]?.clicks or 0,
+				clicks = playerRecord and playerRecord.clicks or 0,
 				serverCounter = serverCounter,
 				accountAge = player.AccountAge,
 			}

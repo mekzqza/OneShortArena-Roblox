@@ -12,6 +12,9 @@ local NetworkHandler = require(Services.NetworkHandler)
 local GameService = require(Services.GameService)
 local ArenaService = require(Services.ArenaService)
 local CombatService = require(Services.CombatService)
+
+
+--เอาไว้ทดสอบระบบ
 local DemoService = require(Services.DemoService) -- Add demo
 
 -- Initialize services (setup phase)

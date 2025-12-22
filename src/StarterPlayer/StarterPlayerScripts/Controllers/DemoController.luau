@@ -3,19 +3,9 @@
 --[[
 	DemoController - Client-side Network Demo
 	
-	สาธิตวิธีการใช้งาน NetworkController:
-	1. ส่งคำขอไปที่ Server (Client → Server)
-	2. รับข้อมูลจาก Server (Server → Client)
-	3. รับ Broadcast จาก Server (Server → All Clients)
-	
 	วิธีทดสอบ:
-	1. กด F9 เปิด Developer Console
-	2. พิมพ์คำสั่งใน Command Bar:
-	   - local dc = game.Players.LocalPlayer.PlayerScripts:FindFirstChild("Controllers"):FindFirstChild("DemoController", true)
-	   - dc:SendPing()
-	   - dc:RequestData("stats")
-	   - dc:SendChatMessage("Hello!")
-	   - dc:ClickButton("TestButton")
+	กด F9 เปิด Console แล้วดูข้อมูลที่ส่ง/รับ
+	หรือใช้คำสั่ง: _G.DemoController:SendPing()
 --]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -36,6 +26,15 @@ local DemoController: DemoController = {}
 
 local player = Players.LocalPlayer
 
+local function showChatMessage(text: string, color: Color3)
+	pcall(function()
+		StarterGui:SetCore("ChatMakeSystemMessage", {
+			Text = text,
+			Color = color,
+		})
+	end)
+end
+
 function DemoController:Init()
 	print("[DemoController] 🎮 Demo controller initialized")
 end
@@ -48,11 +47,10 @@ function DemoController:Start()
 		print(`  • Latency: {math.floor(data.latency * 1000)}ms`)
 		print(`  • Message: {data.message}`)
 		
-		-- Show notification
-		StarterGui:SetCore("ChatMakeSystemMessage", {
-			Text = `[PONG] {data.message} (Latency: {math.floor(data.latency * 1000)}ms)`,
-			Color = Color3.fromRGB(0, 255, 0),
-		})
+		showChatMessage(
+			`[PONG] {data.message} (Latency: {math.floor(data.latency * 1000)}ms)`,
+			Color3.fromRGB(0, 255, 0)
+		)
 	end)
 	
 	-- Example 2: Listen for data response
@@ -71,23 +69,22 @@ function DemoController:Start()
 	EventBus:On(Events.DEMO_BROADCAST_MESSAGE, function(data: any)
 		print(`[DemoController] 📢 Broadcast: [{data.playerName}] {data.message}`)
 		
-		-- Show in chat
-		StarterGui:SetCore("ChatMakeSystemMessage", {
-			Text = `[{data.playerName}] {data.message}`,
-			Color = data.userId == player.UserId 
+		showChatMessage(
+			`[{data.playerName}] {data.message}`,
+			data.userId == player.UserId 
 				and Color3.fromRGB(100, 200, 255) 
-				or Color3.fromRGB(200, 200, 200),
-		})
+				or Color3.fromRGB(200, 200, 200)
+		)
 	end)
 	
 	-- Example 4: Listen for counter updates
 	EventBus:On(Events.DEMO_UPDATE_COUNTER, function(data: any)
 		print(`[DemoController] 🔢 Counter updated: {data.totalClicks} (Last: {data.lastClicker})`)
 		
-		StarterGui:SetCore("ChatMakeSystemMessage", {
-			Text = `🔢 Total: {data.totalClicks} | {data.lastClicker} clicked!`,
-			Color = Color3.fromRGB(255, 200, 0),
-		})
+		showChatMessage(
+			`🔢 Total: {data.totalClicks} | {data.lastClicker} clicked!`,
+			Color3.fromRGB(255, 200, 0)
+		)
 	end)
 	
 	print("[DemoController] 🚀 Demo controller started")
