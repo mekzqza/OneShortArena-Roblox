@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local EventBus = require(script.Parent.Parent.Core.EventBus)
+local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
 local CombatService = {}
@@ -24,6 +24,10 @@ function CombatService:Init()
             end
         end
     end)
+end
+
+function CombatService:Start()
+    print("[CombatService] Started")
 end
 
 function CombatService:_trackCharacter(player: Player, character: Model)

@@ -25,3 +25,24 @@ for _, moduleScript in ipairs(controllersFolder:GetChildren()) do
 end
 
 print("✅ Controllers initialized.")
+
+local NetworkController = require(controllersFolder:WaitForChild("NetworkController"))
+local DemoController = require(controllersFolder:WaitForChild("DemoController")) -- Add demo
+
+-- Initialize
+print("[Init] Initializing NetworkController...")
+NetworkController:Init()
+
+print("[Init] Initializing DemoController...")
+DemoController:Init()
+
+-- Start
+print("[Init] Starting controllers...")
+NetworkController:Start()
+DemoController:Start()
+
+print("✅ Client initialized successfully.")
+print("🎮 Demo Mode: Press F9 and use DemoController methods")
+
+-- Make DemoController globally accessible for testing
+_G.DemoController = DemoController

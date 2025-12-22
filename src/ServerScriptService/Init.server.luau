@@ -13,6 +13,10 @@ local GameService = require(Services.GameService)
 local ArenaService = require(Services.ArenaService)
 local CombatService = require(Services.CombatService)
 
+
+--เอาไว้ทดสอบระบบ
+local DemoService = require(Services.DemoService) -- Add demo
+
 -- Initialize services (setup phase)
 print("[Init] Initializing NetworkHandler...")
 NetworkHandler:Init()
@@ -26,11 +30,16 @@ ArenaService:Init()
 print("[Init] Initializing CombatService...")
 CombatService:Init()
 
+print("[Init] Initializing DemoService...")
+DemoService:Init()
+
 -- Start services (runtime phase)
 print("[Init] Starting services...")
 NetworkHandler:Start()
 GameService:Start()
 ArenaService:Start()
 CombatService:Start()
+DemoService:Start()
 
 print("✅ All services initialized and started successfully.")
+print("🎮 Demo Mode: Use DemoController methods to test network communication")

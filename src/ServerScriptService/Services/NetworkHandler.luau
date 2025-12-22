@@ -331,7 +331,7 @@ end
 function NetworkHandler:Init()
 	remoteEvent = createRemoteStructure()
 	
-	remoteEvent.OnServerEvent:Connect(onClientEvent)
+	remoteEvent.OnServerEvent:Connect(handleClientEvent)
 	
 	Players.PlayerRemoving:Connect(function(player)
 		local userId = player.UserId
