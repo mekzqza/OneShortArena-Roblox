@@ -116,6 +116,18 @@ Events.FIRST_TIME_TUTORIAL = "FirstTime_Tutorial"
 Events.TUTORIAL_STEP_COMPLETE = "Tutorial_StepComplete"
 Events.TUTORIAL_SKIPPED = "Tutorial_Skipped"
 
+-- ============================================================================
+-- 📺 Demo Events
+-- ============================================================================
+Events.DEMO_PING = "DemoPing"                           -- Client → Server
+Events.DEMO_PONG = "DemoPong"                           -- Server → Client
+Events.DEMO_REQUEST_DATA = "DemoRequestData"             -- Client → Server
+Events.DEMO_SEND_DATA = "DemoSendData"                   -- Server → Client
+Events.DEMO_BROADCAST_MESSAGE = "DemoBroadcastMessage"   -- Server → All Clients
+Events.DEMO_CHAT_MESSAGE = "DemoChatMessage"             -- Client → Server
+Events.DEMO_UPDATE_COUNTER = "DemoUpdateCounter"         -- Server → Client
+Events.DEMO_BUTTON_CLICKED = "DemoButtonClicked"         -- Client → Server
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด
