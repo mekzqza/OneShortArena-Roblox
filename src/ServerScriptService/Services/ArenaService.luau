@@ -8,13 +8,17 @@ local Events = require(ReplicatedStorage.Shared.Events)
 
 local ArenaService = {}
 
-local LOBBY_SPAWN = Workspace:WaitForChild("Spawns") :: BasePart
-local ARENA_SPAWN = Workspace:WaitForChild("ArenaSpawn") :: BasePart
+local LOBBY_SPAWN = Workspace:FindFirstChild("LobbySpawns"):FindFirstChild("SpawnLocation") :: BasePart
+local ARENA_SPAWN = Workspace:FindFirstChild("ArenaSpawns"):FindFirstChild("SpawnLocation") :: BasePart
 
 function ArenaService:Init()
-    EventBus:Subscribe(Events.PLAYER_ENTER_ARENA, function(player: Player, isArena: boolean)
+    EventBus:On(Events.PLAYER_ENTER_ARENA, function(player: Player, isArena: boolean)
         self:_teleportPlayer(player, isArena)
     end)
+end
+
+function ArenaService:Start() 
+    print("[ArenaService] Started")
 end
 
 function ArenaService:_teleportPlayer(player: Player, isArena: boolean)
