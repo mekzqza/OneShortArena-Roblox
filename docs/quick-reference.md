@@ -11,6 +11,161 @@
 
 ---
 
+## 🎮 Input System Quick Reference
+
+### Add New Input Action
+
+**1. Add to InputSettings.luau:**
+```lua
+Bindings = {
+    MyAction = { Enum.KeyCode.F },
+},
+MobileButtonNames = {
+    MyAction = "🎯 My Action",
+},
+```
+
+**2. Add to Events.luau:**
+```lua
+PLAYER_MY_ACTION = "PlayerMyAction",
+```
+
+**3. Handle in DemoController:**
+```lua
+elseif actionName == "MyAction" then
+    self:SendMyAction()
+
+function DemoController:SendMyAction()
+    NetworkController:Send(Events.PLAYER_MY_ACTION, {data = "value"})
+end
+```
+
+**4. Process in DemoService:**
+```lua
+-- Init
+NetworkHandler:AllowClientEvent(Events.PLAYER_MY_ACTION)
+
+-- Start
+EventBus:On(Events.PLAYER_MY_ACTION, function(player, data)
+    -- Process action
+end)
+```
+
+---
+
+### Input Flow Cheat Sheet
+
+| Want to... | Use | Example |
+|------------|-----|---------|
+| Add keyboard key | InputSettings.Bindings | `MyAction = { Enum.KeyCode.F }` |
+| Add mobile button | InputSettings.MobileButtonNames | `MyAction = "🎯 Do Something"` |
+| Send to server | NetworkController:Send() | `NetworkController:Send(Events.MY_ACTION, data)` |
+| Receive on server | EventBus:On() | `EventBus:On(Events.MY_ACTION, handler)` |
+| Validate action | DemoService | Check cooldown, resources, state |
+
+---
+
+### Common Input Patterns
+
+**Pattern 1: Simple Button Press**
+```lua
+-- Client
+function DemoController:OnInputAction(actionName)
+    if actionName == "Jump" then
+        NetworkController:Send(Events.PLAYER_JUMP)
+    end
+end
+
+-- Server
+EventBus:On(Events.PLAYER_JUMP, function(player)
+    if canJump(player) then
+        applyJumpForce(player)
+    end
+end)
+```
+
+**Pattern 2: Action with Data**
+```lua
+-- Client
+function DemoController:SendAttack()
+    NetworkController:Send(Events.PLAYER_ATTACK, {
+        timestamp = tick(),
+        targetPosition = getMouseHit(),
+    })
+end
+
+-- Server
+EventBus:On(Events.PLAYER_ATTACK, function(player, data)
+    if validateAttack(player, data) then
+        dealDamage(player, data.targetPosition)
+    end
+end)
+```
+
+**Pattern 3: Cooldown Check**
+```lua
+-- Server
+local lastActionTime = {}
+local COOLDOWN = 1.0
+
+EventBus:On(Events.PLAYER_SKILL, function(player, data)
+    local userId = player.UserId
+    local now = tick()
+    
+    if (now - (lastActionTime[userId] or 0)) < COOLDOWN then
+        NetworkHandler:SendToClient(player, Events.ACTION_FAILED, "On cooldown")
+        return
+    end
+    
+    lastActionTime[userId] = now
+    -- Process skill
+end)
+```
+
+---
+
+### Testing Input System
+
+```lua
+-- Command Bar (F9)
+
+-- Check if InputController is loaded
+print(game.StarterPlayer.StarterPlayerScripts.Controllers.InputController)
+
+-- Manually trigger action
+_G.DemoController:SendAttack()
+
+-- Check bindings
+local InputSettings = require(game.ReplicatedStorage.Shared.InputSettings)
+for action, keys in pairs(InputSettings.Bindings) do
+    print(action, keys)
+end
+```
+
+---
+
+### Input Debugging Checklist
+
+**❌ Key press not detected:**
+- [ ] InputSettings.luau has the key binding
+- [ ] InputController:BindAllActions() was called
+- [ ] Check F9 console for errors
+- [ ] Try different key (some are reserved)
+
+**❌ Action not sent to server:**
+- [ ] DemoController has handler for that action
+- [ ] NetworkController is initialized
+- [ ] Event exists in Events.luau
+- [ ] Check network console logs
+
+**❌ Server not responding:**
+- [ ] Event is in AllowClientEvent whitelist
+- [ ] DemoService has EventBus:On() listener
+- [ ] Rate limit not exceeded (max 10 in 5 sec)
+- [ ] Check server console for errors
+
+---
+
 ## 🎯 Common Tasks
 
 ### Task 1: Add New Event
@@ -102,26 +257,51 @@ MyService:Start()
 
 ---
 
-## 🔍 Debug Checklist
+### Task 5: Add Input Action
 
-### ❌ Client can't connect to server
+**1. Define in InputSettings.luau:**
+```lua
+return {
+    Bindings = {
+        MyNewAction = { Enum.KeyCode.G, Enum.KeyCode.ButtonX },
+    },
+    MobileButtonNames = {
+        MyNewAction = "⚡ New Action",
+    },
+}
+```
 
-- [ ] Check server console: Did NetworkHandler create RemoteEvent?
-- [ ] Check client console: Did it find Network/NetworkBridge?
-- [ ] Wait 30+ seconds (WaitForChild timeout)
+**2. Add event to Events.luau:**
+```lua
+PLAYER_NEW_ACTION = "PlayerNewAction",
+```
 
-### ❌ Event not firing
+**3. Handle in DemoController.luau:**
+```lua
+function DemoController:OnInputAction(actionName: string)
+    -- ...existing code...
+    elseif actionName == "MyNewAction" then
+        self:SendNewAction()
+end
 
-- [ ] Is event name in Events.luau?
-- [ ] Is event allowed in NetworkHandler whitelist?
-- [ ] Is EventBus:On() listener set up?
-- [ ] Check console for rate limit warnings
+function DemoController:SendNewAction()
+    NetworkController:Send(Events.PLAYER_NEW_ACTION, {
+        customData = "value",
+    })
+end
+```
 
-### ❌ Data not received
+**4. Process in DemoService.luau:**
+```lua
+-- In Init()
+NetworkHandler:AllowClientEvent(Events.PLAYER_NEW_ACTION)
 
-- [ ] Is event in SERVER_TO_CLIENT_ALLOW or CLIENT_TO_SERVER_ALLOW?
-- [ ] Is payload safe? (no functions, instances, circular refs)
-- [ ] Check NetworkHandler logs (set DEBUG = true)
+-- In Start()
+EventBus:On(Events.PLAYER_NEW_ACTION, function(player, data)
+    print(`[DemoService] {player.Name} used new action!`)
+    -- Process logic here
+end)
+```
 
 ---
 
@@ -143,14 +323,26 @@ MyService:Start()
 
 -- Access demo
 _G.DemoController:SendPing()
+_G.DemoController:SendAttack()
+_G.DemoController:RunTests()
 
 -- Check network status
 print(game.ReplicatedStorage.SystemsShared.Network.NetworkBridge)
 
 -- Count players
 print(#game.Players:GetPlayers())
+
+-- List all input bindings
+local InputSettings = require(game.ReplicatedStorage.Shared.InputSettings)
+for action, keys in pairs(InputSettings.Bindings) do
+    print(action, "→", table.concat(keys, ", "))
+end
+
+-- Check if controller exists
+print(game.StarterPlayer.StarterPlayerScripts.Controllers:GetChildren())
 ```
 
 ---
 
-*Quick Reference v1.0*
+*Quick Reference v1.1*
+*Added Input System Reference*

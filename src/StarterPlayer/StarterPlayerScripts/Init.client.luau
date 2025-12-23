@@ -1,3 +1,4 @@
+--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local controllersFolder = script.Parent:WaitForChild("Controllers") -- โฟลเดอร์แม่
 

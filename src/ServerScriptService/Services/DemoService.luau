@@ -1,48 +1,116 @@
---Server side service for demo purposes
---Handles demo-related network events
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 
+local Events =require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
-local Events = require(ReplicatedStorage.Shared.Events)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
 
-export type DemoService = {
-	Init: (self: DemoService) -> (),
-	Start: (self: DemoService) -> (),
+export type DemoService ={
+	Init: (self: DemoService) ->(),
+	Start: (self: DemoService) ->(),
 	[string]: any,
 }
 
 local DemoService: DemoService = {}
 
-function DemoService:Init()
-
-	NetworkHandler:AllowClientEvent(Events.DEMO_PING)
-	NetworkHandler:AllowServerEvent(Events.DEMO_PONG)
-
-
-	print("[DemoService] Initialized")
+function DemoService:ServicerAllow()
+	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
+	NetworkHandler:AllowServerEvent(Events.TEST_SERVER_RESPONSE)
+	
 end
 
 function DemoService:Start()
-	EventBus:On(Events.DEMO_PING,function(player: Player,playload: any)
-		if playload then
-			print("[DemosService] Received from client:", player.Name,"massage:",playload)
-		else
-			print("No payload received from client.")
-		end
-
-		--ตอบกลับไปหาคลายเอนต์
-		NetworkHandler:SendToClient(
-			player,
-			Events.DEMO_PONG,
-			"Pong from server!"--ส่งกลับไปหาคลายเอนต์ -->DemoController
-		)
+	self:ServicerAllow()
+	
+	-- Listen for Attack input
+	EventBus:On(Events.PLAYER_ATTACK, function(player: Player, data: any)
+		print(`[DemoService] ⚔️ {player.Name} attacked at {data.position}`)
+		
+		-- Process attack (ในระบบจริงจะมีการคำนวณ damage, cooldown, etc.)
+		local damage = 10
+		
+		-- Send response back to client
+		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
+			action = "Attack",
+			damage = damage,
+			success = true,
+			message = "Attack executed!",
+		})
+		
+		-- Broadcast to other players
+		NetworkHandler:Broadcast(Events.DEMO_BROADCAST_MESSAGE, {
+			playerName = player.Name,
+			userId = player.UserId,
+			message = `{player.Name} performed an attack! (Damage: {damage})`,
+			timestamp = os.clock(),
+		})
 	end)
-
-	print("[DemoService] Started")
-
+	
+	-- Listen for Defend input
+	EventBus:On(Events.PLAYER_DEFEND, function(player: Player, data: any)
+		print(`[DemoService] 🛡️ {player.Name} is defending`)
+		
+		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
+			action = "Defend",
+			isBlocking = data.isBlocking,
+			success = true,
+			message = "Defense activated!",
+		})
+	end)
+	
+	-- Listen for Special input
+	EventBus:On(Events.PLAYER_SPECIAL, function(player: Player, data: any)
+		print(`[DemoService] ✨ {player.Name} used special: {data.skillType}`)
+		
+		NetworkHandler:Broadcast(Events.DEMO_BROADCAST_MESSAGE, {
+			playerName = player.Name,
+			userId = player.UserId,
+			message = `{player.Name} used {data.skillType}! ✨`,
+			timestamp = os.clock(),
+		})
+	end)
+	
+	-- Listen for Test Buttons
+	EventBus:On(Events.TEST_BUTTON_PRESSED, function(player: Player, data: any)
+		print(`[DemoService] 🔘 {player.Name} pressed TestButton{data.buttonId}`)
+		
+		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
+			action = "TestButton",
+			buttonId = data.buttonId,
+			receivedAt = os.clock(),
+			message = `Button {data.buttonId} received!`,
+		})
+	end)
+	
+	-- Listen for manual test
+	EventBus:On(Events.TEST_CLIENT_BUTTON_CLICK, function(player: Player, message: string)
+		print(`[DemoService] 📨 Manual test from {player.Name}: {message}`)
+		
+		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
+			action = "ManualTest",
+			echo = message,
+			serverResponse = "Server received your message!",
+		})
+	end)
 end
+
+function DemoService:Init()
+	self:Start()
+	
+	-- Allow input events
+	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
+	NetworkHandler:AllowClientEvent(Events.PLAYER_DEFEND)
+	NetworkHandler:AllowClientEvent(Events.PLAYER_SPECIAL)
+	NetworkHandler:AllowClientEvent(Events.TEST_BUTTON_PRESSED)
+	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
+end
+
+function ()
+	
+end
+
+
+
 
 return DemoService

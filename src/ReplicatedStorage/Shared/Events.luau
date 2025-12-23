@@ -128,6 +128,19 @@ Events.DEMO_CHAT_MESSAGE = "DemoChatMessage"             -- Client → Server
 Events.DEMO_UPDATE_COUNTER = "DemoUpdateCounter"         -- Server → Client
 Events.DEMO_BUTTON_CLICKED = "DemoButtonClicked"         -- Client → Server
 
+Events.TEST_CLIENT_BUTTON_CLICK = "TestClientButtonClick" -- Client → Server
+Events.TEST_SERVER_RESPONSE = "TestServerResponse"        -- Server → Client	
+
+-- Input Events (Client → Internal)
+Events.INPUT_ACTION = "InputAction"
+
+-- Input Events (Client → Server)
+Events.PLAYER_ATTACK = "PlayerAttack"
+Events.PLAYER_DEFEND = "PlayerDefend"
+Events.PLAYER_SPECIAL = "PlayerSpecial"
+Events.PLAYER_JUMP = "PlayerJump"
+Events.PLAYER_SPRINT = "PlayerSprint"
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด
