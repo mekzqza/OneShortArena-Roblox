@@ -106,11 +106,4 @@ function DemoService:Init()
 	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
 end
 
-function ()
-	
-end
-
-
-
-
 return DemoService

@@ -1,13 +1,13 @@
 --!strict
 
---[ [
-	DemoController - ตัวอย่างการใช้ InputController + NetworkController
+--[ 
+	--DemoController - ตัวอย่างการใช้ InputController + NetworkController
 	
-	การทำงาน:
-	1. InputController จับ input (เช่น กดปุ่ม E)
-	2. InputController ส่ง event ผ่าน EventBus
-	3. DemoController รับ event และส่งไปยัง Server
-	4. Server ประมวลผลและส่งกลับ
+	--การทำงาน:
+	--1. InputController จับ input (เช่น กดปุ่ม E)
+	--2. InputController ส่ง event ผ่าน EventBus
+	--3. DemoController รับ event และส่งไปยัง Server
+	--4. Server ประมวลผลและส่งกลับ
 -- ]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
