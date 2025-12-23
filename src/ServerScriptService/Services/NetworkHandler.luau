@@ -71,6 +71,24 @@ local function log(...: any)
 	end
 end
 
+local function createRemoteStructure()
+	local folder = systemsShared:FindFirstChild(REMOTE_FOLDER_NAME)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = REMOTE_FOLDER_NAME
+		folder.Parent = systemsShared
+	end
+	
+	local remote = folder:FindFirstChild(REMOTE_EVENT_NAME)
+	if not remote then
+		remote = Instance.new("RemoteEvent")
+		remote.Name = REMOTE_EVENT_NAME
+		remote.Parent = folder
+	end
+	
+	return remote :: RemoteEvent
+end
+
 local function isPayloadSafe(value: any, depth: number, visited: {[any]: boolean}?): boolean
 	if depth > MAX_DEPTH then
 		return false
@@ -311,24 +329,18 @@ local function handleClientEvent(player: Player, eventName: string, ...: any)
 end
 
 function NetworkHandler:Init()
-	remoteEvent = ensureRemoteEvent()
-
-	remoteEvent.OnServerEvent:Connect(function(player, eventName, ...)
-		handleClientEvent(player, eventName, ...)
-	end)
-
-	for eventName in pairs(SERVER_TO_CLIENT_ALLOW) do
-		EventBus:On(eventName, function(...)
-			forwardToClients(eventName, ...)
-		end)
-	end
-
+	remoteEvent = createRemoteStructure()
+	
+	remoteEvent.OnServerEvent:Connect(handleClientEvent)
+	
 	Players.PlayerRemoving:Connect(function(player)
 		local userId = player.UserId
 		clientRate[userId] = nil
 		eventSequence[userId] = nil
 		suspiciousPlayers[userId] = nil
 	end)
+	
+	print("[NetworkHandler] Initialized with enhanced security")
 end
 
 function NetworkHandler:Start()

@@ -23,9 +23,22 @@ local REMOTE_EVENT_NAME = "NetworkBridge"
 local remoteEvent: RemoteEvent
 
 local function getRemote(): RemoteEvent
-	local systemsShared = ReplicatedStorage:WaitForChild("SystemsShared")
-	local folder = systemsShared:WaitForChild(REMOTE_FOLDER_NAME)
-	return folder:WaitForChild(REMOTE_EVENT_NAME) :: RemoteEvent
+	local systemsShared = ReplicatedStorage:WaitForChild("SystemsShared", 30)
+	if not systemsShared then
+		error("[NetworkController] SystemsShared not found in ReplicatedStorage")
+	end
+	
+	local folder = systemsShared:WaitForChild(REMOTE_FOLDER_NAME, 30)
+	if not folder then
+		error(`[NetworkController] {REMOTE_FOLDER_NAME} folder not found. Server may not be initialized.`)
+	end
+	
+	local remote = folder:WaitForChild(REMOTE_EVENT_NAME, 30)
+	if not remote then
+		error(`[NetworkController] {REMOTE_EVENT_NAME} RemoteEvent not found`)
+	end
+	
+	return remote :: RemoteEvent
 end
 
 function Module:Init()

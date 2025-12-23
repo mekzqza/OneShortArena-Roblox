@@ -1,27 +1,45 @@
-local serverScriptService = game:GetService("ServerScriptService")
-local Services = serverScriptService:WaitForChild("Services") -- ใช้ WaitForChild กันพลาด
+--!strict
+
+local ServerScriptService = game:GetService("ServerScriptService")
 
 print("🔌 Server Init: Starting Services...")
 
-for _, serviceModule in pairs(Services:GetChildren()) do
-    if serviceModule:IsA("ModuleScript") then
-        -- ใช้ task.spawn เพื่อแยก Thread (ตัวใครตัวมัน ไม่รอกัน)
-        task.spawn(function()
-            local service = require(serviceModule)
-            
-            -- เช็คว่ามีฟังก์ชัน Init ไหม ถ้ามีให้เรียกใช้
-            if type(service.Init) == "function" then
-                -- ใช้ pcall กัน Error พังทั้งระบบ
-                local success, err = pcall(function()
-                    service:Init() -- แนะนำใช้ : ถ้าออกแบบเป็น OOP/Singleton
-                end)
-                
-                if not success then
-                    warn("❌ Failed to init " .. serviceModule.Name .. ": " .. err)
-                end
-            end
-        end)
-    end
-end
+-- Get Services folder
+local Services = ServerScriptService:WaitForChild("Services")
 
-print("✅ Services initialized.")
+-- Load core services in dependency order
+local NetworkHandler = require(Services.NetworkHandler)
+local GameService = require(Services.GameService)
+local ArenaService = require(Services.ArenaService)
+local CombatService = require(Services.CombatService)
+
+
+--เอาไว้ทดสอบระบบ
+--local DemoService = require(Services.DemoService) -- Add demo
+
+-- Initialize services (setup phase)
+print("[Init] Initializing NetworkHandler...")
+NetworkHandler:Init()
+
+print("[Init] Initializing GameService...")
+GameService:Init()
+
+print("[Init] Initializing ArenaService...")
+ArenaService:Init()
+
+print("[Init] Initializing CombatService...")
+CombatService:Init()
+
+--print("[Init] Initializing DemoService...")
+--DemoService:Init()
+
+-- Start services (runtime phase)
+print("[Init] Starting services...")
+NetworkHandler:Start()
+GameService:Start()
+ArenaService:Start()
+CombatService:Start()
+--DemoService:Start()
+
+print("✅ All services initialized and started successfully.")
+print("🎮 Demo Mode: Use DemoController methods to test network communication")

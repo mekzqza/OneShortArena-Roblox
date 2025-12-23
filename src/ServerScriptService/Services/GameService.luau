@@ -1,157 +1,156 @@
 --!strict
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 
--- เรียกใช้ระบบ EventBus และ Events ที่เราเตรียมไว้
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
+
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
+local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
 
-local GameService = {}
-
--- ============================================================================
--- ⚙️ Config (ตั้งค่าเกม)
--- ============================================================================
-local CONFIG = {
-	MIN_PLAYERS = 1,        -- จำนวนคนขั้นต่ำเพื่อเริ่มนับถอยหลัง (ตั้ง 1 เพื่อเทสต์คนเดียว)
-	WAIT_TIME = 10,         -- เวลารอใน Lobby (วินาที)
-	INTERMISSION = 5        -- เวลาพักหลังจบเกม
+export type GameService = {
+	Init: (self: GameService) -> (),
+	Start: (self: GameService) -> (),
+	[string]: any,
 }
 
--- ============================================================================
--- 📊 State (ตัวแปรเก็บสถานะ)
--- ============================================================================
-local isMatchActive = false
-local lobbyTimer = CONFIG.WAIT_TIME
+local GameService: GameService = {}
 
---[[\
-	Init: เตรียมความพร้อมก่อน Server เริ่ม
-	สร้างโฟลเดอร์สำหรับเก็บจุดเกิด ถ้ายังไม่มี
---]]
+local gameState = {
+	isRunning = false,
+	currentRound = 0,
+	playersInGame = {},
+}
+
 function GameService:Init()
-	print("🏗️ GameService: Initializing...")
+	-- Initialize game state
+	gameState.isRunning = false
+	gameState.currentRound = 0
+	gameState.playersInGame = {}
 	
-	if not Workspace:FindFirstChild("Spawns") then
-		local folder = Instance.new("Folder")
-		folder.Name = "Spawns"
-		folder.Parent = Workspace
-		warn("⚠️ Auto-created 'Spawns' folder. Please add 'LobbySpawn' inside it!")
-	end
+	print("[GameService] Initialized")
 end
 
---[[\
-	Start: เริ่มทำงานจริง
-	เชื่อมต่อ Event ผู้เล่น และเริ่ม Game Loop
---]]
 function GameService:Start()
-	print("🏁 GameService: Lobby System Started")
-
-	-- 1. เมื่อมีคนเข้าเกม -> ส่งไปเกิดที่ Lobby
+	-- Listen for game events
+	EventBus:On(Events.GAME_START_REQUESTED, function(player)
+		self:HandleGameStartRequest(player)
+	end)
+	
+	EventBus:On(Events.PLAYER_REQUEST_PLAY, function(player)
+		self:HandlePlayerJoinRequest(player)
+	end)
+	
+	-- Handle player connections
 	Players.PlayerAdded:Connect(function(player)
-		self:OnPlayerJoin(player)
+		self:OnPlayerJoined(player)
 	end)
-
-	-- 2. เมื่อมีคนออกเกม -> แจ้งระบบอื่น
+	
 	Players.PlayerRemoving:Connect(function(player)
-		EventBus:Emit(Events.PLAYER_LEFT, player)
+		self:OnPlayerLeft(player)
 	end)
 	
-	-- 3. ฟังคำสั่งจบเกม (จาก ArenaService หรือ Admin)
-	EventBus:On(Events.GAME_ENDED, function()
-		self:EndMatch()
-	end)
-
-	-- 4. รันลูปของเกมแยกเป็น Thread ใหม่ (ไม่ให้ขวางการทำงานอื่น)
-	task.spawn(function()
-		while true do
-			self:GameLoop()
-			task.wait(1) -- เช็คสถานะทุกๆ 1 วินาที
-		end
-	end)
+	print("[GameService] Started")
 end
 
---[[\
-	OnPlayerJoin: จัดการผู้เล่นใหม่
-	บังคับให้เกิดที่จุด LobbySpawn เท่านั้น
---]]
-function GameService:OnPlayerJoin(player: Player)
-	print("👋 " .. player.Name .. " joined the lobby.")
-	
-	-- ค้นหาจุดเกิด Lobby
-	local spawns = Workspace:FindFirstChild("Spawns")
-	local lobbySpawn = spawns and spawns:FindFirstChild("LobbySpawn")
-	
-	if lobbySpawn and lobbySpawn:IsA("SpawnLocation") then
-		player.RespawnLocation = lobbySpawn -- ✅ ตั้งจุดเกิดถาวร
-	else
-		warn("⚠️ CRITICAL: 'LobbySpawn' not found in Workspace/Spawns!")
+function GameService:HandleGameStartRequest(player: Player)
+	-- Validate: Is player authorized to start game?
+	if gameState.isRunning then
+		NetworkHandler:SendToClient(player, Events.GAME_START_FAILED, "Game already running")
+		return
 	end
 	
-	-- สั่งโหลดตัวละครทันที
-	player:LoadCharacter()
+	-- Validate: Minimum players
+	if #gameState.playersInGame < 2 then
+		NetworkHandler:SendToClient(player, Events.GAME_START_FAILED, "Need at least 2 players")
+		return
+	end
 	
-	-- แจ้งระบบอื่น
-	EventBus:Emit(Events.PLAYER_JOINED, player)
+	-- Start game
+	self:StartGame()
 end
 
---[[\
-	GameLoop: สมองของเกม
-	คอยนับจำนวนคน และนับเวลาถอยหลัง
---]]
-function GameService:GameLoop()
-	-- ถ้าเกมเริ่มไปแล้ว (อยู่ใน Arena) ไม่ต้องทำอะไรใน Lobby Loop
-	if isMatchActive then return end
+function GameService:StartGame()
+	gameState.isRunning = true
+	gameState.currentRound += 1
+	
+	print(`[GameService] Starting game - Round {gameState.currentRound}`)
+	
+	-- Broadcast to all players
+	NetworkHandler:Broadcast(Events.GAME_STARTED, {
+		round = gameState.currentRound,
+		players = gameState.playersInGame,
+	})
+	
+	-- Emit internal event for other services
+	EventBus:Emit(Events.GAME_STARTED, gameState.currentRound)
+end
 
-	local playerCount = #Players:GetPlayers()
+function GameService:HandlePlayerJoinRequest(player: Player)
+	-- Validate: Player not already in game
+	if table.find(gameState.playersInGame, player.UserId) then
+		NetworkHandler:SendToClient(player, Events.JOIN_FAILED, "Already in game")
+		return
+	end
+	
+	-- Validate: Game not full
+	local MAX_PLAYERS = 10
+	if #gameState.playersInGame >= MAX_PLAYERS then
+		NetworkHandler:SendToClient(player, Events.JOIN_FAILED, "Game is full")
+		return
+	end
+	
+	-- Add player to game
+	table.insert(gameState.playersInGame, player.UserId)
+	
+	NetworkHandler:SendToClient(player, Events.JOIN_SUCCESS, {
+		playersInGame = #gameState.playersInGame,
+	})
+	
+	print(`[GameService] Player {player.Name} joined game`)
+end
 
-	-- เช็คจำนวนคน
-	if playerCount >= CONFIG.MIN_PLAYERS then
-		-- คนครบ! นับถอยหลัง
-		lobbyTimer -= 1
+function GameService:OnPlayerJoined(player: Player)
+	print(`[GameService] Player {player.Name} connected to server`)
+	
+	-- Send initial game state to player
+	NetworkHandler:SendToClient(player, Events.GAME_STATE_UPDATE, {
+		isRunning = gameState.isRunning,
+		currentRound = gameState.currentRound,
+		playersInGame = #gameState.playersInGame,
+	})
+end
+
+function GameService:OnPlayerLeft(player: Player)
+	-- Remove from active game
+	local index = table.find(gameState.playersInGame, player.UserId)
+	if index then
+		table.remove(gameState.playersInGame, index)
+		print(`[GameService] Player {player.Name} left game`)
 		
-		-- ส่งข้อความแจ้งเตือนทุกวินาที (เช่น "Starting in 5...")
-		-- ใช้ Events.UI_SHOW_NOTIFICATION ที่คุณมีอยู่แล้ว
-		if lobbyTimer <= 5 or lobbyTimer % 5 == 0 then
-			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Match starts in: " .. lobbyTimer)
-			print("⏳ Lobby Countdown: " .. lobbyTimer)
-		end
-
-		-- เวลาหมด -> เริ่มเกม!
-		if lobbyTimer <= 0 then
-			self:StartMatch()
-		end
-	else
-		-- คนไม่พอ -> รีเซ็ตเวลา
-		if lobbyTimer ~= CONFIG.WAIT_TIME then
-			lobbyTimer = CONFIG.WAIT_TIME
-			EventBus:Emit(Events.UI_SHOW_NOTIFICATION, "Waiting for players...")
-			print("❌ Not enough players. Timer reset.")
+		-- Check if game should end
+		if gameState.isRunning and #gameState.playersInGame < 2 then
+			self:EndGame("Not enough players")
 		end
 	end
 end
 
---[[\
-	StartMatch: สั่งเริ่มแมตช์
---]]
-function GameService:StartMatch()
-	print("🚀 STARTING MATCH!")
-	isMatchActive = true
+function GameService:EndGame(reason: string)
+	gameState.isRunning = false
 	
-	-- ส่งสัญญาณ "GAME_STARTED"
-	-- ArenaService จะรับ Event นี้แล้ววาร์ปคนไปสู้กันเอง
-	EventBus:Emit(Events.GAME_STARTED)
+	print(`[GameService] Game ended - Reason: {reason}`)
+	
+	NetworkHandler:Broadcast(Events.GAME_ENDED, {
+		reason = reason,
+		round = gameState.currentRound,
+	})
+	
+	-- Clear player list
+	gameState.playersInGame = {}
 end
 
---[[\
-	EndMatch: จบแมตช์ (พักยก)
---]]
-function GameService:EndMatch()
-	print("🛑 Match Ended. Cooldown before lobby...")
-	task.wait(CONFIG.INTERMISSION)
-	
-	isMatchActive = false
-	lobbyTimer = CONFIG.WAIT_TIME
-	print("🔄 Back to Lobby Loop")
+function GameService:GetGameState()
+	return gameState
 end
 
 return GameService

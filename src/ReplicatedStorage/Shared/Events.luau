@@ -22,12 +22,14 @@ local Events = {}
 -- ============================================================================
 -- 🎮 Game Events
 -- ============================================================================
-Events.GAME_STARTED = "Game_Started"
-Events.GAME_ENDED = "Game_Ended"
+Events.GAME_STARTED = "GameStarted"
+Events.GAME_ENDED = "GameEnded"
 Events.GAME_PAUSED = "Game_Paused"
 Events.GAME_RESUMED = "Game_Resumed"
 Events.GAME_CLEANUP_COMPLETE = "Game_Cleanup_Complete"
-Events.GAME_START_REQUESTED = "Game_StartRequested"
+Events.GAME_START_REQUESTED = "GameStartRequested"
+Events.GAME_START_FAILED = "GameStartFailed"
+Events.GAME_STATE_UPDATE = "GameStateUpdate"
 
 -- ============================================================================
 -- 👤 Player Events
@@ -41,8 +43,14 @@ Events.PLAYER_SELF_SCORED = "Player_SelfScored"
 Events.PLAYER_STATS_UPDATED = "Player_StatsUpdated"
 Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
-Events.PLAYER_REQUEST_PLAY = "Player_Request_Play"
+Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Request to enter arena
+Events.JOIN_SUCCESS = "JoinSuccess"
+Events.JOIN_FAILED = "JoinFailed"
 
+-- Gameplay Loop Events
+Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Request to enter arena
+Events.PLAYER_ENTER_ARENA = "PlayerEnterArena"        -- Server → Client: Confirmation of arena entry
+Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player was eliminated
 
 Events.INPUT_ACTION= "INPUT_ACTION"
 
@@ -51,10 +59,10 @@ Events.INPUT_ACTION= "INPUT_ACTION"
 -- ============================================================================
 Events.UI_OPENED = "UI_Opened"
 Events.UI_CLOSED = "UI_Closed"
-Events.TOGGLE_UI = "Toggle_UI"
-Events.UI_SHOW_NOTIFICATION = "UI_ShowNotification"
-Events.UI_UPDATE_SCORE = "UI_UpdateScore"
-Events.UI_UPDATE_HEALTH = "UI_UpdateHealth"
+Events.TOGGLE_UI = "ToggleUI"
+Events.UI_SHOW_NOTIFICATION = "UIShowNotification"
+Events.UI_UPDATE_SCORE = "UIUpdateScore"
+Events.UI_UPDATE_HEALTH = "UIUpdateHealth"
 
 -- ============================================================================
 -- 📢 Notification Events
@@ -73,7 +81,7 @@ Events.AUDIO_SET_SFX_VOLUME = "Audio_SetSFXVolume"
 -- ============================================================================
 -- ⚙️ Settings Events
 -- ============================================================================
-Events.SETTINGS_CHANGED = "Settings_Changed"
+Events.SETTINGS_CHANGED = "SettingsChanged"
 Events.SETTINGS_RESET = "Settings_Reset"
 
 -- ============================================================================
@@ -86,14 +94,14 @@ Events.EFFECT_SHOW_HEAL = "Effect_ShowHeal"
 -- ============================================================================
 -- 📊 Results Events
 -- ============================================================================
-Events.RESULTS_SHOW_WINNER = "Results_ShowWinner"
+Events.RESULTS_SHOW_WINNER = "ResultsShowWinner"
 Events.RESULTS_SHOW_STATS = "Results_ShowStats"
 
 -- ============================================================================
 -- 🔧 Service/Controller Events
 -- ============================================================================
 Events.SERVICE_READY = "Service_Ready"
-Events.CONTROLLER_READY = "Controller_Ready"
+Events.CONTROLLER_READY = "ControllerReady"
 
 -- ============================================================================
 -- 🐛 Debug Events
@@ -107,6 +115,18 @@ Events.DEBUG_TOGGLE = "Debug_Toggle"
 Events.FIRST_TIME_TUTORIAL = "FirstTime_Tutorial"
 Events.TUTORIAL_STEP_COMPLETE = "Tutorial_StepComplete"
 Events.TUTORIAL_SKIPPED = "Tutorial_Skipped"
+
+-- ============================================================================
+-- 📺 Demo Events
+-- ============================================================================
+Events.DEMO_PING = "DemoPing"                           -- Client → Server
+Events.DEMO_PONG = "DemoPong"                           -- Server → Client
+Events.DEMO_REQUEST_DATA = "DemoRequestData"             -- Client → Server
+Events.DEMO_SEND_DATA = "DemoSendData"                   -- Server → Client
+Events.DEMO_BROADCAST_MESSAGE = "DemoBroadcastMessage"   -- Server → All Clients
+Events.DEMO_CHAT_MESSAGE = "DemoChatMessage"             -- Client → Server
+Events.DEMO_UPDATE_COUNTER = "DemoUpdateCounter"         -- Server → Client
+Events.DEMO_BUTTON_CLICKED = "DemoButtonClicked"         -- Client → Server
 
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
