@@ -249,7 +249,7 @@ function InputHandler:CheckCooldown(actionName: string): boolean
     
     if (now - lastTime) < cooldown then
         local remaining = cooldown - (now - lastTime)
-        warn(`[InputHandler] ⏱️ {actionName} on cooldown ({remaining:.1f}s remaining)`)
+        warn(string.format("[InputHandler] ⏱️ Action '%s' on cooldown (%.2f seconds left)", actionName, remaining))
         return false
     end
     

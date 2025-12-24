@@ -27,7 +27,7 @@ function DemoService:Start()
 				reason = "On cooldown",
 				remaining = remaining,
 			})
-			warn(`[DemoService] ⏱️ {player.Name} attack on cooldown ({remaining:.1f}s)`)
+			warn(string.format("[DemoService] ⚔️ %s tried to attack but is on cooldown (%.2f seconds left)", player.Name, remaining))
 			return
 		end
 		

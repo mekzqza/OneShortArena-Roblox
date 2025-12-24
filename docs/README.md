@@ -45,6 +45,24 @@ Welcome to the OneShortArena documentation! This folder contains all guides and 
 
 ---
 
+### 🚀 [Production Features](production-features.md) **← ใหม่!**
+ระบบ Production-Ready: Input, Cooldown, Validation
+
+**เหมาะสำหรับ:**
+- ทำความเข้าใจ Advanced Input System
+- เรียนรู้ Cooldown System
+- ดู Server Validation best practices
+- เพิ่ม Attack types และ Combos
+
+**เนื้อหาประกอบด้วย:**
+- ✅ 5 Input Types (Tap, Hold, DoubleTap, Release, Combo)
+- ✅ Server-side Cooldown System
+- ✅ Action Queue & Lag Compensation
+- ✅ Attack/Defense variations
+- ✅ Complete examples & tutorials
+
+---
+
 ## 🎯 Getting Started
 
 ### สำหรับนักพัฒนาใหม่:
@@ -61,7 +79,12 @@ Welcome to the OneShortArena documentation! This folder contains all guides and 
    - เรียนรู้วิธีเพิ่มปุ่มควบคุม
    - ทำความเข้าใจ input flow
 
-4. **ลองทำ Demo**
+4. **อ่าน [Production Features](production-features.md) (สำหรับ Advanced)**
+   - เรียนรู้ Input types ทั้งหมด
+   - ทำความเข้าใจ Cooldown System
+   - ดู Production best practices
+
+5. **ลองทำ Demo**
    - Run `_G.DemoController:RunTests()` ใน Command Bar
    - ดู Console output
 
@@ -77,6 +100,9 @@ Welcome to the OneShortArena documentation! This folder contains all guides and 
 | Debug Input | Input Guide | Common Issues |
 | เข้าใจโครงสร้าง | Dependencies | Architecture |
 | ทดสอบระบบ | Quick Reference | Testing Shortcuts |
+| เพิ่ม Attack Type | Production Features | Attack System |
+| ใช้ Cooldown | Production Features | Cooldown System |
+| ทำ Combo | Production Features | Combo System |
 
 ---
 
@@ -85,9 +111,10 @@ Welcome to the OneShortArena documentation! This folder contains all guides and 
 ```
 docs/
 ├── README.md                    ← You are here
-├── quick-reference.md           ← คู่มือย่อ (เริ่มต้นที่นี่)
+├── quick-reference.md           ← คู่มือย่อ
 ├── deps.md                      ← โครงสร้างระบบ
-└── input-system-guide.md        ← คู่มือ Input แบบละเอียด
+├── input-system-guide.md        ← คู่มือ Input พื้นฐาน
+└── production-features.md       ← Production Features (ใหม่!)
 ```
 
 ---
@@ -131,9 +158,10 @@ A: ดู [Input Guide → Common Issues](input-system-guide.md#-common-issues--
 
 | Document | Version | Last Updated |
 |----------|---------|--------------|
-| Quick Reference | 1.1 | 2024 |
+| Quick Reference | 1.2 | 2024 |
 | Dependencies | 1.0 | 2024 |
 | Input Guide | 1.0 | 2024 |
+| Production Features | 1.0 | 2024 |
 
 ---
 

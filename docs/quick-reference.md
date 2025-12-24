@@ -305,6 +305,48 @@ end)
 
 ---
 
+## ⚡ Production Features
+
+### Input Types Quick Reference
+
+| Input Type | How to Trigger | Event Name | Use Case |
+|------------|----------------|------------|----------|
+| **Tap** | กดปุ่ม | `"Attack"` | Normal attack |
+| **Hold** | กดค้าง 0.3+ วิ | `"AttackHold"` | Charged attack |
+| **Double Tap** | กดซ้ำภายใน 0.3 วิ | `"AttackDoubleTap"` | Dash attack |
+| **Release** | ปล่อยหลังกดค้าง | `"AttackRelease"` | Release timing |
+| **Combo** | กดตามลำดับ (E-E-R) | `"ComboTripleStrike"` | Combo skill |
+
+### Cooldown System
+
+```lua
+-- Server: Check cooldown
+if CooldownService:IsOnCooldown(player, "Attack") then
+    return -- Still on cooldown
+end
+
+-- Server: Set cooldown
+CooldownService:SetCooldown(player, "Attack") -- Use config
+CooldownService:SetCooldown(player, "Special", 10.0) -- Custom duration
+
+-- Server: Get remaining time
+local remaining = CooldownService:GetRemaining(player, "Attack")
+```
+
+### Action Queue (Client)
+
+```lua
+-- InputHandler: Queue action (auto-batched)
+self:QueueAction(Events.PLAYER_ATTACK, {
+    timestamp = tick(),
+    attackType = "Charged",
+})
+
+-- System sends batch every 0.033s (~30 FPS)
+```
+
+---
+
 ## 📊 Event Cheat Sheet
 
 | I want to... | Use Event Direction | Method |
@@ -340,9 +382,17 @@ end
 
 -- Check if controller exists
 print(game.StarterPlayer.StarterPlayerScripts.Controllers:GetChildren())
+
+-- Production features
+print(_G.InputController:GetInputState()) -- Input debug info
+print(_G.InputHandler:GetState()) -- Handler debug info
+
+-- Server console
+local CooldownService = game.ServerScriptService.Services.CooldownService
+print(CooldownService:GetRemaining(game.Players.Player1, "Attack"))
 ```
 
 ---
 
-*Quick Reference v1.1*
-*Added Input System Reference*
+*Quick Reference v1.2*
+*Added Production Features*

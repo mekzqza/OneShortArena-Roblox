@@ -138,7 +138,7 @@ local function onInput(actionName: string, inputState: Enum.UserInputState, inpu
             
             -- If was holding, emit release event
             if inputState.isHolding[actionName] then
-                print(`[InputController] 📤 Hold released: {actionName} (duration: {holdDuration:.2f}s)`)
+                print(string.format("[InputController] 🛑 Hold released: %s (held for %.2f seconds)", actionName, holdDuration))
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Release")
             end
         end
