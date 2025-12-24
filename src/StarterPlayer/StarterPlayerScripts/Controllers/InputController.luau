@@ -1,15 +1,30 @@
 --!strict
 
 --[ [
-    --InputController - Production Ready Version
+    -- InputController - Production Version
     
-    --Features:
-    -- Hold detection (กดค้าง)
-    -- Double tap/click detection
-    -- Input buffering (combo system)
-    -- Debounce (ป้องกันกดซ้ำเร็วเกินไป)
-    -- Mobile touch zones
-    -- Gamepad vibration feedback
+    -- Part of: OneShortArena Production Architecture
+    -- Layer: Client-Side Input Detection
+    
+    -- Responsibilities:
+    -- Detect hardware input (Keyboard, Mobile, Gamepad)
+    -- Support 5 input types: Tap, Hold, DoubleTap, Release, Combo
+    -- Emit INPUT_ACTION events via EventBus
+    -- Does NOT send to server directly (handled by InputHandler)
+    
+    -- Architecture Flow:
+    -- Player Input → InputController → EventBus → InputHandler → Server
+    
+    -- Features:
+    -- ✅ Hold detection (Timer-based, 0.3s threshold)
+    -- ✅ Double tap detection (0.3s window)
+    -- ✅ Input buffering for combo system
+    -- ✅ Debounce protection (0.1s)
+    -- ✅ Mobile touch button support
+    -- ✅ Configurable thresholds
+    
+    -- @version 2.0 - Production Ready
+    -- @author OneShortArena Team
 --]]
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -21,69 +36,80 @@ local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 local InputSettings = require(ReplicatedStorage.Shared.InputSettings)
 
-export type ModuleImpl = {
-    Init: (self: ModuleImpl) -> (),
-    Start: (self: ModuleImpl) -> (),
-    BindAllActions: (self: ModuleImpl) -> (),
-    UnbindAll: (self: ModuleImpl) -> (),
-    EnableInput: (self: ModuleImpl, enabled: boolean) -> (),
+-- Type Definitions
+export type InputController = {
+    Init: (self: InputController) -> (),
+    Start: (self: InputController) -> (),
+    BindAllActions: (self: InputController) -> (),
+    UnbindAll: (self: InputController) -> (),
+    EnableInput: (self: InputController, enabled: boolean) -> (),
+    GetInputState: (self: InputController) -> InputState,
+    CountBindings: (self: InputController) -> number,
     [string]: any,
 }
 
-local InputController: ModuleImpl = {}
-
-local EVENT_INPUT_ACTION = (Events :: any).INPUT_ACTION
-
--- Advanced Input Tracking (เปลี่ยนชื่อจาก inputState เป็น inputTracking)
-local inputTracking = {
-    -- Hold tracking
-    holdStartTime = {} :: {[string]: number},
-    isHolding = {} :: {[string]: boolean},
-    
-    -- Double tap tracking
-    lastTapTime = {} :: {[string]: number},
-    tapCount = {} :: {[string]: number},
-    
-    -- Debounce tracking
-    lastInputTime = {} :: {[string]: number},
-    
-    -- Input buffer (for combo system)
-    inputBuffer = {} :: {[number]: {action: string, time: number}},
-    maxBufferSize = 5,
-    bufferWindow = 0.5, -- seconds
+export type InputState = {
+    enabled: boolean,
+    holding: {[string]: boolean},
+    bufferSize: number,
+    buffer: {{action: string, time: number}},
 }
 
-local isInputEnabled = true
-local DEBOUNCE_TIME = 0.1 -- ป้องกันกดเร็วเกินไป
-local HOLD_THRESHOLD = 0.3 -- กดค้างนานกว่า 0.3 วิ = ถือว่า Hold
-local DOUBLE_TAP_WINDOW = 0.3 -- กดซ้ำภายใน 0.3 วิ = Double Tap
+local InputController: InputController = {} :: InputController
 
--- เพิ่ม: ตัวจัดการ Hold timers
+-- Constants
+local EVENT_INPUT_ACTION = (Events :: any).INPUT_ACTION
+local DEBOUNCE_TIME = 0.1 -- Prevent rapid duplicate inputs
+local HOLD_THRESHOLD = 0.3 -- Time to detect hold
+local DOUBLE_TAP_WINDOW = 0.3 -- Time window for double tap
+
+-- State Tracking
+local inputTracking = {
+    holdStartTime = {} :: {[string]: number},
+    isHolding = {} :: {[string]: boolean},
+    lastTapTime = {} :: {[string]: number},
+    tapCount = {} :: {[string]: number},
+    lastInputTime = {} :: {[string]: number},
+    inputBuffer = {} :: {{action: string, time: number}},
+    maxBufferSize = 5,
+    bufferWindow = 0.5,
+}
+
 local holdTimers = {} :: {[string]: thread?}
+local isInputEnabled = true
 
 --[ [
-    --Advanced Input Handler
-    --รองรับ: Tap, Hold, DoubleTap, Release
+    -- Advanced Input Handler
+    
+    -- Handles all input states: Begin, End
+    -- Detects: Tap, Hold, DoubleTap, Release, Combo
+    
+    -- @param actionName string - Action identifier from InputSettings
+    -- @param state Enum.UserInputState - Input state (Begin/End)
+    -- @param inputObject InputObject? - Raw input data
+    -- @return Enum.ContextActionResult - Sink (handled) or Pass (ignored)
 --]]
-local function onInput(actionName: string, state: Enum.UserInputState, inputObject: InputObject?)
-    if not isInputEnabled then return Enum.ContextActionResult.Pass end
+local function onInput(actionName: string, state: Enum.UserInputState, inputObject: InputObject?): Enum.ContextActionResult
+    if not isInputEnabled then 
+        return Enum.ContextActionResult.Pass 
+    end
     
     local now = tick()
     
-    -- === BEGIN STATE ===
+    -- === BEGIN STATE: Button Pressed ===
     if state == Enum.UserInputState.Begin then
-        -- Debounce check
+        -- Debounce: Ignore rapid duplicate inputs
         local lastTime = inputTracking.lastInputTime[actionName] or 0
         if (now - lastTime) < DEBOUNCE_TIME then
             return Enum.ContextActionResult.Sink
         end
         inputTracking.lastInputTime[actionName] = now
         
-        -- Track hold start
+        -- Track hold state
         inputTracking.holdStartTime[actionName] = now
         inputTracking.isHolding[actionName] = false
         
-        -- ✅ เพิ่ม: เริ่ม Hold timer
+        -- Start hold timer (Timer-based detection)
         if holdTimers[actionName] then
             task.cancel(holdTimers[actionName])
         end
@@ -106,7 +132,7 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
                 inputTracking.tapCount[actionName] = 0
                 
-                -- ยกเลิก Hold timerเมื่อเป็น Double Tap
+                -- Cancel hold timer on double tap
                 if holdTimers[actionName] then
                     task.cancel(holdTimers[actionName])
                     holdTimers[actionName] = nil
@@ -119,27 +145,27 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         end
         inputTracking.lastTapTime[actionName] = now
         
-        -- Add to input buffer (for combo system)
+        -- Add to input buffer (for combo detection)
         table.insert(inputTracking.inputBuffer, {
             action = actionName,
             time = now
         })
         
-        -- Clean old buffer entries
+        -- Limit buffer size
         while #inputTracking.inputBuffer > inputTracking.maxBufferSize do
             table.remove(inputTracking.inputBuffer, 1)
         end
         
-        -- Emit normal tap
+        -- Emit normal tap event
         print(`[InputController] ⌨️ Input Begin: {actionName}`)
         EventBus:Emit(EVENT_INPUT_ACTION, actionName)
         
         return Enum.ContextActionResult.Sink
     end
     
-    -- === END STATE (release) ===
+    -- === END STATE: Button Released ===
     if state == Enum.UserInputState.End then
-        -- ✅ ยกเลิก Hold timer
+        -- Cancel hold timer
         if holdTimers[actionName] then
             task.cancel(holdTimers[actionName])
             holdTimers[actionName] = nil
@@ -149,6 +175,7 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         if holdStart then
             local holdDuration = now - holdStart
             
+            -- Emit release event if was holding
             if inputTracking.isHolding[actionName] then
                 print(string.format("[InputController] 📤 Hold released: %s (duration: %.2fs)", actionName, holdDuration))
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Release")
@@ -165,31 +192,52 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
     return Enum.ContextActionResult.Pass
 end
 
+--[ [
+    -- Initialize InputController
+    
+    -- - Bind all actions from InputSettings
+    -- - Setup EventBus listeners for input enable/disable
+    -- - Print initialization status
+--]]
 function InputController:Init()
     self:BindAllActions()
     
-    -- Listen for input enable/disable from game state
+    -- Listen for game state changes
     EventBus:On(Events.INPUT_ENABLED_CHANGED, function(enabled: boolean)
         self:EnableInput(enabled)
     end)
     
     print("🎮 [InputController] Initialized (Production Mode)")
-    print("   ✅ Hold detection enabled")
+    print("   ✅ Hold detection enabled (Timer-based)")
     print("   ✅ Double tap detection enabled")
-    print("   ✅ Input buffering enabled")
+    print("   ✅ Input buffering enabled (Combo system)")
     print("   ✅ Debounce protection enabled")
 end
 
+--[ [
+    -- Start InputController
+    
+    -- - Begin combo pattern monitoring
+    -- - Run cleanup loop for expired buffer entries
+--]]
 function InputController:Start()
-    -- Monitor combo patterns
+    -- Monitor combo patterns in background
     task.spawn(function()
         while true do
-            task.wait(0.1)
+            task.wait(0.1) -- Check every 100ms
             self:CheckComboPatterns()
         end
     end)
+    
+    print("[InputController] Started - Combo monitoring active")
 end
 
+--[ [
+    -- Bind all actions from InputSettings
+    
+    -- Registers all key bindings with ContextActionService
+    -- Sets mobile button titles if defined
+--]]
 function InputController:BindAllActions()
     for actionName, keys in pairs(InputSettings.Bindings) do
         ContextActionService:BindAction(actionName, onInput, true, table.unpack(keys))
@@ -203,12 +251,20 @@ function InputController:BindAllActions()
     print(`[InputController] Bound {self:CountBindings()} actions`)
 end
 
+--[ [
+    -- Unbind all actions and cleanup
+    
+    -- - Unbind all ContextActionService bindings
+    -- - Cancel all hold timers
+    -- - Clear all tracking state
+--]]
 function InputController:UnbindAll()
+    -- Unbind all actions
     for actionName, _ in pairs(InputSettings.Bindings) do
         ContextActionService:UnbindAction(actionName)
     end
     
-    -- ✅ ยกเลิก Hold timers ทั้งหมด
+    -- Cancel all hold timers
     for actionName, timer in pairs(holdTimers) do
         if timer then
             task.cancel(timer)
@@ -216,20 +272,27 @@ function InputController:UnbindAll()
     end
     table.clear(holdTimers)
     
-    -- Clear state
+    -- Clear all tracking state
     table.clear(inputTracking.holdStartTime)
     table.clear(inputTracking.isHolding)
     table.clear(inputTracking.lastTapTime)
     table.clear(inputTracking.tapCount)
     table.clear(inputTracking.lastInputTime)
     table.clear(inputTracking.inputBuffer)
+    
+    print("[InputController] Unbound all actions and cleaned up state")
 end
 
+--[ [
+    -- Enable or disable input processing
+    
+    -- @param enabled boolean - True to enable, false to disable
+--]]
 function InputController:EnableInput(enabled: boolean)
     isInputEnabled = enabled
     
     if not enabled then
-        -- ✅ ยกเลิก Hold timers
+        -- Cancel all active hold timers
         for actionName, timer in pairs(holdTimers) do
             if timer then
                 task.cancel(timer)
@@ -237,6 +300,7 @@ function InputController:EnableInput(enabled: boolean)
         end
         table.clear(holdTimers)
         
+        -- Clear hold state
         table.clear(inputTracking.holdStartTime)
         table.clear(inputTracking.isHolding)
     end
@@ -244,11 +308,17 @@ function InputController:EnableInput(enabled: boolean)
     print(`[InputController] Input {enabled and "ENABLED" or "DISABLED"}`)
 end
 
+--[ [
+    -- Check for combo patterns in input buffer
+    
+    -- Detects predefined sequences like "Attack-Attack-Special"
+    -- Emits combo events when patterns match
+--]]
 function InputController:CheckComboPatterns()
-    -- Clean expired buffer entries
     local now = tick()
     local validBuffer = {}
     
+    -- Clean expired entries
     for _, entry in ipairs(inputTracking.inputBuffer) do
         if (now - entry.time) <= inputTracking.bufferWindow then
             table.insert(validBuffer, entry)
@@ -256,24 +326,30 @@ function InputController:CheckComboPatterns()
     end
     inputTracking.inputBuffer = validBuffer
     
-    -- Check for combo patterns (example: Attack → Attack → Special)
+    -- Check for combo patterns
     if #inputTracking.inputBuffer >= 3 then
-        local pattern = table.concat(
-            table.create(3, function(i)
-                return inputTracking.inputBuffer[#inputTracking.inputBuffer - 3 + i].action
-            end),
-            "-"
-        )
+        local actions = {}
+        for i = #inputTracking.inputBuffer - 2, #inputTracking.inputBuffer do
+            table.insert(actions, inputTracking.inputBuffer[i].action)
+        end
+        local pattern = table.concat(actions, "-")
         
-        -- Example combo detection
+        -- Example: Triple Strike combo
         if pattern == "Attack-Attack-Special" then
             print("[InputController] 🔥 Combo detected: Triple Strike!")
             EventBus:Emit(EVENT_INPUT_ACTION, "ComboTripleStrike")
-            table.clear(inputTracking.inputBuffer) -- Clear buffer after combo
+            table.clear(inputTracking.inputBuffer)
         end
+        
+        -- Add more combo patterns here
     end
 end
 
+--[ [
+    -- Count number of bound actions
+    
+    -- @return number - Count of bindings
+--]]
 function InputController:CountBindings(): number
     local count = 0
     for _ in pairs(InputSettings.Bindings) do
@@ -282,8 +358,12 @@ function InputController:CountBindings(): number
     return count
 end
 
--- Debug: Get current input state
-function InputController:GetInputState()
+--[ [
+    -- Get current input state (Debug)
+    
+    -- @return InputState - Current state snapshot
+--]]
+function InputController:GetInputState(): InputState
     return {
         enabled = isInputEnabled,
         holding = inputTracking.isHolding,

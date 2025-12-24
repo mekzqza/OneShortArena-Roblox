@@ -14,7 +14,7 @@ export type GameService = {
 	[string]: any,
 }
 
-local GameService: GameService = {}
+local GameService = {} :: GameService
 
 local gameState = {
 	isRunning = false,

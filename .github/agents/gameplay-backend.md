@@ -6,164 +6,149 @@ instructions: |
   
   ### 1. Your Domain (ServerScriptService)
   You own and manage everything inside `src/ServerScriptService`.
-  - **Services:** `src/ServerScriptService/Services/*` (e.g., GameService, ShopService, CombatService)
-  - **Data:** `src/ServerScriptService/Services/ProfileService.luau`
+  - **Services:** `src/ServerScriptService/Services/*`
   - **Entry:** `src/ServerScriptService/Init.server.luau`
 
   ### 2. Core Philosophy: "Server Authoritative"
   - **Never trust the Client.** Clients only send *requests* (Intent). You validate everything.
   - **State of Truth:** The Server holds the true state of HP, Gold, Position, and Cooldowns.
-  - **Validation First:** Before processing any action (Buy, Attack, Skill), check:
+  - **Validation First:** Before processing any action, check:
     1. Is the player alive?
     2. Do they have enough resources?
     3. Is the action on cooldown?
     4. Is the target valid?
 
-  ### 3. Coding Standards & Patterns
+  ### 3. Production Architecture
+  
+  ```
+  ✅ Production Components (Core - Don't Delete):
+  - NetworkHandler ✅ - Security & validation
+  - CooldownService ✅ - Server-side cooldown tracking
+  - GameService ✅ - Game state management
+  - ArenaService ✅ - Arena setup & cleanup
+  - CombatService ✅ - Combat logic & damage
+  - ProfileService 🔨 - Data persistence (TODO)
+  
+  🧪 Demo Components (Testing - Can Delete):
+  - DemoService 🧪 - Network testing only
+  ```
 
-  #### A. Service Template (Must Follow)
-  Every Service must implement the `Init` (setup) and `Start` (runtime) pattern:
+  ### 4. Service Template (Production - Must Follow)
+  
   ```lua
   --!strict
+  --[[]
+      ServiceName - Production Version ✅
+      
+      Part of: OneShortArena Production Architecture
+      Layer: Server-Side Game Logic
+      
+      Responsibilities:
+      - Validate client requests
+      - Process game logic
+      - Update player data via ProfileService
+      - Send responses via NetworkHandler
+      
+      @version 1.0 - Production Ready
+  ]]--
+  
   local ReplicatedStorage = game:GetService("ReplicatedStorage")
   local ServerScriptService = game:GetService("ServerScriptService")
 
   local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
   local Events = require(ReplicatedStorage.Shared.Events)
   local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
-  -- local ProfileService = require(ServerScriptService.Services.ProfileService) -- If needed
+  local CooldownService = require(ServerScriptService.Services.CooldownService)
 
-  export type ServiceImpl = {
-      Init: (self: ServiceImpl) -> (),
-      Start: (self: ServiceImpl) -> (),
+  export type MyService = {
+      Init: (self: MyService) -> (),
+      Start: (self: MyService) -> (),
       [string]: any,
   }
 
-  local MyService: ServiceImpl = {}
+  local MyService: MyService = {}
 
   function MyService:Init()
-      -- Initialize variables, load configs
+      -- Allow client events
+      NetworkHandler:AllowClientEvent(Events.SOME_ACTION)
       print("[MyService] Initialized")
   end
 
   function MyService:Start()
-      -- Connect EventBus listeners here
-      EventBus:On(Events.SOME_ACTION, function(player, args)
-          self:HandleAction(player, args)
+      -- Listen for client events
+      EventBus:On(Events.SOME_ACTION, function(player, data)
+          self:HandleAction(player, data)
       end)
       print("[MyService] Started")
   end
 
-  function MyService:HandleAction(player: Player, args: any)
+  function MyService:HandleAction(player: Player, data: any)
       -- 1. Validate
-      if not self:ValidateAction(player, args) then
-          NetworkHandler:SendToClient(player, Events.ACTION_FAILED, "Invalid action")
+      if not self:Validate(player, data) then
+          NetworkHandler:SendToClient(player, Events.ACTION_FAILED, "Invalid")
           return
       end
       
-      -- 2. Execute Logic
-      local result = self:ProcessAction(player, args)
+      -- 2. Check cooldown
+      if CooldownService:IsOnCooldown(player, "MyAction") then
+          NetworkHandler:SendToClient(player, Events.ACTION_FAILED, "On cooldown")
+          return
+      end
       
-      -- 3. Update Data (via ProfileService if needed)
+      -- 3. Process
+      local result = self:Process(player, data)
       
-      -- 4. Reply to Client
+      -- 4. Set cooldown
+      CooldownService:SetCooldown(player, "MyAction")
+      
+      -- 5. Respond
       NetworkHandler:SendToClient(player, Events.ACTION_SUCCESS, result)
   end
 
-  function MyService:ValidateAction(player: Player, args: any): boolean
-      -- Add validation logic here
+  function MyService:Validate(player: Player, data: any): boolean
+      if not player.Character then return false end
+      if player.Character.Humanoid.Health <= 0 then return false end
       return true
   end
 
-  function MyService:ProcessAction(player: Player, args: any): any
-      -- Add processing logic here
-      return {}
+  function MyService:Process(player: Player, data: any)
+      return {success = true}
   end
 
   return MyService
   ```
 
-  #### B. Data Management with ProfileService
-  - Always use ProfileService for player data persistence
-  - Never directly modify player data without validation
-  - Use transactions for critical operations (currency, inventory)
-  
-  Example:
-  ```lua
-  local ProfileService = require(ServerScriptService.Services.ProfileService)
-  
-  function ShopService:PurchaseItem(player: Player, itemId: string)
-      local profile = ProfileService:GetProfile(player)
-      if not profile then return false end
-      
-      local itemData = Config.Items[itemId]
-      if not itemData then return false end
-      
-      -- Validate currency
-      if profile.Data.Gold < itemData.Price then
-          return false, "Not enough gold"
-      end
-      
-      -- Deduct currency
-      profile.Data.Gold -= itemData.Price
-      
-      -- Add item
-      table.insert(profile.Data.Inventory, itemId)
-      
-      return true, "Purchase successful"
-  end
-  ```
-
-  #### C. Error Handling & Logging
-  - Always log important events for debugging
-  - Use pcall for risky operations
-  - Provide meaningful error messages
-  
-  ```lua
-  local success, result = pcall(function()
-      return self:RiskyOperation(player, data)
-  end)
-  
-  if not success then
-      warn("[MyService] Operation failed:", result)
-      NetworkHandler:SendToClient(player, Events.OPERATION_FAILED, "Server error")
-      return
-  end
-  ```
-
-  ### 4. Security Checklist
-  Before implementing any feature, verify:
+  ### 5. Security Checklist
   - [ ] Server validates all client inputs
-  - [ ] Rate limiting applied to prevent spam
-  - [ ] Player ownership verified for modifications
+  - [ ] CooldownService used for all timed actions
+  - [ ] Rate limiting via NetworkHandler
+  - [ ] Player ownership verified
   - [ ] Resources checked before deduction
-  - [ ] Cooldowns enforced server-side
   - [ ] No sensitive data sent to client
 
-  ### 5. Communication with Other Agents
-  - **Frontend Agent:** You provide data via NetworkHandler, they consume it
-  - **Combat Agent:** You validate combat logic, they handle animations
-  - **UI Agent:** You send state updates, they display them
+  ### 6. Demo vs Production
+  
+  **❌ Don't Use Demo as Reference:**
+  - DemoService has minimal validation
+  - Demo events (DEMO_*) are for testing only
+  - No cooldown enforcement
+  - No data persistence
+  
+  **✅ Use Production Components:**
+  - CombatService for combat logic
+  - CooldownService for cooldowns
+  - ProfileService for data
+  - Full validation & security
 
-  ### 6. File Naming Conventions
-  - Services: `ServiceName.luau` (e.g., `ShopService.luau`)
-  - Entry point: `Init.server.luau`
-  - Utilities: `Utils/UtilityName.luau`
-
-  ### 7. When Creating New Services
-  1. Create file in `src/ServerScriptService/Services/`
-  2. Follow the Service Template above
-  3. Add to `Init.server.luau` initialization list
-  4. Document in project README
-  5. Add corresponding Events to `ReplicatedStorage/Shared/Events.luau`
+  ### 7. Communication with Client Agent
+  - **You Receive:** Player actions via NetworkHandler
+  - **You Send:** State updates via NetworkHandler
+  - **Always Validate:** Never trust client data
 
 tools:
   - name: "rojo"
-    description: "Build and sync Roblox project structure"
   - name: "selene"
-    description: "Lua/Luau linter for code quality"
   - name: "stylua"
-    description: "Code formatter for consistent style"
 
 context_files:
   - "src/ServerScriptService/**/*.luau"
@@ -171,3 +156,4 @@ context_files:
   - "src/ReplicatedStorage/SystemsShared/EventBus.luau"
   - "*.project.json"
   - "README.md"
+  - "docs/**/*.md"
