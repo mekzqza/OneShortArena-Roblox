@@ -6,10 +6,24 @@ print("🔌 Client Init: Starting Controllers...")
 
 local controllers = {}
 
+-- Production mode: Skip demo/test controllers
+local SKIP_IN_PRODUCTION = {
+    ["DemoController"] = true,
+    ["TestController"] = true,
+}
+
+local IS_PRODUCTION = false -- เปลี่ยนเป็น true เมื่อ deploy
+
 -- Step 1: Load and Init all controllers
 print("[Client Init] Step 1: Initializing controllers...")
 for _, moduleScript in ipairs(controllersFolder:GetChildren()) do
     if moduleScript:IsA("ModuleScript") then
+        -- Skip demo/test controllers in production
+        if IS_PRODUCTION and SKIP_IN_PRODUCTION[moduleScript.Name] then
+            print(`[Client Init] ⏭️ Skipped {moduleScript.Name} (Production mode)`)
+            continue
+        end
+        
         local success, result = pcall(function()
             return require(moduleScript)
         end)
@@ -53,6 +67,13 @@ for name, controller in pairs(controllers) do
 end
 
 print("✅ All controllers initialized and started.")
+
+-- Expose for debugging (only in development)
+if not IS_PRODUCTION then
+    _G.Controllers = controllers
+    _G.DemoController = controllers.DemoController
+    _G.TestController = controllers.TestController
+end
 
 
 
