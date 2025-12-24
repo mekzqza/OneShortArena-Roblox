@@ -26,9 +26,10 @@ export type DemoController = {
 
 local DemoController: DemoController = {}
 
-local player = Players.LocalPlayer
+local player = Players.LocalPlayer 
 
 function DemoController:Init()
+	self:Start()
 	print("[DemoController] 🎮 Initializing...")
 end
 
@@ -38,40 +39,38 @@ function DemoController:Start()
 		self:OnInputAction(actionName)
 	end)
 	
-	print("[DemoController] 🚀 Started - Listening for input actions")
-	print("[DemoController] 📋 Try pressing:")
-	print("  • E = Attack")
-	print("  • Q = Defend")
-	print("  • R = Special")
-	print("  • P = Ping Server")
-	print("  • 1/2/3 = Test Buttons")
 end
 
 -- ฟังก์ชันหลักที่จัดการ input
 function DemoController:OnInputAction(actionName: string)
-	print(`[DemoController] 🎮 Input detected: {actionName}`)
+	print(`[DemoController -client] 🎮 Input detected: {actionName}`)
 	
-	-- แปลง input เป็น server events ตามประเภท
-	if actionName == "Attack" then
+	-- แปลงเป็นตัวพิมพ์ใหญ่ทั้งหมดเพื่อให้ case-insensitive
+	local action = string.upper(actionName)
+	
+	if action == "ATTACK" then
 		self:SendAttack()
 		
-	elseif actionName == "Defend" then
+	elseif action == "DEFEND" then
 		self:SendDefend()
 		
-	elseif actionName == "Special" then
+	elseif action == "SPECIAL" then
 		self:SendSpecial()
 		
-	elseif actionName == "Ping" then
+	elseif action == "PING" then
 		self:SendPing()
 		
-	elseif actionName == "TestButton1" then
+	elseif action == "TESTBUTTON1" then
 		self:SendTestButton(1)
 		
-	elseif actionName == "TestButton2" then
+	elseif action == "TESTBUTTON2" then
 		self:SendTestButton(2)
 		
-	elseif actionName == "TestButton3" then
+	elseif action == "TESTBUTTON3" then
 		self:SendTestButton(3)
+		
+	elseif action == "TESTCLICK" then
+		self:SendTestEventToServer()
 		
 	else
 		-- Actions อื่นๆ ที่ไม่ต้องส่งไปยัง server
@@ -129,8 +128,9 @@ end
 
 -- สามารถเรียกจาก Console ได้
 function DemoController:SendTestEventToServer()
-	print("[DemoController] 📤 Manual test event sent")
-	NetworkController:Send(Events.TEST_CLIENT_BUTTON_CLICK, "Hello from Client!")
+	local buttonCounter = 1
+	NetworkController:Send(Events.TEST_CLIENT_BUTTON_CLICK,"buttonCounter")
+	print(`[DemoController-client] 📨 Sent TestClientButtonClick with counter {buttonCounter} to server`)
 end
 
 return DemoController

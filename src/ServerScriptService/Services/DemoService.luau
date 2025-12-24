@@ -5,7 +5,7 @@ local Players = game:GetService("Players")
 local Events =require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
-
+local CooldownService = require(ServerScriptService.Services.CooldownService)
 export type DemoService ={
 	Init: (self: DemoService) ->(),
 	Start: (self: DemoService) ->(),
@@ -14,20 +14,34 @@ export type DemoService ={
 
 local DemoService: DemoService = {}
 
-function DemoService:ServicerAllow()
-	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
-	NetworkHandler:AllowServerEvent(Events.TEST_SERVER_RESPONSE)
-	
-end
-
 function DemoService:Start()
-	self:ServicerAllow()
-	
+
 	-- Listen for Attack input
 	EventBus:On(Events.PLAYER_ATTACK, function(player: Player, data: any)
 		print(`[DemoService] ⚔️ {player.Name} attacked at {data.position}`)
 		
-		-- Process attack (ในระบบจริงจะมีการคำนวณ damage, cooldown, etc.)
+		-- ✅ Server-side cooldown check
+		if CooldownService:IsOnCooldown(player, "Attack") then
+			local remaining = CooldownService:GetRemaining(player, "Attack")
+			NetworkHandler:SendToClient(player, Events.ACTION_FAILED, {
+				reason = "On cooldown",
+				remaining = remaining,
+			})
+			warn(`[DemoService] ⏱️ {player.Name} attack on cooldown ({remaining:.1f}s)`)
+			return
+		end
+		
+		-- ✅ Validate player state
+		if not player.Character or not player.Character:FindFirstChild("Humanoid") then
+			return
+		end
+		
+		local humanoid = player.Character.Humanoid
+		if humanoid.Health <= 0 then
+			return
+		end
+		
+		-- Process attack
 		local damage = 10
 		
 		-- Send response back to client
@@ -71,20 +85,8 @@ function DemoService:Start()
 		})
 	end)
 	
-	-- Listen for Test Buttons
-	EventBus:On(Events.TEST_BUTTON_PRESSED, function(player: Player, data: any)
-		print(`[DemoService] 🔘 {player.Name} pressed TestButton{data.buttonId}`)
-		
-		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
-			action = "TestButton",
-			buttonId = data.buttonId,
-			receivedAt = os.clock(),
-			message = `Button {data.buttonId} received!`,
-		})
-	end)
-	
 	-- Listen for manual test
-	EventBus:On(Events.TEST_CLIENT_BUTTON_CLICK, function(player: Player, message: string)
+	EventBus:On(Events.TEST_CLIENT_BUTTON_CLICK, function(player: Player, message: number)
 		print(`[DemoService] 📨 Manual test from {player.Name}: {message}`)
 		
 		NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
@@ -96,14 +98,14 @@ function DemoService:Start()
 end
 
 function DemoService:Init()
-	self:Start()
+
+	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
+	NetworkHandler:AllowServerEvent(Events.TEST_SERVER_RESPONSE)
 	
 	-- Allow input events
 	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
 	NetworkHandler:AllowClientEvent(Events.PLAYER_DEFEND)
 	NetworkHandler:AllowClientEvent(Events.PLAYER_SPECIAL)
-	NetworkHandler:AllowClientEvent(Events.TEST_BUTTON_PRESSED)
-	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
 end
 
 return DemoService
