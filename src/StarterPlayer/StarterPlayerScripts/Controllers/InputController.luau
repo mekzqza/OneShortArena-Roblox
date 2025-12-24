@@ -58,6 +58,9 @@ local DEBOUNCE_TIME = 0.1 -- ป้องกันกดเร็วเกิน
 local HOLD_THRESHOLD = 0.3 -- กดค้างนานกว่า 0.3 วิ = ถือว่า Hold
 local DOUBLE_TAP_WINDOW = 0.3 -- กดซ้ำภายใน 0.3 วิ = Double Tap
 
+-- เพิ่ม: ตัวจัดการ Hold timers
+local holdTimers = {} :: {[string]: thread?}
+
 --[ [
     --Advanced Input Handler
     --รองรับ: Tap, Hold, DoubleTap, Release
@@ -80,16 +83,35 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         inputTracking.holdStartTime[actionName] = now
         inputTracking.isHolding[actionName] = false
         
+        -- ✅ เพิ่ม: เริ่ม Hold timer
+        if holdTimers[actionName] then
+            task.cancel(holdTimers[actionName])
+        end
+        
+        holdTimers[actionName] = task.delay(HOLD_THRESHOLD, function()
+            if inputTracking.holdStartTime[actionName] then
+                inputTracking.isHolding[actionName] = true
+                print(`[InputController] ⏱️ Hold detected: {actionName}`)
+                EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Hold")
+            end
+        end)
+        
         -- Double tap detection
         local lastTap = inputTracking.lastTapTime[actionName] or 0
         if (now - lastTap) < DOUBLE_TAP_WINDOW then
             inputTracking.tapCount[actionName] = (inputTracking.tapCount[actionName] or 0) + 1
             
             if inputTracking.tapCount[actionName] >= 2 then
-                -- Double tap detected!
                 print(`[InputController] 🖱️ Double tap: {actionName}`)
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
                 inputTracking.tapCount[actionName] = 0
+                
+                -- ยกเลิก Hold timerเมื่อเป็น Double Tap
+                if holdTimers[actionName] then
+                    task.cancel(holdTimers[actionName])
+                    holdTimers[actionName] = nil
+                end
+                
                 return Enum.ContextActionResult.Sink
             end
         else
@@ -115,28 +137,18 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         return Enum.ContextActionResult.Sink
     end
     
-    -- === CHANGE STATE (for hold detection) ===
-    if state == Enum.UserInputState.Change then
-        local holdStart = inputTracking.holdStartTime[actionName]
-        if holdStart and not inputTracking.isHolding[actionName] then
-            local holdDuration = now - holdStart
-            
-            if holdDuration >= HOLD_THRESHOLD then
-                inputTracking.isHolding[actionName] = true
-                print(`[InputController] ⏱️ Hold detected: {actionName}`)
-                EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Hold")
-            end
-        end
-        return Enum.ContextActionResult.Sink
-    end
-    
     -- === END STATE (release) ===
     if state == Enum.UserInputState.End then
+        -- ✅ ยกเลิก Hold timer
+        if holdTimers[actionName] then
+            task.cancel(holdTimers[actionName])
+            holdTimers[actionName] = nil
+        end
+        
         local holdStart = inputTracking.holdStartTime[actionName]
         if holdStart then
             local holdDuration = now - holdStart
             
-            -- If was holding, emit release event
             if inputTracking.isHolding[actionName] then
                 print(string.format("[InputController] 📤 Hold released: %s (duration: %.2fs)", actionName, holdDuration))
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Release")
@@ -196,6 +208,14 @@ function InputController:UnbindAll()
         ContextActionService:UnbindAction(actionName)
     end
     
+    -- ✅ ยกเลิก Hold timers ทั้งหมด
+    for actionName, timer in pairs(holdTimers) do
+        if timer then
+            task.cancel(timer)
+        end
+    end
+    table.clear(holdTimers)
+    
     -- Clear state
     table.clear(inputTracking.holdStartTime)
     table.clear(inputTracking.isHolding)
@@ -209,7 +229,14 @@ function InputController:EnableInput(enabled: boolean)
     isInputEnabled = enabled
     
     if not enabled then
-        -- Clear all held states
+        -- ✅ ยกเลิก Hold timers
+        for actionName, timer in pairs(holdTimers) do
+            if timer then
+                task.cancel(timer)
+            end
+        end
+        table.clear(holdTimers)
+        
         table.clear(inputTracking.holdStartTime)
         table.clear(inputTracking.isHolding)
     end

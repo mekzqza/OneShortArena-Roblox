@@ -156,12 +156,20 @@ A: ดู [Input Guide → Common Issues](input-system-guide.md#-common-issues--
 
 ## 📊 Documentation Version
 
-| Document | Version | Last Updated |
-|----------|---------|--------------|
-| Quick Reference | 1.2 | 2024 |
-| Dependencies | 1.0 | 2024 |
-| Input Guide | 1.0 | 2024 |
-| Production Features | 1.0 | 2024 |
+| Document | Version | Last Updated | Status |
+|----------|---------|--------------|--------|
+| Quick Reference | 1.3 | 2024 | ✅ Hold Detection Fixed |
+| Dependencies | 1.0 | 2024 | ✅ Up to date |
+| Input Guide | 1.0 | 2024 | ✅ Up to date |
+| Production Features | 1.1 | 2024 | ✅ **Hold Detection Fixed** |
+
+### Recent Updates
+
+**v1.1 (Latest):**
+- ✅ **Fixed Hold detection** - เปลี่ยนจาก Change State เป็น Timer-based
+- ✅ Added Release event handling
+- ✅ Auto-cancel timers on Double Tap
+- ✅ Proper timer cleanup on unbind
 
 ---
 

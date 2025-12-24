@@ -309,13 +309,34 @@ end)
 
 ### Input Types Quick Reference
 
-| Input Type | How to Trigger | Event Name | Use Case |
-|------------|----------------|------------|----------|
-| **Tap** | กดปุ่ม | `"Attack"` | Normal attack |
-| **Hold** | กดค้าง 0.3+ วิ | `"AttackHold"` | Charged attack |
-| **Double Tap** | กดซ้ำภายใน 0.3 วิ | `"AttackDoubleTap"` | Dash attack |
-| **Release** | ปล่อยหลังกดค้าง | `"AttackRelease"` | Release timing |
-| **Combo** | กดตามลำดับ (E-E-R) | `"ComboTripleStrike"` | Combo skill |
+| Input Type | How to Trigger | Event Name | Use Case | Status |
+|------------|----------------|------------|----------|--------|
+| **Tap** | กดปุ่ม | `"Attack"` | Normal attack | ✅ Working |
+| **Hold** | กดค้าง 0.3+ วิ | `"AttackHold"` | Charged attack | ✅ **Fixed (Timer-based)** |
+| **Release** | ปล่อยหลังกดค้าง | `"AttackRelease"` | Release timing | ✅ Working |
+| **Double Tap** | กดซ้ำภายใน 0.3 วิ | `"AttackDoubleTap"` | Dash attack | ✅ Working |
+| **Combo** | กดตามลำดับ (E-E-R) | `"ComboTripleStrike"` | Combo skill | ✅ Working |
+
+### Hold Detection (Timer-based)
+
+```lua
+-- Configuration
+local HOLD_THRESHOLD = 0.3 -- วินาที
+
+-- How it works:
+-- BEGIN → Start Timer (0.3s)
+--   ↓
+-- Timer expires → Hold detected!
+--   ↓
+-- END → Release event
+```
+
+**Console Output:**
+```
+[InputController] ⌨️ Input Begin: Attack
+[InputController] ⏱️ Hold detected: Attack        ← After 0.3s
+[InputController] 📤 Hold released: Attack (duration: 2.27s)
+```
 
 ### Cooldown System
 
@@ -332,29 +353,6 @@ CooldownService:SetCooldown(player, "Special", 10.0) -- Custom duration
 -- Server: Get remaining time
 local remaining = CooldownService:GetRemaining(player, "Attack")
 ```
-
-### Action Queue (Client)
-
-```lua
--- InputHandler: Queue action (auto-batched)
-self:QueueAction(Events.PLAYER_ATTACK, {
-    timestamp = tick(),
-    attackType = "Charged",
-})
-
--- System sends batch every 0.033s (~30 FPS)
-```
-
----
-
-## 📊 Event Cheat Sheet
-
-| I want to... | Use Event Direction | Method |
-|--------------|---------------------|--------|
-| Send player action | C→S | `NetworkController:Send()` |
-| Update single player UI | S→C | `NetworkHandler:SendToClient()` |
-| Update all players | S→C | `NetworkHandler:Broadcast()` |
-| Internal server communication | - | `EventBus:Emit()` |
 
 ---
 
@@ -394,5 +392,5 @@ print(CooldownService:GetRemaining(game.Players.Player1, "Attack"))
 
 ---
 
-*Quick Reference v1.2*
-*Added Production Features*
+*Quick Reference v1.3*
+*Hold Detection Fixed (Timer-based) ✅*
