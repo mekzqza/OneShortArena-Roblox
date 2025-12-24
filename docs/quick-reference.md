@@ -1,17 +1,27 @@
-# 🚀 Quick Reference Guide
+# 🚀 Quick Reference Guide (Production)
 
-## 📌 Most Important Files
+## ⚠️ Production Only
 
-| File | Purpose | When to Edit |
-|------|---------|--------------|
-| `Events.luau` | Event name registry | Adding new events |
-| `Init.server.luau` | Server startup | Adding new services |
-| `Init.client.luau` | Client startup | Adding new controllers |
-| `NetworkHandler.luau` | Network security | Changing security rules |
+เอกสารนี้ครอบคลุม **Production components เท่านั้น**
+
+**🧪 Demo components** (DemoController, DemoService) ดูที่ `demo-testing.md`
 
 ---
 
-## 🎯 Common Tasks
+## 📌 Most Important Files (Production)
+
+| File | Purpose | When to Edit | Status |
+|------|---------|--------------|--------|
+| `Events.luau` | Event name registry | Adding new events | ✅ Production |
+| `Init.server.luau` | Server startup | Adding services | ✅ Production |
+| `Init.client.luau` | Client startup | Adding controllers | ✅ Production |
+| `NetworkHandler.luau` | Network security | Security rules | ✅ Production |
+| `CooldownService.luau` | Cooldown tracking | Cooldown config | ✅ Production |
+| ~~`DemoService.luau`~~ | ~~Testing~~ | ~~N/A~~ | 🧪 Demo (ลบได้) |
+
+---
+
+## 🎯 Common Tasks (Production)
 
 ### Task 1: Add New Event
 
@@ -20,55 +30,94 @@
 MY_NEW_EVENT = "MyNewEvent",
 ```
 
-**2. Allow in NetworkHandler (if client→server):**
+**2. Allow in NetworkHandler:**
 ```lua
+// For client→server events
 NetworkHandler:AllowClientEvent(Events.MY_NEW_EVENT)
 ```
 
-**3. Listen in Service:**
+**3. Listen in Service (Production):**
 ```lua
+// ✅ Production Service
 EventBus:On(Events.MY_NEW_EVENT, function(player, data)
-    -- Handle event
+    -- Validate first
+    if not validateAction(player, data) then return end
+    
+    -- Process
+    local result = processAction(player, data)
+    
+    -- Respond
+    NetworkHandler:SendToClient(player, Events.ACTION_SUCCESS, result)
 end)
 ```
 
+**❌ อย่าใช้:**
+```lua
+// ❌ Demo Service (ลบได้)
+EventBus:On(Events.DEMO_*, ...)
+```
+
 ---
 
-### Task 2: Send Data to Client
+### Task 2: Send Data to Client (Production)
 
-**From any Service:**
+**From Production Service:**
 ```lua
--- Send to specific player
-NetworkHandler:SendToClient(player, Events.UPDATE_UI, {score = 100})
+// ✅ GOOD - Production
+-- CombatService.luau
+NetworkHandler:SendToClient(player, Events.COMBAT_RESULT, {
+    damage = 10,
+    success = true,
+})
 
--- Broadcast to all players
+-- Broadcast to all
 NetworkHandler:Broadcast(Events.GAME_STARTED, {round = 1})
 ```
 
----
-
-### Task 3: Send Data to Server
-
-**From any Controller:**
+**❌ อย่าใช้:**
 ```lua
-NetworkController:Send(Events.BUTTON_CLICKED, {buttonId = "Play"})
+// ❌ BAD - Demo events
+NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, ...)
 ```
 
 ---
 
-### Task 4: Create New Service
+### Task 3: Handle Input (Production)
+
+**Production Flow:**
+```lua
+// ✅ Production: InputController → InputHandler → Server
+
+// InputHandler.luau
+if actionName == "Attack" then
+    self:HandleAttack() // Production method
+end
+```
+
+**❌ อย่าใช้:**
+```lua
+// ❌ Demo
+DemoController:SendTestEventToServer()
+```
+
+---
+
+### Task 4: Create New Service (Production)
 
 **1. Create file:** `Services/MyService.luau`
 
-**2. Use template:**
+**2. Use Production template:**
 ```lua
 --!strict
+-- ✅ Production Service Template
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local CooldownService = require(ServerScriptService.Services.CooldownService)
 
 export type MyService = {
     Init: (self: MyService) -> (),
@@ -78,14 +127,39 @@ export type MyService = {
 local MyService: MyService = {}
 
 function MyService:Init()
+    // Allow events
+    NetworkHandler:AllowClientEvent(Events.MY_ACTION)
     print("[MyService] Initialized")
 end
 
 function MyService:Start()
-    EventBus:On(Events.MY_EVENT, function(player, data)
-        -- Handle event
+    EventBus:On(Events.MY_ACTION, function(player, data)
+        // 1. Validate
+        if not self:Validate(player, data) then return end
+        
+        // 2. Check cooldown
+        if CooldownService:IsOnCooldown(player, "MyAction") then
+            return
+        end
+        
+        // 3. Process
+        local result = self:Process(player, data)
+        
+        // 4. Set cooldown
+        CooldownService:SetCooldown(player, "MyAction")
+        
+        // 5. Respond
+        NetworkHandler:SendToClient(player, Events.ACTION_SUCCESS, result)
     end)
-    print("[MyService] Started")
+end
+
+function MyService:Validate(player: Player, data: any): boolean
+    if not player.Character then return false end
+    return true
+end
+
+function MyService:Process(player: Player, data: any)
+    return {success = true}
 end
 
 return MyService
@@ -94,63 +168,108 @@ return MyService
 **3. Add to Init.server.luau:**
 ```lua
 local MyService = require(Services.MyService)
--- ...
+// ...
 MyService:Init()
--- ...
+// ...
 MyService:Start()
 ```
 
 ---
 
-## 🔍 Debug Checklist
+## ⚡ Production Features
 
-### ❌ Client can't connect to server
+### Input Types Quick Reference
 
-- [ ] Check server console: Did NetworkHandler create RemoteEvent?
-- [ ] Check client console: Did it find Network/NetworkBridge?
-- [ ] Wait 30+ seconds (WaitForChild timeout)
+| Input Type | Component | Event Name | Status |
+|------------|-----------|------------|--------|
+| **Tap** | InputController ✅ | `"Attack"` | Production |
+| **Hold** | InputController ✅ | `"AttackHold"` | Production |
+| **Release** | InputController ✅ | `"AttackRelease"` | Production |
+| **Double Tap** | InputController ✅ | `"AttackDoubleTap"` | Production |
+| **Combo** | InputController ✅ | `"ComboTripleStrike"` | Production |
 
-### ❌ Event not firing
-
-- [ ] Is event name in Events.luau?
-- [ ] Is event allowed in NetworkHandler whitelist?
-- [ ] Is EventBus:On() listener set up?
-- [ ] Check console for rate limit warnings
-
-### ❌ Data not received
-
-- [ ] Is event in SERVER_TO_CLIENT_ALLOW or CLIENT_TO_SERVER_ALLOW?
-- [ ] Is payload safe? (no functions, instances, circular refs)
-- [ ] Check NetworkHandler logs (set DEBUG = true)
-
----
-
-## 📊 Event Cheat Sheet
-
-| I want to... | Use Event Direction | Method |
-|--------------|---------------------|--------|
-| Send player action | C→S | `NetworkController:Send()` |
-| Update single player UI | S→C | `NetworkHandler:SendToClient()` |
-| Update all players | S→C | `NetworkHandler:Broadcast()` |
-| Internal server communication | - | `EventBus:Emit()` |
-
----
-
-## 🎮 Testing Shortcuts
+### Cooldown System (Production)
 
 ```lua
--- In Command Bar (F9)
+// ✅ Production: CooldownService
 
--- Access demo
-_G.DemoController:SendPing()
+// Server: Check cooldown
+if CooldownService:IsOnCooldown(player, "Attack") then
+    return
+end
 
--- Check network status
-print(game.ReplicatedStorage.SystemsShared.Network.NetworkBridge)
+// Server: Set cooldown
+CooldownService:SetCooldown(player, "Attack")
 
--- Count players
-print(#game.Players:GetPlayers())
+// Server: Get remaining
+local remaining = CooldownService:GetRemaining(player, "Attack")
 ```
 
 ---
 
-*Quick Reference v1.0*
+## 🔍 Debug Checklist (Production)
+
+### ❌ Event not firing
+
+- [ ] Is event in `Events.luau`?
+- [ ] Is event allowed in NetworkHandler whitelist?
+- [ ] Is EventBus:On() listener in **Production Service** (not Demo)?
+- [ ] Check console for rate limit warnings
+
+### ❌ Cooldown not working
+
+- [ ] Is CooldownService:SetCooldown() called on server?
+- [ ] Is check before or after action?
+- [ ] Check server console logs
+
+### ❌ Input not detected
+
+- [ ] Is key in InputSettings.Bindings?
+- [ ] Is InputController initialized?
+- [ ] Is InputHandler listening to INPUT_ACTION?
+
+---
+
+## 🎮 Testing Shortcuts (Production)
+
+```lua
+// In Command Bar (F9)
+
+// ✅ Production testing
+-- Check input state
+print(_G.InputController:GetInputState())
+
+-- Check handler state
+print(_G.InputHandler:GetState())
+
+// ❌ อย่าใช้ Demo
+-- print(_G.DemoController) // ลบได้
+```
+
+---
+
+## 📊 Component Status
+
+### ✅ Production Ready
+- InputController
+- InputHandler  
+- NetworkController
+- NetworkHandler
+- CooldownService
+- CombatService
+- GameService
+- ArenaService
+
+### 🧪 Demo (ลบได้)
+- ~~DemoController~~
+- ~~DemoService~~
+
+### 🔨 TODO
+- UIController
+- ProfileService
+- GameConfigs
+
+---
+
+*Quick Reference v2.0*
+*Production Only - Demo Separated ✅*
