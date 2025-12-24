@@ -34,8 +34,8 @@ local InputController: ModuleImpl = {}
 
 local EVENT_INPUT_ACTION = (Events :: any).INPUT_ACTION
 
--- Advanced Input Tracking
-local inputState = {
+-- Advanced Input Tracking (เปลี่ยนชื่อจาก inputState เป็น inputTracking)
+local inputTracking = {
     -- Hold tracking
     holdStartTime = {} :: {[string]: number},
     isHolding = {} :: {[string]: boolean},
@@ -62,50 +62,50 @@ local DOUBLE_TAP_WINDOW = 0.3 -- กดซ้ำภายใน 0.3 วิ = Dou
     --Advanced Input Handler
     --รองรับ: Tap, Hold, DoubleTap, Release
 --]]
-local function onInput(actionName: string, inputState: Enum.UserInputState, inputObject: InputObject?)
+local function onInput(actionName: string, state: Enum.UserInputState, inputObject: InputObject?)
     if not isInputEnabled then return Enum.ContextActionResult.Pass end
     
     local now = tick()
     
     -- === BEGIN STATE ===
-    if inputState == Enum.UserInputState.Begin then
+    if state == Enum.UserInputState.Begin then
         -- Debounce check
-        local lastTime = inputState.lastInputTime[actionName] or 0
+        local lastTime = inputTracking.lastInputTime[actionName] or 0
         if (now - lastTime) < DEBOUNCE_TIME then
             return Enum.ContextActionResult.Sink
         end
-        inputState.lastInputTime[actionName] = now
+        inputTracking.lastInputTime[actionName] = now
         
         -- Track hold start
-        inputState.holdStartTime[actionName] = now
-        inputState.isHolding[actionName] = false
+        inputTracking.holdStartTime[actionName] = now
+        inputTracking.isHolding[actionName] = false
         
         -- Double tap detection
-        local lastTap = inputState.lastTapTime[actionName] or 0
+        local lastTap = inputTracking.lastTapTime[actionName] or 0
         if (now - lastTap) < DOUBLE_TAP_WINDOW then
-            inputState.tapCount[actionName] = (inputState.tapCount[actionName] or 0) + 1
+            inputTracking.tapCount[actionName] = (inputTracking.tapCount[actionName] or 0) + 1
             
-            if inputState.tapCount[actionName] >= 2 then
+            if inputTracking.tapCount[actionName] >= 2 then
                 -- Double tap detected!
                 print(`[InputController] 🖱️ Double tap: {actionName}`)
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
-                inputState.tapCount[actionName] = 0
+                inputTracking.tapCount[actionName] = 0
                 return Enum.ContextActionResult.Sink
             end
         else
-            inputState.tapCount[actionName] = 1
+            inputTracking.tapCount[actionName] = 1
         end
-        inputState.lastTapTime[actionName] = now
+        inputTracking.lastTapTime[actionName] = now
         
         -- Add to input buffer (for combo system)
-        table.insert(inputState.inputBuffer, {
+        table.insert(inputTracking.inputBuffer, {
             action = actionName,
             time = now
         })
         
         -- Clean old buffer entries
-        while #inputState.inputBuffer > inputState.maxBufferSize do
-            table.remove(inputState.inputBuffer, 1)
+        while #inputTracking.inputBuffer > inputTracking.maxBufferSize do
+            table.remove(inputTracking.inputBuffer, 1)
         end
         
         -- Emit normal tap
@@ -116,13 +116,13 @@ local function onInput(actionName: string, inputState: Enum.UserInputState, inpu
     end
     
     -- === CHANGE STATE (for hold detection) ===
-    if inputState == Enum.UserInputState.Change then
-        local holdStart = inputState.holdStartTime[actionName]
-        if holdStart and not inputState.isHolding[actionName] then
+    if state == Enum.UserInputState.Change then
+        local holdStart = inputTracking.holdStartTime[actionName]
+        if holdStart and not inputTracking.isHolding[actionName] then
             local holdDuration = now - holdStart
             
             if holdDuration >= HOLD_THRESHOLD then
-                inputState.isHolding[actionName] = true
+                inputTracking.isHolding[actionName] = true
                 print(`[InputController] ⏱️ Hold detected: {actionName}`)
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Hold")
             end
@@ -131,21 +131,21 @@ local function onInput(actionName: string, inputState: Enum.UserInputState, inpu
     end
     
     -- === END STATE (release) ===
-    if inputState == Enum.UserInputState.End then
-        local holdStart = inputState.holdStartTime[actionName]
+    if state == Enum.UserInputState.End then
+        local holdStart = inputTracking.holdStartTime[actionName]
         if holdStart then
             local holdDuration = now - holdStart
             
             -- If was holding, emit release event
-            if inputState.isHolding[actionName] then
-                print(string.format("[InputController] 🛑 Hold released: %s (held for %.2f seconds)", actionName, holdDuration))
+            if inputTracking.isHolding[actionName] then
+                print(string.format("[InputController] 📤 Hold released: %s (duration: %.2fs)", actionName, holdDuration))
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Release")
             end
         end
         
         -- Cleanup
-        inputState.holdStartTime[actionName] = nil
-        inputState.isHolding[actionName] = nil
+        inputTracking.holdStartTime[actionName] = nil
+        inputTracking.isHolding[actionName] = nil
         
         return Enum.ContextActionResult.Sink
     end
@@ -197,12 +197,12 @@ function InputController:UnbindAll()
     end
     
     -- Clear state
-    table.clear(inputState.holdStartTime)
-    table.clear(inputState.isHolding)
-    table.clear(inputState.lastTapTime)
-    table.clear(inputState.tapCount)
-    table.clear(inputState.lastInputTime)
-    table.clear(inputState.inputBuffer)
+    table.clear(inputTracking.holdStartTime)
+    table.clear(inputTracking.isHolding)
+    table.clear(inputTracking.lastTapTime)
+    table.clear(inputTracking.tapCount)
+    table.clear(inputTracking.lastInputTime)
+    table.clear(inputTracking.inputBuffer)
 end
 
 function InputController:EnableInput(enabled: boolean)
@@ -210,8 +210,8 @@ function InputController:EnableInput(enabled: boolean)
     
     if not enabled then
         -- Clear all held states
-        table.clear(inputState.holdStartTime)
-        table.clear(inputState.isHolding)
+        table.clear(inputTracking.holdStartTime)
+        table.clear(inputTracking.isHolding)
     end
     
     print(`[InputController] Input {enabled and "ENABLED" or "DISABLED"}`)
@@ -222,18 +222,18 @@ function InputController:CheckComboPatterns()
     local now = tick()
     local validBuffer = {}
     
-    for _, entry in ipairs(inputState.inputBuffer) do
-        if (now - entry.time) <= inputState.bufferWindow then
+    for _, entry in ipairs(inputTracking.inputBuffer) do
+        if (now - entry.time) <= inputTracking.bufferWindow then
             table.insert(validBuffer, entry)
         end
     end
-    inputState.inputBuffer = validBuffer
+    inputTracking.inputBuffer = validBuffer
     
     -- Check for combo patterns (example: Attack → Attack → Special)
-    if #inputState.inputBuffer >= 3 then
+    if #inputTracking.inputBuffer >= 3 then
         local pattern = table.concat(
             table.create(3, function(i)
-                return inputState.inputBuffer[#inputState.inputBuffer - 3 + i].action
+                return inputTracking.inputBuffer[#inputTracking.inputBuffer - 3 + i].action
             end),
             "-"
         )
@@ -242,7 +242,7 @@ function InputController:CheckComboPatterns()
         if pattern == "Attack-Attack-Special" then
             print("[InputController] 🔥 Combo detected: Triple Strike!")
             EventBus:Emit(EVENT_INPUT_ACTION, "ComboTripleStrike")
-            table.clear(inputState.inputBuffer) -- Clear buffer after combo
+            table.clear(inputTracking.inputBuffer) -- Clear buffer after combo
         end
     end
 end
@@ -259,9 +259,9 @@ end
 function InputController:GetInputState()
     return {
         enabled = isInputEnabled,
-        holding = inputState.isHolding,
-        bufferSize = #inputState.inputBuffer,
-        buffer = inputState.inputBuffer,
+        holding = inputTracking.isHolding,
+        bufferSize = #inputTracking.inputBuffer,
+        buffer = inputTracking.inputBuffer,
     }
 end
 

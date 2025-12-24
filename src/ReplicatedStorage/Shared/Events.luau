@@ -141,6 +141,9 @@ Events.PLAYER_SPECIAL = "PlayerSpecial"
 Events.PLAYER_JUMP = "PlayerJump"
 Events.PLAYER_SPRINT = "PlayerSprint"
 
+
+Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด
