@@ -128,6 +128,29 @@ local function isPayloadSafe(value: any, depth: number, visited: {[any]: boolean
 	end
 end
 
+-- Track suspicious behavior
+local function addSuspiciousStrike(player: Player, reason: string)
+	local userId = player.UserId
+	local record = suspiciousPlayers[userId]
+	local now = os.clock()
+
+	if not record or (now - record.lastStrike) > 60 then
+		record = { strikes = 0, lastStrike = now }
+		suspiciousPlayers[userId] = record
+	end
+
+	record.strikes += 1
+	record.lastStrike = now
+
+	warn(string.format("[NetworkHandler] Suspicious activity from %s: %s (Strike %d)", 
+		player.Name, reason, record.strikes))
+
+	-- Auto-kick after too many strikes
+	if record.strikes >= 5 then
+		player:Kick("Suspicious network activity detected")
+	end
+end
+
 -- Enhanced rate limiting with burst detection
 local function checkRateLimit(player: Player): (boolean, string?)
 	local now = os.clock()
@@ -171,28 +194,7 @@ local function checkRateLimit(player: Player): (boolean, string?)
 	return true
 end
 
--- Track suspicious behavior
-local function addSuspiciousStrike(player: Player, reason: string)
-	local userId = player.UserId
-	local record = suspiciousPlayers[userId]
-	local now = os.clock()
 
-	if not record or (now - record.lastStrike) > 60 then
-		record = { strikes = 0, lastStrike = now }
-		suspiciousPlayers[userId] = record
-	end
-
-	record.strikes += 1
-	record.lastStrike = now
-
-	warn(string.format("[NetworkHandler] Suspicious activity from %s: %s (Strike %d)", 
-		player.Name, reason, record.strikes))
-
-	-- Auto-kick after too many strikes
-	if record.strikes >= 5 then
-		player:Kick("Suspicious network activity detected")
-	end
-end
 
 -- Validate event sequence/dependencies
 local function checkEventSequence(player: Player, eventName: string): (boolean, string?)
