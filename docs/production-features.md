@@ -1,18 +1,27 @@
 # 🚀 Production-Ready Features
 
-## 📋 สารบัญ
+## ⚠️ Important: Demo vs Production
 
-1. [Advanced Input System](#advanced-input-system)
-2. [Cooldown System](#cooldown-system)
-3. [Input Handler (Production)](#input-handler-production)
-4. [Server Validation](#server-validation)
-5. [วิธีใช้งาน](#วิธีใช้งาน)
+**ไฟล์นี้อธิบาย Production Architecture เท่านั้น**
+
+```
+✅ Production (ใช้งานจริง)    🧪 Demo (ทดสอบเท่านั้น - ลบได้)
+├─ InputController            ├─ DemoController
+├─ InputHandler               └─ DemoService
+├─ NetworkController          
+├─ CombatService              
+└─ CooldownService            
+```
+
+**Demo Layer จะไม่กล่าวถึงในเอกสารนี้** - ดู `demo-testing.md` สำหรับ Demo
 
 ---
 
 ## 🎮 Advanced Input System
 
 ### สิ่งที่เพิ่มเข้ามา
+
+**Production Component: InputController.luau ✅**
 
 InputController ตอนนี้รองรับ **5 ประเภทของ Input**:
 
@@ -340,7 +349,9 @@ END STATE
 
 ## ⏱️ Cooldown System
 
-### สิ่งที่เพิ่มเข้ามา: CooldownService
+### สิ่งที่เพิ่มเข้ามา: CooldownService ✅
+
+**Production Component: CooldownService.luau**
 
 **ไฟล์:** `src/ServerScriptService/Services/CooldownService.luau`
 
@@ -451,24 +462,28 @@ end)
 
 ---
 
-## 🎯 Input Handler (Production)
+## 🎯 Input Handler (Production) ✅
 
 ### สิ่งที่เพิ่มเข้ามา
 
+**Production Component: InputHandler.luau**
+
 **ไฟล์:** `src/StarterPlayerScripts/Controllers/InputHandler.luau`
 
-InputHandler เป็น **Production version** ของ DemoController
+InputHandler เป็น **Production version** - **ไม่ใช่ DemoController**
 
-### ความแตกต่างจาก DemoController
+### ความแตกต่างจาก DemoController (🧪 Demo - ลบได้)
 
-| Feature | DemoController | InputHandler |
-|---------|---------------|--------------|
+| Feature | ~~DemoController~~ 🧪 | InputHandler ✅ |
+|---------|------|------------|
+| **Status** | Demo only | Production |
 | Cooldown check | ❌ Client-side only | ✅ Client + Server |
-| State validation | ❌ Basic | ✅ Advanced (HP, State) |
-| Action queue | ❌ Send immediately | ✅ Queue for lag compensation |
-| Attack types | ❌ Single type | ✅ Multiple (Normal, Charged, Dash) |
-| Combo support | ❌ No | ✅ Yes |
-| Error handling | ❌ Basic | ✅ Comprehensive |
+| State validation | ❌ Basic | ✅ Advanced |
+| Action queue | ❌ Send immediately | ✅ Queue + batch |
+| Attack types | ❌ Single type | ✅ Multiple types |
+| **Can Delete?** | ✅ Yes | ❌ No - Core |
+
+**⚠️ คำเตือน:** DemoController ใช้เพื่อทดสอบเท่านั้น - อย่าใช้เป็น reference สำหรับ Production!
 
 ---
 
@@ -531,11 +546,13 @@ elseif actionName == "AttackRelease" then
 
 ---
 
-## 🔒 Server Validation
+## 🔒 Server Validation (Production)
 
-### DemoService (Updated)
+### CombatService.luau ✅ (ไม่ใช่ DemoService 🧪)
 
-**ไฟล์:** `src/ServerScriptService/Services/DemoService.luau`
+**ไฟล์:** `src/ServerScriptService/Services/CombatService.luau`
+
+**Production Component** - มี validation ครบถ้วน
 
 ### Validation Flow
 
@@ -544,11 +561,11 @@ elseif actionName == "AttackRelease" then
    ↓
 2. ✅ Cooldown check (CooldownService)
    ↓
-3. ✅ Player state check (Character exists?)
+3. ✅ Player state check
    ↓
-4. ✅ HP check (Is alive?)
+4. ✅ HP check
    ↓
-5. ✅ Resource check (Stamina, Mana, etc.)
+5. ✅ Resource check
    ↓
 6. ✅ Process action
    ↓
@@ -557,73 +574,68 @@ elseif actionName == "AttackRelease" then
 8. ✅ Send response
 ```
 
-### Example: Attack Validation
+### Example: Attack Validation (Production)
 
 ```lua
+-- ✅ Production: CombatService.luau
 EventBus:On(Events.PLAYER_ATTACK, function(player: Player, data: any)
     -- 1. Cooldown check
     if CooldownService:IsOnCooldown(player, "Attack") then
-        local remaining = CooldownService:GetRemaining(player, "Attack")
         NetworkHandler:SendToClient(player, Events.ACTION_FAILED, {
             reason = "On cooldown",
-            remaining = remaining,
         })
         return
     end
     
-    -- 2. Character check
-    if not player.Character or not player.Character:FindFirstChild("Humanoid") then
-        return
-    end
+    -- 2-5. Validations...
     
-    -- 3. HP check
-    local humanoid = player.Character.Humanoid
-    if humanoid.Health <= 0 then
-        return
-    end
+    -- 6. Process
+    local damage = calculateDamage(player, data)
     
-    -- 4. Process attack
-    local damage = 10
-    if data.attackType == "Charged" then
-        damage = damage * 1.5
-    end
-    
-    -- 5. Set cooldown
+    -- 7. Set cooldown
     CooldownService:SetCooldown(player, "Attack")
     
-    -- 6. Send response
-    NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, {
+    -- 8. Respond
+    NetworkHandler:SendToClient(player, Events.COMBAT_RESULT, {
         success = true,
         damage = damage,
     })
 end)
 ```
 
+**⚠️ อย่าใช้ DemoService เป็น reference** - ไม่มี validation ครบ!
+
 ---
 
-## 📖 วิธีใช้งาน
+## 📖 วิธีใช้งาน (Production)
 
 ### Quick Start
 
-#### 1. **ทดสอบ Input Types**
+#### 1. **ทดสอบ Production Input System**
 
 ```lua
--- ใน Roblox Studio, กด F5 เพื่อเล่น
+-- ใน Roblox Studio, กด F5
 
--- TAP: กด E แล้วปล่อยเร็ว (< 0.3s)
-→ Normal Attack (Damage: 10)
+-- กด E → InputController → InputHandler → Server
+→ CombatService validates & processes
 
--- HOLD: กดค้าง E นาน 0.3+ วินาที
-→ Charged Attack (Damage: 15)
-→ (ยังกดอยู่)
-→ ปล่อย
-→ Release event
+-- Console output:
+[InputController] ⌨️ Input Begin: Attack
+[InputHandler] ⚔️ Attack queued
+[CombatService] ⚔️ Player1 attack validated
+[CooldownService] Player1: Attack cooldown = 0.5s
+```
 
--- DOUBLE TAP: กด E → E เร็วๆ (< 0.3s)
-→ Dash Attack (Damage: 12, Knockback)
+**❌ อย่าใช้:**
+```lua
+-- ❌ Demo only
+_G.DemoController:SendTestEventToServer()
+```
 
--- COMBO: กด E → E → R ภายใน 0.5 วินาที
-→ Triple Strike Combo (Damage: 30)
+**✅ ใช้:**
+```lua
+-- ✅ Production
+-- กดปุ่ม E (ระบบจะทำงานอัตโนมัติ)
 ```
 
 ---
@@ -862,96 +874,63 @@ Timer Overhead: ~0.1% per active hold
 
 ---
 
-## 🎓 Best Practices
+## 🎓 Best Practices (Production)
 
 ### DO's ✅
 
-1. **ใช้ Server Cooldown เสมอ**
+1. **ใช้ Production Components เท่านั้น**
    ```lua
+   // ✅ GOOD - Production
+   local InputHandler = require(Controllers.InputHandler)
+   local CombatService = require(Services.CombatService)
+   
+   // ❌ BAD - Demo (ลบได้)
+   local DemoController = require(Controllers.DemoController)
+   local DemoService = require(Services.DemoService)
+   ```
+
+2. **ใช้ Server Cooldown เสมอ**
+   ```lua
+   // ✅ GOOD
    if CooldownService:IsOnCooldown(player, "Attack") then
-       return -- ห้ามเชื่อ Client
+       return
    end
    ```
 
-2. **Validate ทุก Action**
+3. **Validate ทุก Action**
    ```lua
+   // ✅ GOOD
    if not player.Character then return end
    if humanoid.Health <= 0 then return end
    ```
 
-3. **Queue Actions for Performance**
-   ```lua
-   self:QueueAction(Events.PLAYER_ATTACK, data)
-   -- ส่งเป็น batch
-   ```
-
-4. **Cleanup Hold Timers**
-   ```lua
-   -- ใน UnbindAll() หรือ DisableInput()
-   for actionName, timer in pairs(holdTimers) do
-       if timer then
-           task.cancel(timer)
-       end
-   end
-   table.clear(holdTimers)
-   ```
-
-5. **Validate Charge Duration**
-   ```lua
-   -- Server-side
-   if data.chargeDuration < MIN_CHARGE or data.chargeDuration > MAX_CHARGE then
-       return -- Prevent cheating
-   end
-   ```
-
 ### DON'Ts ❌
 
-1. **ห้ามเชื่อ Client Cooldown**
+1. **ห้ามใช้ Demo เป็น Production**
    ```lua
-   -- ❌ BAD
+   // ❌ BAD - ใช้ Demo
+   DemoController:SendTestEventToServer()
+   
+   // ✅ GOOD - ใช้ Production
+   InputHandler:HandleAttack()
+   ```
+
+2. **ห้ามเชื่อ Client Cooldown**
+   ```lua
+   // ❌ BAD
    if clientCooldown > 0 then return end
    
-   -- ✅ GOOD
+   // ✅ GOOD
    if CooldownService:IsOnCooldown(player, "Attack") then return end
-   ```
-
-2. **ห้ามส่ง Action ทีละครั้ง**
-   ```lua
-   -- ❌ BAD
-   for _, action in ipairs(actions) do
-       NetworkController:Send(action.event, action.data)
-   end
-   
-   -- ✅ GOOD
-   self:QueueAction(action.event, action.data)
-   -- System จะ batch send เอง
-   ```
-
-3. **ห้ามลืม Cleanup Timers**
-   ```lua
-   -- ❌ BAD - Memory leak!
-   function unbind()
-       table.clear(inputTracking)
-       -- Forgot to cancel timers!
-   end
-   
-   -- ✅ GOOD
-   function unbind()
-       for _, timer in pairs(holdTimers) do
-           task.cancel(timer)
-       end
-       table.clear(holdTimers)
-       table.clear(inputTracking)
-   end
    ```
 
 ---
 
 ## 🔗 Related Documentation
 
-- [Input System Guide](input-system-guide.md) - พื้นฐาน Input
-- [Quick Reference](quick-reference.md) - คู่มือย่อ
-- [Dependencies](deps.md) - โครงสร้างระบบ
+- [Quick Reference](quick-reference.md) - คู่มือย่อ Production
+- [Demo Testing Guide](demo-testing.md) - คู่มือ Demo (แยกต่างหาก)
+- [Dependencies](deps.md) - สถาปัตยกรรม Production vs Demo
 
 ---
 
@@ -960,12 +939,12 @@ Timer Overhead: ~0.1% per active hold
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2024 | Initial production features |
-| 1.1 | 2024 | ✅ **Fixed Hold detection (Timer-based)** |
-|     |      | ✅ Added Release event |
-|     |      | ✅ Auto-cancel on Double Tap |
-|     |      | ✅ Timer cleanup on unbind |
+| 1.1 | 2024 | Fixed Hold detection (Timer-based) |
+| 2.0 | 2024 | ✅ **Separated Demo from Production** |
+|     |      | ✅ Removed all Demo references |
+|     |      | ✅ Focus on Production architecture only |
 
 ---
 
-*Production Features v1.1*
-*Last Updated: 2024 - Hold Detection Fixed ✅*
+*Production Features v2.0*
+*Demo-Free Documentation ✅*

@@ -1,172 +1,27 @@
-# 🚀 Quick Reference Guide
+# 🚀 Quick Reference Guide (Production)
 
-## 📌 Most Important Files
+## ⚠️ Production Only
 
-| File | Purpose | When to Edit |
-|------|---------|--------------|
-| `Events.luau` | Event name registry | Adding new events |
-| `Init.server.luau` | Server startup | Adding new services |
-| `Init.client.luau` | Client startup | Adding new controllers |
-| `NetworkHandler.luau` | Network security | Changing security rules |
+เอกสารนี้ครอบคลุม **Production components เท่านั้น**
+
+**🧪 Demo components** (DemoController, DemoService) ดูที่ `demo-testing.md`
 
 ---
 
-## 🎮 Input System Quick Reference
+## 📌 Most Important Files (Production)
 
-### Add New Input Action
-
-**1. Add to InputSettings.luau:**
-```lua
-Bindings = {
-    MyAction = { Enum.KeyCode.F },
-},
-MobileButtonNames = {
-    MyAction = "🎯 My Action",
-},
-```
-
-**2. Add to Events.luau:**
-```lua
-PLAYER_MY_ACTION = "PlayerMyAction",
-```
-
-**3. Handle in DemoController:**
-```lua
-elseif actionName == "MyAction" then
-    self:SendMyAction()
-
-function DemoController:SendMyAction()
-    NetworkController:Send(Events.PLAYER_MY_ACTION, {data = "value"})
-end
-```
-
-**4. Process in DemoService:**
-```lua
--- Init
-NetworkHandler:AllowClientEvent(Events.PLAYER_MY_ACTION)
-
--- Start
-EventBus:On(Events.PLAYER_MY_ACTION, function(player, data)
-    -- Process action
-end)
-```
+| File | Purpose | When to Edit | Status |
+|------|---------|--------------|--------|
+| `Events.luau` | Event name registry | Adding new events | ✅ Production |
+| `Init.server.luau` | Server startup | Adding services | ✅ Production |
+| `Init.client.luau` | Client startup | Adding controllers | ✅ Production |
+| `NetworkHandler.luau` | Network security | Security rules | ✅ Production |
+| `CooldownService.luau` | Cooldown tracking | Cooldown config | ✅ Production |
+| ~~`DemoService.luau`~~ | ~~Testing~~ | ~~N/A~~ | 🧪 Demo (ลบได้) |
 
 ---
 
-### Input Flow Cheat Sheet
-
-| Want to... | Use | Example |
-|------------|-----|---------|
-| Add keyboard key | InputSettings.Bindings | `MyAction = { Enum.KeyCode.F }` |
-| Add mobile button | InputSettings.MobileButtonNames | `MyAction = "🎯 Do Something"` |
-| Send to server | NetworkController:Send() | `NetworkController:Send(Events.MY_ACTION, data)` |
-| Receive on server | EventBus:On() | `EventBus:On(Events.MY_ACTION, handler)` |
-| Validate action | DemoService | Check cooldown, resources, state |
-
----
-
-### Common Input Patterns
-
-**Pattern 1: Simple Button Press**
-```lua
--- Client
-function DemoController:OnInputAction(actionName)
-    if actionName == "Jump" then
-        NetworkController:Send(Events.PLAYER_JUMP)
-    end
-end
-
--- Server
-EventBus:On(Events.PLAYER_JUMP, function(player)
-    if canJump(player) then
-        applyJumpForce(player)
-    end
-end)
-```
-
-**Pattern 2: Action with Data**
-```lua
--- Client
-function DemoController:SendAttack()
-    NetworkController:Send(Events.PLAYER_ATTACK, {
-        timestamp = tick(),
-        targetPosition = getMouseHit(),
-    })
-end
-
--- Server
-EventBus:On(Events.PLAYER_ATTACK, function(player, data)
-    if validateAttack(player, data) then
-        dealDamage(player, data.targetPosition)
-    end
-end)
-```
-
-**Pattern 3: Cooldown Check**
-```lua
--- Server
-local lastActionTime = {}
-local COOLDOWN = 1.0
-
-EventBus:On(Events.PLAYER_SKILL, function(player, data)
-    local userId = player.UserId
-    local now = tick()
-    
-    if (now - (lastActionTime[userId] or 0)) < COOLDOWN then
-        NetworkHandler:SendToClient(player, Events.ACTION_FAILED, "On cooldown")
-        return
-    end
-    
-    lastActionTime[userId] = now
-    -- Process skill
-end)
-```
-
----
-
-### Testing Input System
-
-```lua
--- Command Bar (F9)
-
--- Check if InputController is loaded
-print(game.StarterPlayer.StarterPlayerScripts.Controllers.InputController)
-
--- Manually trigger action
-_G.DemoController:SendAttack()
-
--- Check bindings
-local InputSettings = require(game.ReplicatedStorage.Shared.InputSettings)
-for action, keys in pairs(InputSettings.Bindings) do
-    print(action, keys)
-end
-```
-
----
-
-### Input Debugging Checklist
-
-**❌ Key press not detected:**
-- [ ] InputSettings.luau has the key binding
-- [ ] InputController:BindAllActions() was called
-- [ ] Check F9 console for errors
-- [ ] Try different key (some are reserved)
-
-**❌ Action not sent to server:**
-- [ ] DemoController has handler for that action
-- [ ] NetworkController is initialized
-- [ ] Event exists in Events.luau
-- [ ] Check network console logs
-
-**❌ Server not responding:**
-- [ ] Event is in AllowClientEvent whitelist
-- [ ] DemoService has EventBus:On() listener
-- [ ] Rate limit not exceeded (max 10 in 5 sec)
-- [ ] Check server console for errors
-
----
-
-## 🎯 Common Tasks
+## 🎯 Common Tasks (Production)
 
 ### Task 1: Add New Event
 
@@ -175,55 +30,94 @@ end
 MY_NEW_EVENT = "MyNewEvent",
 ```
 
-**2. Allow in NetworkHandler (if client→server):**
+**2. Allow in NetworkHandler:**
 ```lua
+// For client→server events
 NetworkHandler:AllowClientEvent(Events.MY_NEW_EVENT)
 ```
 
-**3. Listen in Service:**
+**3. Listen in Service (Production):**
 ```lua
+// ✅ Production Service
 EventBus:On(Events.MY_NEW_EVENT, function(player, data)
-    -- Handle event
+    -- Validate first
+    if not validateAction(player, data) then return end
+    
+    -- Process
+    local result = processAction(player, data)
+    
+    -- Respond
+    NetworkHandler:SendToClient(player, Events.ACTION_SUCCESS, result)
 end)
 ```
 
+**❌ อย่าใช้:**
+```lua
+// ❌ Demo Service (ลบได้)
+EventBus:On(Events.DEMO_*, ...)
+```
+
 ---
 
-### Task 2: Send Data to Client
+### Task 2: Send Data to Client (Production)
 
-**From any Service:**
+**From Production Service:**
 ```lua
--- Send to specific player
-NetworkHandler:SendToClient(player, Events.UPDATE_UI, {score = 100})
+// ✅ GOOD - Production
+-- CombatService.luau
+NetworkHandler:SendToClient(player, Events.COMBAT_RESULT, {
+    damage = 10,
+    success = true,
+})
 
--- Broadcast to all players
+-- Broadcast to all
 NetworkHandler:Broadcast(Events.GAME_STARTED, {round = 1})
 ```
 
----
-
-### Task 3: Send Data to Server
-
-**From any Controller:**
+**❌ อย่าใช้:**
 ```lua
-NetworkController:Send(Events.BUTTON_CLICKED, {buttonId = "Play"})
+// ❌ BAD - Demo events
+NetworkHandler:SendToClient(player, Events.DEMO_SEND_DATA, ...)
 ```
 
 ---
 
-### Task 4: Create New Service
+### Task 3: Handle Input (Production)
+
+**Production Flow:**
+```lua
+// ✅ Production: InputController → InputHandler → Server
+
+// InputHandler.luau
+if actionName == "Attack" then
+    self:HandleAttack() // Production method
+end
+```
+
+**❌ อย่าใช้:**
+```lua
+// ❌ Demo
+DemoController:SendTestEventToServer()
+```
+
+---
+
+### Task 4: Create New Service (Production)
 
 **1. Create file:** `Services/MyService.luau`
 
-**2. Use template:**
+**2. Use Production template:**
 ```lua
 --!strict
+-- ✅ Production Service Template
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local CooldownService = require(ServerScriptService.Services.CooldownService)
 
 export type MyService = {
     Init: (self: MyService) -> (),
@@ -233,14 +127,39 @@ export type MyService = {
 local MyService: MyService = {}
 
 function MyService:Init()
+    // Allow events
+    NetworkHandler:AllowClientEvent(Events.MY_ACTION)
     print("[MyService] Initialized")
 end
 
 function MyService:Start()
-    EventBus:On(Events.MY_EVENT, function(player, data)
-        -- Handle event
+    EventBus:On(Events.MY_ACTION, function(player, data)
+        // 1. Validate
+        if not self:Validate(player, data) then return end
+        
+        // 2. Check cooldown
+        if CooldownService:IsOnCooldown(player, "MyAction") then
+            return
+        end
+        
+        // 3. Process
+        local result = self:Process(player, data)
+        
+        // 4. Set cooldown
+        CooldownService:SetCooldown(player, "MyAction")
+        
+        // 5. Respond
+        NetworkHandler:SendToClient(player, Events.ACTION_SUCCESS, result)
     end)
-    print("[MyService] Started")
+end
+
+function MyService:Validate(player: Player, data: any): boolean
+    if not player.Character then return false end
+    return true
+end
+
+function MyService:Process(player: Player, data: any)
+    return {success = true}
 end
 
 return MyService
@@ -249,58 +168,10 @@ return MyService
 **3. Add to Init.server.luau:**
 ```lua
 local MyService = require(Services.MyService)
--- ...
+// ...
 MyService:Init()
--- ...
+// ...
 MyService:Start()
-```
-
----
-
-### Task 5: Add Input Action
-
-**1. Define in InputSettings.luau:**
-```lua
-return {
-    Bindings = {
-        MyNewAction = { Enum.KeyCode.G, Enum.KeyCode.ButtonX },
-    },
-    MobileButtonNames = {
-        MyNewAction = "⚡ New Action",
-    },
-}
-```
-
-**2. Add event to Events.luau:**
-```lua
-PLAYER_NEW_ACTION = "PlayerNewAction",
-```
-
-**3. Handle in DemoController.luau:**
-```lua
-function DemoController:OnInputAction(actionName: string)
-    -- ...existing code...
-    elseif actionName == "MyNewAction" then
-        self:SendNewAction()
-end
-
-function DemoController:SendNewAction()
-    NetworkController:Send(Events.PLAYER_NEW_ACTION, {
-        customData = "value",
-    })
-end
-```
-
-**4. Process in DemoService.luau:**
-```lua
--- In Init()
-NetworkHandler:AllowClientEvent(Events.PLAYER_NEW_ACTION)
-
--- In Start()
-EventBus:On(Events.PLAYER_NEW_ACTION, function(player, data)
-    print(`[DemoService] {player.Name} used new action!`)
-    -- Process logic here
-end)
 ```
 
 ---
@@ -309,88 +180,96 @@ end)
 
 ### Input Types Quick Reference
 
-| Input Type | How to Trigger | Event Name | Use Case | Status |
-|------------|----------------|------------|----------|--------|
-| **Tap** | กดปุ่ม | `"Attack"` | Normal attack | ✅ Working |
-| **Hold** | กดค้าง 0.3+ วิ | `"AttackHold"` | Charged attack | ✅ **Fixed (Timer-based)** |
-| **Release** | ปล่อยหลังกดค้าง | `"AttackRelease"` | Release timing | ✅ Working |
-| **Double Tap** | กดซ้ำภายใน 0.3 วิ | `"AttackDoubleTap"` | Dash attack | ✅ Working |
-| **Combo** | กดตามลำดับ (E-E-R) | `"ComboTripleStrike"` | Combo skill | ✅ Working |
+| Input Type | Component | Event Name | Status |
+|------------|-----------|------------|--------|
+| **Tap** | InputController ✅ | `"Attack"` | Production |
+| **Hold** | InputController ✅ | `"AttackHold"` | Production |
+| **Release** | InputController ✅ | `"AttackRelease"` | Production |
+| **Double Tap** | InputController ✅ | `"AttackDoubleTap"` | Production |
+| **Combo** | InputController ✅ | `"ComboTripleStrike"` | Production |
 
-### Hold Detection (Timer-based)
-
-```lua
--- Configuration
-local HOLD_THRESHOLD = 0.3 -- วินาที
-
--- How it works:
--- BEGIN → Start Timer (0.3s)
---   ↓
--- Timer expires → Hold detected!
---   ↓
--- END → Release event
-```
-
-**Console Output:**
-```
-[InputController] ⌨️ Input Begin: Attack
-[InputController] ⏱️ Hold detected: Attack        ← After 0.3s
-[InputController] 📤 Hold released: Attack (duration: 2.27s)
-```
-
-### Cooldown System
+### Cooldown System (Production)
 
 ```lua
--- Server: Check cooldown
+// ✅ Production: CooldownService
+
+// Server: Check cooldown
 if CooldownService:IsOnCooldown(player, "Attack") then
-    return -- Still on cooldown
+    return
 end
 
--- Server: Set cooldown
-CooldownService:SetCooldown(player, "Attack") -- Use config
-CooldownService:SetCooldown(player, "Special", 10.0) -- Custom duration
+// Server: Set cooldown
+CooldownService:SetCooldown(player, "Attack")
 
--- Server: Get remaining time
+// Server: Get remaining
 local remaining = CooldownService:GetRemaining(player, "Attack")
 ```
 
 ---
 
-## 🎮 Testing Shortcuts
+## 🔍 Debug Checklist (Production)
+
+### ❌ Event not firing
+
+- [ ] Is event in `Events.luau`?
+- [ ] Is event allowed in NetworkHandler whitelist?
+- [ ] Is EventBus:On() listener in **Production Service** (not Demo)?
+- [ ] Check console for rate limit warnings
+
+### ❌ Cooldown not working
+
+- [ ] Is CooldownService:SetCooldown() called on server?
+- [ ] Is check before or after action?
+- [ ] Check server console logs
+
+### ❌ Input not detected
+
+- [ ] Is key in InputSettings.Bindings?
+- [ ] Is InputController initialized?
+- [ ] Is InputHandler listening to INPUT_ACTION?
+
+---
+
+## 🎮 Testing Shortcuts (Production)
 
 ```lua
--- In Command Bar (F9)
+// In Command Bar (F9)
 
--- Access demo
-_G.DemoController:SendPing()
-_G.DemoController:SendAttack()
-_G.DemoController:RunTests()
+// ✅ Production testing
+-- Check input state
+print(_G.InputController:GetInputState())
 
--- Check network status
-print(game.ReplicatedStorage.SystemsShared.Network.NetworkBridge)
+-- Check handler state
+print(_G.InputHandler:GetState())
 
--- Count players
-print(#game.Players:GetPlayers())
-
--- List all input bindings
-local InputSettings = require(game.ReplicatedStorage.Shared.InputSettings)
-for action, keys in pairs(InputSettings.Bindings) do
-    print(action, "→", table.concat(keys, ", "))
-end
-
--- Check if controller exists
-print(game.StarterPlayer.StarterPlayerScripts.Controllers:GetChildren())
-
--- Production features
-print(_G.InputController:GetInputState()) -- Input debug info
-print(_G.InputHandler:GetState()) -- Handler debug info
-
--- Server console
-local CooldownService = game.ServerScriptService.Services.CooldownService
-print(CooldownService:GetRemaining(game.Players.Player1, "Attack"))
+// ❌ อย่าใช้ Demo
+-- print(_G.DemoController) // ลบได้
 ```
 
 ---
 
-*Quick Reference v1.3*
-*Hold Detection Fixed (Timer-based) ✅*
+## 📊 Component Status
+
+### ✅ Production Ready
+- InputController
+- InputHandler  
+- NetworkController
+- NetworkHandler
+- CooldownService
+- CombatService
+- GameService
+- ArenaService
+
+### 🧪 Demo (ลบได้)
+- ~~DemoController~~
+- ~~DemoService~~
+
+### 🔨 TODO
+- UIController
+- ProfileService
+- GameConfigs
+
+---
+
+*Quick Reference v2.0*
+*Production Only - Demo Separated ✅*
