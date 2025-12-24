@@ -1,0 +1,54 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local Events = require(ReplicatedStorage.Shared.Events)
+local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
+local NetworkController = require(script.Parent.NetworkController)
+
+export type TestService={
+    Init:(Self: TestService)->(),
+    Start:(Self: TestService)->(),
+    [string]: any,
+}
+local TestService = {} :: TestService
+
+function TestService:Init()
+    print("[TestService-Client]")
+    
+end
+
+function TestService:Start()
+    self:ListenAction()
+end
+
+
+
+function TestService:ListenAction()
+    EventBus:On(Events.INPUT_ACTION,function(actionName:string)
+        print("[TestService-Client] รับ action จาก InputController:",actionName)
+        self:OnInputAction(actionName)
+    end)
+    
+end
+
+function TestService:OnInputAction(actionName: string)
+    local count = 1
+    if actionName == "TESTCLICK" then
+        self:SendPingToServer(count)
+    end
+end
+
+function TestService:SendPingToServer(count: number)
+    print("[TestService-Client] ส่งข้อมูลไปยัง Server:", count)
+
+    NetworkController:Send(Events.TSET_PING, {
+        message = count,
+        timestamp = tick()
+    })
+end
+
+
+
+
+
+return TestService

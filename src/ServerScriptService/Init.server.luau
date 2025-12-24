@@ -8,7 +8,7 @@ print("🔌 Server Init: Starting Services...")
 local Services = ServerScriptService:WaitForChild("Services")
 
 -- Production mode flag
-local IS_PRODUCTION = false -- เปลี่ยนเป็น true เมื่อ deploy
+local IS_PRODUCTION = true -- เปลี่ยนเป็น true เมื่อ deploy
 
 -- Load core services in dependency order
 local NetworkHandler = require(Services.NetworkHandler)

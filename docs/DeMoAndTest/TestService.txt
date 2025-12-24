@@ -1,0 +1,46 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
+
+local Events = require(ReplicatedStorage.Shared.Events)
+local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
+local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+
+export type TestService ={
+    Init:(Self: TestService)->(),
+    Start:(Self: TestService)->(),
+    [string]: any,
+}
+
+local TestService = {} :: TestService
+
+function TestService:Init()
+    print("[TestService-Server]")
+
+    --[Allow] Event ที่ยอมให้ client ส่งมาให้ server ได้
+    NetworkHandler:AllowClientEvent(Events.DEMO_PING)
+end
+
+function TestService:Start()
+    self:RespondClient()
+    print("[TestService-Server] Started")
+end
+
+function TestService:RespondClient()
+    local count: number = 0 
+    EventBus:On(Events.TSET_PING,function(player:Player, message:number)
+        print("[TestService-Server] ได้รับข้อความ:", count+message)
+        
+        NetworkHandler:SendToClient(player, Events.TEST_PONG,{
+            responseMessage = "[TestService-Server] ข้อความของคุณถูกส่งถึง Server แล้ว!",
+            receivedAt = os.clock(),
+        })
+
+    end)
+        
+    
+end
+
+
+
+return TestService

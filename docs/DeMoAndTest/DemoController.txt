@@ -51,11 +51,9 @@ local player = Players.LocalPlayer
 function DemoController:Init()
 	print("[DemoController] 🧪 Initializing Demo Layer...")
 	print("⚠️  This is for TESTING only - not Production")
-	warn("[DemoController] ✅ Init() CALLED") -- เพิ่ม debug
 end
 
 function DemoController:Start()
-	warn("[DemoController] ✅ Start() CALLED") -- เพิ่ม debug
 	
 	-- Listen for responses from Server
 	self:SetupServerListeners()
@@ -125,7 +123,7 @@ function DemoController:SendChatMessage(message: string)
 	
 	print(`[DemoController] 💬 Sending chat: {message}`)
 	
-	NetworkController:SendToServer(Events.DEMO_CHAT_MESSAGE, {
+	NetworkController:Send(Events.DEMO_CHAT_MESSAGE, {
 		message = message,
 		timestamp = tick(),
 	})
@@ -139,7 +137,7 @@ end
 function DemoController:RequestPlayerStats()
 	print("[DemoController] 📊 Requesting player stats...")
 	
-	NetworkController:SendToServer(Events.DEMO_REQUEST_DATA, {
+	NetworkController:Send(Events.DEMO_REQUEST_DATA, {
 		dataType = "stats",
 	})
 end
@@ -152,7 +150,7 @@ end
 function DemoController:RequestServerInfo()
 	print("[DemoController] 🖥️ Requesting server info...")
 	
-	NetworkController:SendToServer(Events.DEMO_REQUEST_DATA, {
+	NetworkController:Send(Events.DEMO_REQUEST_DATA, {
 		dataType = "server",
 	})
 end
@@ -163,18 +161,6 @@ end
 	Usage: _G.DemoController:SendTestButton(1)
 ]]
 
-
---[[
-	Legacy: Manual test event
-]]
-function DemoController:SendTestEventToServer()
-	print("[DemoController] 📨 Sending manual test event...")
-	
-	NetworkController:SendToServer(Events.TEST_CLIENT_BUTTON_CLICK, {
-		counter = 1,
-		timestamp = tick(),
-	})
-end
 
 -- ═══════════════════════════════════════════════════════════
 -- LEGACY METHODS (for backward compatibility)
@@ -193,14 +179,10 @@ function DemoController:OnInputAction(actionName: string)
 		self:SendSpecial()
 	elseif action == "PING" then
 		self:SendPing()
-	elseif action == "TESTBUTTON1" then
-		self:SendTestButton(1)
 	elseif action == "TESTBUTTON2" then
 		self:SendTestButton(2)
 	elseif action == "TESTBUTTON3" then
 		self:SendTestButton(3)
-	elseif action == "TESTCLICK" then
-		self:SendTestEventToServer()
 	else
 		print(`[DemoController] ℹ️ Action '{actionName}' handled locally`)
 	end
@@ -218,7 +200,7 @@ end
 function DemoController:SendDefend()
 	print("[DemoController] 🛡️ Sending Defend...")
 	
-	NetworkController:SendToServer(Events.PLAYER_DEFEND, {
+	NetworkController:Send(Events.PLAYER_DEFEND, {
 		timestamp = tick(),
 		isBlocking = true,
 	})
@@ -227,7 +209,7 @@ end
 function DemoController:SendSpecial()
 	print("[DemoController] ✨ Sending Special...")
 	
-	NetworkController:SendToServer(Events.PLAYER_SPECIAL, {
+	NetworkController:Send(Events.PLAYER_SPECIAL, {
 		timestamp = tick(),
 		skillType = "Ultimate",
 	})
@@ -236,7 +218,7 @@ end
 function DemoController:SendPing()
 	print("[DemoController] 📡 Sending Ping...")
 	
-	NetworkController:SendToServer(Events.DEMO_PING, tick())
+	NetworkController:Send(Events.DEMO_PING, tick())
 end
 
 return DemoController

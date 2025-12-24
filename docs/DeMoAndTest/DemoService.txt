@@ -266,8 +266,7 @@ function DemoService:Start()
 			buttonId = data.buttonId,
 			receivedAt = os.clock(),
 		})
-	end)
-	]]
+	end)]]
 	
 	-- Test click
 	EventBus:On(Events.TEST_CLIENT_BUTTON_CLICK, function(player: Player, data: any)
