@@ -1,22 +1,22 @@
 --!strict
 
---[ [
-	--🧪 DemoService - Network Testing Demo (Server)
+--[[
+	🧪 DemoService - Network Testing Demo (Server)
 	
-	--⚠️ FOR TESTING ONLY - NOT PRODUCTION
+	⚠️ FOR TESTING ONLY - NOT PRODUCTION
 	
-	--Purpose:
-	-- Demonstrate Server → Client communication
-	-- Respond to Client requests
-	-- Broadcast to all clients
+	-Purpose:
+	-Demonstrate Server → Client communication
+	- Respond to Client requests
+	- Broadcast to all clients
 	
-	--Can be deleted when Production is ready.
+	-Can be deleted when Production is ready.
 	
-	--Examples:
-	-- Handle DEMO_HELLO - Simple response
-	-- Handle DEMO_CHAT_MESSAGE - Broadcast chat
-	-- Handle DEMO_REQUEST_DATA - Send data to client
---]]
+	-Examples:
+	- Handle DEMO_HELLO - Simple response
+	- Handle DEMO_CHAT_MESSAGE - Broadcast chat
+	- Handle DEMO_REQUEST_DATA - Send data to client
+]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -33,17 +33,17 @@ export type DemoService = {
 	[string]: any,
 }
 
-local DemoService: DemoService = {}
+local DemoService  = {} :: DemoService
 
 function DemoService:Init()
 	print("[DemoService] 🧪 Initializing Demo Layer...")
 	
 	-- Allow Client → Server events
-	NetworkHandler:AllowClientEvent(Events.DEMO_HELLO)
+	
 	NetworkHandler:AllowClientEvent(Events.DEMO_CHAT_MESSAGE)
 	NetworkHandler:AllowClientEvent(Events.DEMO_REQUEST_DATA)
 	NetworkHandler:AllowClientEvent(Events.TEST_CLIENT_BUTTON_CLICK)
-	NetworkHandler:AllowClientEvent(Events.TEST_BUTTON_PRESSED)
+	
 	
 	-- Legacy events
 	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
@@ -52,10 +52,9 @@ function DemoService:Init()
 	NetworkHandler:AllowClientEvent(Events.DEMO_PING)
 	
 	-- Allow Server → Client events
-	NetworkHandler:AllowServerEvent(Events.DEMO_HELLO_RESPONSE)
+
 	NetworkHandler:AllowServerEvent(Events.DEMO_SEND_DATA)
 	NetworkHandler:AllowServerEvent(Events.DEMO_BROADCAST_MESSAGE)
-	NetworkHandler:AllowServerEvent(Events.DEMO_ANNOUNCEMENT)
 	NetworkHandler:AllowServerEvent(Events.TEST_SERVER_RESPONSE)
 	
 	-- Register validators
@@ -79,7 +78,7 @@ function DemoService:RegisterValidators()
 			return false, "Message cannot be empty"
 		end
 		
-		return true
+		return true, ""
 	end)
 end
 
@@ -90,10 +89,10 @@ function DemoService:Start()
 	-- SERVER → CLIENT EXAMPLES
 	-- ═══════════════════════════════════════════════════════════
 	
-	--[ [
+	--[[
 		--Example 1: Simple Request/Response
 		--Client sends DEMO_HELLO → Server responds with DEMO_HELLO_RESPONSE
-	--]]
+	
 	EventBus:On(Events.DEMO_HELLO, function(player: Player, data: any)
 		print(`[DemoService] 📨 Hello from {player.Name}: {data.message}`)
 		
@@ -111,8 +110,9 @@ function DemoService:Start()
 			timestamp = os.clock(),
 		})
 	end)
-	
-	--[ [
+	--]]
+
+	--[[ 
 		--Example 2: Chat with Broadcast
 		--Client sends chat → Server broadcasts to all
 	--]]
@@ -147,8 +147,11 @@ function DemoService:Start()
 				playerName = player.Name,
 				userId = player.UserId,
 				accountAge = player.AccountAge,
-				health = player.Character and player.Character.Humanoid.Health or 0,
-				maxHealth = player.Character and player.Character.Humanoid.MaxHealth or 100,
+				health = player.Character and player.Character:FindFirstChild("Humanoid") and (player.Character:FindFirstChild("Humanoid") :: Humanoid).Health or 0,
+				maxHealth = player.Character and player.Character:FindFirstChild("Humanoid") and (player.Character:FindFirstChild("Humanoid") :: Humanoid).MaxHealth or 100,
+				
+				--[[health = player.Character and player.Character.Humanoid.Health or 0,
+				maxHealth = player.Character and player.Character.Humanoid.MaxHealth or 100,]]
 			}
 			
 		elseif dataType == "server" then
@@ -193,7 +196,7 @@ function DemoService:Start()
 			return
 		end
 		
-		if player.Character.Humanoid.Health <= 0 then
+		if player.Character and player.Character:FindFirstChild("Humanoid") and (player.Character:FindFirstChild("Humanoid") :: Humanoid).MaxHealth <= 0 then
 			return
 		end
 		
@@ -255,7 +258,7 @@ function DemoService:Start()
 		})
 	end)
 	
-	-- Test button
+	--[[ Test button
 	EventBus:On(Events.TEST_BUTTON_PRESSED, function(player: Player, data: any)
 		print(`[DemoService] 🔘 {player.Name} pressed button {data.buttonId}`)
 		
@@ -264,6 +267,7 @@ function DemoService:Start()
 			receivedAt = os.clock(),
 		})
 	end)
+	]]
 	
 	-- Test click
 	EventBus:On(Events.TEST_CLIENT_BUTTON_CLICK, function(player: Player, data: any)
@@ -276,4 +280,6 @@ function DemoService:Start()
 		})
 	end)
 end
-return DemoService
+return DemoService 
+
+

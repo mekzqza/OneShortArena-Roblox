@@ -1,6 +1,6 @@
 --!strict
 
---[
+--[[
 	--🧪 DemoController - Network Testing Demo
 	
 	--⚠️ FOR TESTING ONLY - NOT PRODUCTION
@@ -17,7 +17,7 @@
 	-- SendChatMessage() - Chat with broadcast
 	-- RequestPlayerStats() - Request/Response pattern
 	-- SendTestButton() - Button click event
---]]
+]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -44,21 +44,26 @@ export type DemoController = {
 	[string]: any,
 }
 
-local DemoController: DemoController = {}
+local DemoController = {} :: DemoController
 
-local player = Players.LocalPlayer 
+local player = Players.LocalPlayer
 
 function DemoController:Init()
 	print("[DemoController] 🧪 Initializing Demo Layer...")
 	print("⚠️  This is for TESTING only - not Production")
+	warn("[DemoController] ✅ Init() CALLED") -- เพิ่ม debug
 end
 
 function DemoController:Start()
+	warn("[DemoController] ✅ Start() CALLED") -- เพิ่ม debug
+	
 	-- Listen for responses from Server
 	self:SetupServerListeners()
 	
 	-- Legacy: รับ INPUT_ACTION จาก InputController
+	print("[DemoController] 📡 Setting up INPUT_ACTION listener...")
 	EventBus:On(Events.INPUT_ACTION, function(actionName: string)
+		print("[DemoController] 🎯 Received INPUT_ACTION:", actionName)
 		self:OnInputAction(actionName)
 	end)
 	
@@ -70,16 +75,12 @@ function DemoController:Start()
 	print("  _G.DemoController:RequestServerInfo()")
 end
 
---[
-	--Setup listeners for Server → Client events
---]]
+--[[
+	Setup listeners for Server → Client events
+]]
 function DemoController:SetupServerListeners()
 	-- Response to Hello
-	EventBus:On(Events.DEMO_HELLO_RESPONSE, function(data: any)
-		print("[DemoController] 📬 Server response:")
-		print(`  {data.serverMessage}`)
-		print(`  Received at: {data.receivedAt}`)
-	end)
+	
 	
 	-- Broadcast messages (Chat)
 	EventBus:On(Events.DEMO_BROADCAST_MESSAGE, function(data: any)
@@ -98,37 +99,19 @@ function DemoController:SetupServerListeners()
 			print(`  {key}: {value}`)
 		end
 	end)
-	
-	-- Announcement
-	EventBus:On(Events.DEMO_ANNOUNCEMENT, function(data: any)
-		print(`[DemoController] 📢 Announcement: {data.message}`)
-	end)
 end
 
 -- ═══════════════════════════════════════════════════════════
 -- CLIENT → SERVER EXAMPLES
 -- ═══════════════════════════════════════════════════════════
 
---[
-	--Example 1: Send simple message to Server
-	
-	--Usage: _G.DemoController:SendHello()
---]]
-function DemoController:SendHello()
-	print("[DemoController] 📤 Sending Hello to server...")
-	
-	NetworkController:Send(Events.DEMO_HELLO, {
-		message = "สวัสดี Server!",
-		playerName = player.Name,
-		timestamp = tick(),
-	})
-end
 
---[
-	--Example 2: Send chat message (will be broadcasted to all)
+
+--[[
+	Example 2: Send chat message (will be broadcasted to all)
 	
-	--Usage: _G.DemoController:SendChatMessage("Hello everyone!")
---]]
+	Usage: _G.DemoController:SendChatMessage("Hello everyone!")
+]]
 function DemoController:SendChatMessage(message: string)
 	if #message == 0 then
 		warn("[DemoController] ❌ Message cannot be empty")
@@ -142,60 +125,52 @@ function DemoController:SendChatMessage(message: string)
 	
 	print(`[DemoController] 💬 Sending chat: {message}`)
 	
-	NetworkController:Send(Events.DEMO_CHAT_MESSAGE, {
+	NetworkController:SendToServer(Events.DEMO_CHAT_MESSAGE, {
 		message = message,
 		timestamp = tick(),
 	})
 end
 
---[
-	--Example 3: Request player stats from Server
+--[[
+	Example 3: Request player stats from Server
 	
-	--Usage: _G.DemoController:RequestPlayerStats()
---]]
+	Usage: _G.DemoController:RequestPlayerStats()
+]]
 function DemoController:RequestPlayerStats()
 	print("[DemoController] 📊 Requesting player stats...")
 	
-	NetworkController:Send(Events.DEMO_REQUEST_DATA, {
+	NetworkController:SendToServer(Events.DEMO_REQUEST_DATA, {
 		dataType = "stats",
 	})
 end
 
---[
-	--Example 4: Request server info
+--[[
+	Example 4: Request server info
 	
-	--Usage: _G.DemoController:RequestServerInfo()
---]]
+	Usage: _G.DemoController:RequestServerInfo()
+]]
 function DemoController:RequestServerInfo()
 	print("[DemoController] 🖥️ Requesting server info...")
 	
-	NetworkController:Send(Events.DEMO_REQUEST_DATA, {
+	NetworkController:SendToServer(Events.DEMO_REQUEST_DATA, {
 		dataType = "server",
 	})
 end
 
---[
-	--Example 5: Send button click event
+--[[
+	Example 5: Send button click event
 	
-	--Usage: _G.DemoController:SendTestButton(1)
---]]
-function DemoController:SendTestButton(buttonNumber: number)
-	print(`[DemoController] 🔘 Button {buttonNumber} clicked`)
-	
-	NetworkController:Send(Events.TEST_BUTTON_PRESSED, {
-		buttonId = buttonNumber,
-		playerName = player.Name,
-		timestamp = tick(),
-	})
-end
+	Usage: _G.DemoController:SendTestButton(1)
+]]
 
---[
-	--Legacy: Manual test event
---]]
+
+--[[
+	Legacy: Manual test event
+]]
 function DemoController:SendTestEventToServer()
 	print("[DemoController] 📨 Sending manual test event...")
 	
-	NetworkController:Send(Events.TEST_CLIENT_BUTTON_CLICK, {
+	NetworkController:SendToServer(Events.TEST_CLIENT_BUTTON_CLICK, {
 		counter = 1,
 		timestamp = tick(),
 	})
@@ -243,7 +218,7 @@ end
 function DemoController:SendDefend()
 	print("[DemoController] 🛡️ Sending Defend...")
 	
-	NetworkController:Send(Events.PLAYER_DEFEND, {
+	NetworkController:SendToServer(Events.PLAYER_DEFEND, {
 		timestamp = tick(),
 		isBlocking = true,
 	})
@@ -252,7 +227,7 @@ end
 function DemoController:SendSpecial()
 	print("[DemoController] ✨ Sending Special...")
 	
-	NetworkController:Send(Events.PLAYER_SPECIAL, {
+	NetworkController:SendToServer(Events.PLAYER_SPECIAL, {
 		timestamp = tick(),
 		skillType = "Ultimate",
 	})
@@ -261,7 +236,7 @@ end
 function DemoController:SendPing()
 	print("[DemoController] 📡 Sending Ping...")
 	
-	NetworkController:Send(Events.DEMO_PING, tick())
+	NetworkController:SendToServer(Events.DEMO_PING, tick())
 end
 
 return DemoController
