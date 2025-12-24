@@ -1,3 +1,4 @@
+--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local controllersFolder = script.Parent:WaitForChild("Controllers") -- โฟลเดอร์แม่
 
@@ -25,4 +26,5 @@ for _, moduleScript in ipairs(controllersFolder:GetChildren()) do
 end
 
 print("✅ Controllers initialized.")
+
 

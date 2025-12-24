@@ -15,6 +15,7 @@ local ACTIONS: ActionNameMap = table.freeze({
     DASH = "Dash",
     INTERACT = "Interact",
     RESPAWN = "Respawn",
+    TESTCLICK = "TestClick",
 })
 
 local DEFAULT_BINDINGS: BindingMap = table.freeze({
@@ -22,6 +23,7 @@ local DEFAULT_BINDINGS: BindingMap = table.freeze({
     DASH = table.freeze({ Enum.KeyCode.Q, Enum.KeyCode.ButtonL1 }),
     INTERACT = table.freeze({ Enum.KeyCode.F, Enum.KeyCode.ButtonX }),
     RESPAWN =table.freeze({ Enum.KeyCode.R, Enum.KeyCode.ButtonA }),
+    TESTCLICK = table.freeze({ Enum.KeyCode.T, Enum.KeyCode.ButtonY }),
 })
 
 local MOBILE_BUTTON_NAMES: MobileButtonMap = table.freeze({
@@ -29,6 +31,7 @@ local MOBILE_BUTTON_NAMES: MobileButtonMap = table.freeze({
     DASH = "DashButton",
     INTERACT = "InteractButton",
     RESPAWN = "RespawnButton",
+    TESTCLICK = "TestClickButton",
 
 })
 
