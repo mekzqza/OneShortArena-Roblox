@@ -9,14 +9,21 @@ local HttpService = game:GetService("HttpService")
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
-export type ModuleImpl = {
-	Init: (self: ModuleImpl) -> (),
-	Start: (self: ModuleImpl) -> (),
-	Send: (self: ModuleImpl, eventName: string, ...any) -> (),
+export type NetworkController = {
+	Init: (self: NetworkController) -> (),
+	Start: (self: NetworkController) -> (),
+	Send: (self: NetworkController, eventName: string, ...any) -> (),
+	SendReliable: (self: NetworkController, eventName: string, data: any, maxRetries: number?) -> (),
+	CheckRetry: (self: NetworkController, messageId: string, maxRetries: number) -> (),
+	GetStats: (self: NetworkController) -> {ping: number, pendingMessages: number, totalSent: number},
+	GetPing: (self: NetworkController) -> number,
+	RetryAllPending: (self: NetworkController) -> (),
+	CleanupOldMessages: (self: NetworkController) -> (),
+	OnAckReceived: (self: NetworkController, data: any) -> (),
 	[string]: any,
 }
 
-local Module: ModuleImpl = {}
+local NetworkController= {}:: NetworkController
 
 local REMOTE_FOLDER_NAME = "Network"
 local REMOTE_EVENT_NAME = "NetworkBridge"
@@ -54,7 +61,7 @@ local function getRemote(): RemoteEvent
 	return remote :: RemoteEvent
 end
 
-function Module:Init()
+function NetworkController:Init()
 	remoteEvent = getRemote()
 
 	remoteEvent.OnClientEvent:Connect(function(eventName: string, ...)
@@ -67,7 +74,7 @@ function Module:Init()
 	EventBus:Emit(Events.CONTROLLER_READY, "NetworkController")
 end
 
-function Module:Start()
+function NetworkController:Start()
 	-- Listen for ACK
 	EventBus:On("__ACK", function(data: any)
 		local messageId = data.messageId
@@ -94,7 +101,7 @@ function Module:Start()
 end
 
 -- NEW: Send with automatic retry
-function Module:SendReliable(eventName: string, data: any, maxRetries: number?)
+function NetworkController:SendReliable(eventName: string, data: any, maxRetries: number?)
 	maxRetries = maxRetries or MAX_RETRIES
 	
 	local messageId = HttpService:GenerateGUID(false)
@@ -117,7 +124,7 @@ function Module:SendReliable(eventName: string, data: any, maxRetries: number?)
 end
 
 -- NEW: Check if need retry
-function Module:CheckRetry(messageId: string, maxRetries: number)
+function NetworkController:CheckRetry(messageId: string, maxRetries: number)
 	for i, msg in ipairs(sentMessages) do
 		if msg.messageId == messageId then
 			if msg.retries < maxRetries then
@@ -138,19 +145,19 @@ function Module:CheckRetry(messageId: string, maxRetries: number)
 end
 
 -- NEW: Get network stats
-function Module:GetStats(): {ping: number, pendingMessages: number}
+function NetworkController:GetStats(): {ping: number, pendingMessages: number}
 	return {
 		ping = self:GetPing(),
 		pendingMessages = #sentMessages,
 	}
 end
 
-function Module:Start()
+function NetworkController:Start()
 	-- No-op
 end
 
-function Module:Send(eventName: string, ...: any)
+function NetworkController:Send(eventName: string, ...: any)
 	remoteEvent:FireServer(eventName, ...)
 end
 
-return Module
+return NetworkController
