@@ -152,10 +152,6 @@ function NetworkController:GetStats(): {ping: number, pendingMessages: number}
 	}
 end
 
-function NetworkController:Start()
-	-- No-op
-end
-
 function NetworkController:Send(eventName: string, ...: any)
 	remoteEvent:FireServer(eventName, ...)
 end
