@@ -23,16 +23,10 @@ local gameState = {
 }
 
 function GameService:Init()
-	print("[GameService] Initializing...")
-	
-	-- Allow combat events
-	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
-	NetworkHandler:AllowClientEvent(Events.PLAYER_DEFEND)
-	NetworkHandler:AllowClientEvent(Events.PLAYER_SPECIAL)
-	
-	print("[GameService] ✅ Allowed combat events")
-	
 	-- Initialize game state
+
+	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
+
 	gameState.isRunning = false
 	gameState.currentRound = 0
 	gameState.playersInGame = {}
