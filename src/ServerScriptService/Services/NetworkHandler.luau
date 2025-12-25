@@ -27,9 +27,9 @@ local REMOTE_EVENT_NAME = "NetworkBridge"
 
 -- Enhanced rate limiting
 local DEBUG = false
-local RATE_LIMIT_WINDOW = 5 -- Increased from 2
-local MAX_EVENTS_PER_WINDOW = 10
-local MAX_BURST_EVENTS = 3 -- New: max events in 0.5 seconds
+local RATE_LIMIT_WINDOW = 5
+local MAX_EVENTS_PER_WINDOW = 15  -- เพิ่มจาก 10 → 15
+local MAX_BURST_EVENTS = 5        -- เพิ่มจาก 3 → 5
 local GLOBAL_RATE_LIMIT = 100 -- New: max events per second from all players
 local MAX_STRING_LENGTH = 500
 local MAX_TABLE_SIZE = 32
@@ -155,25 +155,25 @@ end
 
 -- Track suspicious behavior
 local function addSuspiciousStrike(player: Player, reason: string)
-	local userId = player.UserId
-	local record = suspiciousPlayers[userId]
-	local now = os.clock()
+    local userId = player.UserId
+    local record = suspiciousPlayers[userId]
+    local now = os.clock()
 
-	if not record or (now - record.lastStrike) > 60 then
-		record = { strikes = 0, lastStrike = now }
-		suspiciousPlayers[userId] = record
-	end
+    if not record or (now - record.lastStrike) > 60 then
+        record = { strikes = 0, lastStrike = now }
+        suspiciousPlayers[userId] = record
+    end
 
-	record.strikes += 1
-	record.lastStrike = now
+    record.strikes += 1
+    record.lastStrike = now
 
-	warn(string.format("[NetworkHandler] Suspicious activity from %s: %s (Strike %d)", 
-		player.Name, reason, record.strikes))
+    warn(string.format("[NetworkHandler] Suspicious activity from %s: %s (Strike %d)", 
+        player.Name, reason, record.strikes))
 
-	-- Auto-kick after too many strikes
-	if record.strikes >= 5 then
-		player:Kick("Suspicious network activity detected")
-	end
+    -- Auto-kick after too many strikes 5
+    if record.strikes >= 5 then
+        player:Kick("Suspicious network activity detected")
+    end
 end
 
 -- Enhanced rate limiting with burst detection

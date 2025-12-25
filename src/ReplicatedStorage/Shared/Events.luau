@@ -128,12 +128,6 @@ Events.DEMO_CHAT_MESSAGE = "DemoChatMessage"             -- Client → Server
 Events.DEMO_UPDATE_COUNTER = "DemoUpdateCounter"         -- Server → Client
 Events.DEMO_BUTTON_CLICKED = "DemoButtonClicked"         -- Client → Server
 
-
-Events.TSET_PING = "TestPing"                             -- Client → Server
-Events.TEST_PONG = "TestPong"                             -- Server → Client
-Events.TEST_CLIENT_BUTTON_CLICK = "TestClientButtonClick" -- Client → Server
-Events.TEST_SERVER_RESPONSE = "TestServerResponse"        -- Server → Client	
-
 -- Input Events (Client → Internal)
 Events.INPUT_ACTION = "InputAction"
 
