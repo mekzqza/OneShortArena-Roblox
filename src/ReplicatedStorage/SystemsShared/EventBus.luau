@@ -84,8 +84,17 @@ end
 		print(playerName .. " has died")
 	end)
 --]]
-function EventBus:On(eventName: string, callback: EventCallback): EventConnection
-	assert(type(eventName) == "string", "eventName must be a string")
+function EventBus:On(eventName: string, callback: (...any) -> ())
+    -- Validation
+    if type(eventName) ~= "string" then
+        error(string.format(
+            "EventBus:On() - eventName must be a string, got %s (value: %s)\nStack: %s",
+            type(eventName),
+            tostring(eventName),
+            debug.traceback()
+        ))
+    end
+    
 	assert(type(callback) == "function", "callback must be a function")
 	
 	local signal = getSignal(eventName)
