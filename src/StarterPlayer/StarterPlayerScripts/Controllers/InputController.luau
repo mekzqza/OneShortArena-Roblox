@@ -73,6 +73,7 @@ local inputTracking = {
     inputBuffer = {} :: {{action: string, time: number}},
     maxBufferSize = 5,
     bufferWindow = 0.5,
+    hasEmittedTap = {} :: {[string]: boolean}, -- ป้องกันส่งซ้ำ
 }
 
 local holdTimers = {} :: {[string]: thread?}
@@ -105,6 +106,9 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         end
         inputTracking.lastInputTime[actionName] = now
         
+        -- Reset emission flag
+        inputTracking.hasEmittedTap[actionName] = false
+        
         -- Track hold state
         inputTracking.holdStartTime[actionName] = now
         inputTracking.isHolding[actionName] = false
@@ -115,8 +119,9 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         end
         
         holdTimers[actionName] = task.delay(HOLD_THRESHOLD, function()
-            if inputTracking.holdStartTime[actionName] then
+            if inputTracking.holdStartTime[actionName] and not inputTracking.hasEmittedTap[actionName] then
                 inputTracking.isHolding[actionName] = true
+                inputTracking.hasEmittedTap[actionName] = true -- ป้องกันส่งซ้ำ
                 print(`[InputController] ⏱️ Hold detected: {actionName}`)
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Hold")
             end
@@ -129,14 +134,16 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
             
             if inputTracking.tapCount[actionName] >= 2 then
                 print(`[InputController] 🖱️ Double tap: {actionName}`)
-                EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
-                inputTracking.tapCount[actionName] = 0
                 
                 -- Cancel hold timer on double tap
                 if holdTimers[actionName] then
                     task.cancel(holdTimers[actionName])
                     holdTimers[actionName] = nil
                 end
+                
+                inputTracking.hasEmittedTap[actionName] = true -- ป้องกันส่งซ้ำ
+                EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
+                inputTracking.tapCount[actionName] = 0
                 
                 return Enum.ContextActionResult.Sink
             end
@@ -156,9 +163,12 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
             table.remove(inputTracking.inputBuffer, 1)
         end
         
-        -- Emit normal tap event
-        print(`[InputController] ⌨️ Input Begin: {actionName}`)
-        EventBus:Emit(EVENT_INPUT_ACTION, actionName)
+        -- Emit normal tap event (เฉพาะถ้ายังไม่ได้ส่ง)
+        if not inputTracking.hasEmittedTap[actionName] then
+            inputTracking.hasEmittedTap[actionName] = true
+            print(`[InputController] ⌨️ Input Begin: {actionName}`)
+            EventBus:Emit(EVENT_INPUT_ACTION, actionName)
+        end
         
         return Enum.ContextActionResult.Sink
     end
@@ -185,6 +195,7 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         -- Cleanup
         inputTracking.holdStartTime[actionName] = nil
         inputTracking.isHolding[actionName] = nil
+        inputTracking.hasEmittedTap[actionName] = nil
         
         return Enum.ContextActionResult.Sink
     end
@@ -279,6 +290,7 @@ function InputController:UnbindAll()
     table.clear(inputTracking.tapCount)
     table.clear(inputTracking.lastInputTime)
     table.clear(inputTracking.inputBuffer)
+    table.clear(inputTracking.hasEmittedTap)
     
     print("[InputController] Unbound all actions and cleaned up state")
 end

@@ -1,248 +1,438 @@
-# 📚 OneShortArena Documentation
+# 📚 OneShortArena - Technical Documentation
 
-Welcome to the OneShortArena documentation! This folder contains all guides and references for the project.
+## 🎯 Overview
 
----
-
-## 📖 Available Guides
-
-### 🚀 [Quick Reference](quick-reference.md) **← เริ่มต้นที่นี่**
-คู่มือย่อ Production - อ่านก่อนเสมอ!
-
-**เหมาะสำหรับ:**
-- เพิ่ม Event ใหม่
-- สร้าง Service/Controller ใหม่
-- Debug ปัญหาพื้นฐาน
-- Production tasks
-
-**⚠️ Production components เท่านั้น** - ไม่มี Demo
+**OneShortArena** เป็นเกม Roblox แนว Combat Arena ที่ใช้สถาปัตยกรรม **Production-Grade** พร้อมระบบ:
+- ✅ Client-Server Architecture แบบแยกชั้น
+- ✅ Event-Driven System
+- ✅ Network Security & Anti-Cheat
+- ✅ Modular Design Pattern
 
 ---
 
-### 📐 [Dependencies & Architecture](deps.md)
-โครงสร้างระบบและความสัมพันธ์ระหว่างส่วนต่างๆ
+## 📖 Table of Contents
 
-**เหมาะสำหรับ:**
-- ทำความเข้าใจภาพรวมโปรเจ็ค
-- ดูว่าไฟล์ไหนขึ้นกับไฟล์ไหน
-- เข้าใจ Production vs Demo architecture
-
-**Highlights:**
-- ✅ Production components (InputController, CombatService, etc.)
-- 🧪 Demo components (DemoController, DemoService - ลบได้)
-- Clear separation of concerns
+1. [Project Structure](#project-structure)
+2. [Architecture Overview](#architecture-overview)
+3. [Core Systems](#core-systems)
+4. [Getting Started](#getting-started)
+5. [Development Guide](#development-guide)
 
 ---
 
-### 🎮 [Input System Guide](input-system-guide.md)
-คู่มือการใช้งานระบบ Input Production
-
-**เหมาะสำหรับ:**
-- เพิ่มปุ่มควบคุมใหม่ (Production)
-- ทำความเข้าใจ Input Flow
-- แก้ปัญหาเกี่ยวกับ Input
-- Mobile button configuration
-
-**Components:**
-- InputController ✅ - Hardware input
-- InputHandler ✅ - Game actions
-- ~~DemoController 🧪~~ - (ดู demo-testing.md)
-
----
-
-### 🚀 [Production Features](production-features.md)
-ระบบ Production-Ready: Input, Cooldown, Combat
-
-**เหมาะสำหรับ:**
-- ทำความเข้าใจ Advanced Input System
-- เรียนรู้ Cooldown System
-- ดู Server Validation best practices
-- เพิ่ม Attack types และ Combos
-
-**เนื้อหาประกอบด้วย:**
-- ✅ 5 Input Types (Tap, Hold, DoubleTap, Release, Combo)
-- ✅ Server-side Cooldown System
-- ✅ Production architecture only
-- ❌ ไม่มี Demo references
-
----
-
-### 🧪 [Demo & Testing Guide](demo-testing.md) **← สำหรับ Testing เท่านั้น**
-คู่มือ Demo components (ลบได้ในอนาคต)
-
-**เหมาะสำหรับ:**
-- ทดสอบ network communication
-- Quick prototyping
-- Verify RemoteEvent setup
-
-**⚠️ Components ในนี้ลบได้:**
-- DemoController 🧪
-- DemoService 🧪
-- DEMO_* events 🧪
-
-**ไม่ควรใช้:**
-- ❌ ใน Production
-- ❌ เป็น architecture reference
-- ❌ สำหรับ business logic
-
----
-
-## 🎯 Getting Started
-
-### สำหรับนักพัฒนาใหม่:
-
-1. **อ่าน [Quick Reference](quick-reference.md) ก่อน** ✅
-   - เรียนรู้ Production tasks
-   - ทำความเข้าใจ event system
-
-2. **ดู [Dependencies](deps.md)** ✅
-   - เข้าใจโครงสร้างโปรเจ็ค
-   - แยก Production vs Demo
-
-3. **อ่าน [Production Features](production-features.md)** ✅
-   - เรียนรู้ Production architecture
-   - ทำความเข้าใจ Input/Cooldown systems
-
-4. **(Optional) [Demo Testing](demo-testing.md)** 🧪
-   - เฉพาะเมื่อต้องการทดสอบ network
-   - **ไม่ใช่สำหรับ Production**
-
----
-
-## 🔍 Quick Navigation
-
-| ต้องการทำอะไร | ดูเอกสารไหน | หน้าที่ |
-|---------------|-------------|---------|
-| เพิ่ม Event | Quick Reference | Task 1 |
-| เพิ่ม Service | Quick Reference | Task 4 |
-| เพิ่มปุ่มควบคุม | Production Features | Input System |
-| เพิ่ม Attack Type | Production Features | Combat System |
-| ใช้ Cooldown | Production Features | Cooldown System |
-| Debug Input | Production Features | Common Issues |
-| เข้าใจโครงสร้าง | Dependencies | Architecture |
-| **ทดสอบ Network** | **Demo Testing** | **Testing Guide** |
-| ทดสอบระบบ | Quick Reference | Testing Shortcuts |
-
----
-
-## 📁 Document Structure
+## Project Structure
 
 ```
-docs/
-├── README.md                    ← You are here
+OneShortArena-Roblox/
+├── src/
+│   ├── ReplicatedStorage/
+│   │   ├── Shared/              # Shared modules (Client & Server)
+│   │   │   ├── Events.luau      # Event constants
+│   │   │   └── InputSettings.luau
+│   │   └── SystemsShared/       # Shared systems
+│   │       ├── EventBus.luau    # Event bus system
+│   │       └── Network/         # Network remotes
+│   │
+│   ├── ServerScriptService/
+│   │   ├── Init.server.luau     # Server entry point
+│   │   └── Services/            # Server-side services
+│   │       ├── NetworkHandler.luau    # Network security
+│   │       ├── GameService.luau       # Game logic
+│   │       ├── ArenaService.luau      # Arena management
+│   │       ├── CooldownService.luau   # Cooldown system
+│   │       └── DemoService.luau       # (Dev only)
+│   │
+│   └── StarterPlayer/
+│       └── StarterPlayerScripts/
+│           ├── Init.client.luau      # Client entry point
+│           └── Controllers/          # Client-side controllers
+│               ├── NetworkController.luau  # Network client
+│               ├── InputController.luau    # Input detection
+│               ├── InputHandler.luau       # Input logic
+│               ├── AbilityController.luau  # Abilities
+│               ├── DemoController.luau     # (Dev only)
+│               └── TestController.luau     # (Dev only)
 │
-├── Production Docs (ใช้งานจริง) ✅
-│   ├── quick-reference.md       ← คู่มือย่อ
-│   ├── deps.md                  ← โครงสร้างระบบ
-│   ├── input-system-guide.md    ← Input พื้นฐาน
-│   └── production-features.md   ← Production features
-│
-└── Testing Docs (ทดสอบ) 🧪
-    └── demo-testing.md          ← Demo components (ลบได้)
+└── docs/                         # Documentation
+    ├── README.md                 # This file
+    ├── Architecture.md           # System architecture
+    ├── NetworkSystem.md          # Network documentation
+    ├── InputSystem.md            # Input system
+    └── DevelopmentGuide.md       # Dev guide
 ```
 
 ---
 
-## 🚦 Component Status
+## Architecture Overview
 
-### ✅ Production (Core - ห้ามลบ)
+### 🏗️ Layer Architecture
 
-**Client:**
-- InputController - Hardware input
-- InputHandler - Game actions
-- NetworkController - Network bridge
+```
+┌─────────────────────────────────────────┐
+│         Player Input (Hardware)          │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│      InputController (Detection)         │  ◄─── Low-level
+│  - Detect Tap, Hold, DoubleTap          │
+│  - Input buffering for combos           │
+└──────────────┬──────────────────────────┘
+               │ INPUT_ACTION event
+┌──────────────▼──────────────────────────┐
+│       InputHandler (Game Logic)          │  ◄─── Game-specific
+│  - Convert to game commands              │
+│  - Cooldown check                        │
+│  - State validation                      │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│     NetworkController (Client Net)       │  ◄─── Network layer
+│  - Send to server                        │
+│  - Reliable send with ACK                │
+│  - Auto-retry system                     │
+└──────────────┬──────────────────────────┘
+               │ RemoteEvent
+┌──────────────▼──────────────────────────┐
+│     NetworkHandler (Server Net)          │  ◄─── Server layer
+│  - Security validation                   │
+│  - Rate limiting                         │
+│  - Anti-replay protection                │
+└──────────────┬──────────────────────────┘
+               │ EventBus
+┌──────────────▼──────────────────────────┐
+│        Game Services (Business)          │  ◄─── Business logic
+│  - GameService, ArenaService             │
+│  - Process game logic                    │
+└───────────────────────────────────────────┘
+```
 
-**Server:**
-- NetworkHandler - Security layer
-- CooldownService - Cooldown tracking
-- CombatService - Combat logic
-- GameService - Game state
-- ArenaService - Arena management
+### 🔄 Event Flow
 
-**Shared:**
-- EventBus - Event system
-- Events - Event constants
-- InputSettings - Key bindings
+**Normal Action:**
+```
+Player Input → InputController → EventBus (INPUT_ACTION)
+    → InputHandler → NetworkController → Server
+    → NetworkHandler → GameService → Process
+```
 
-### 🧪 Demo (Testing - ลบได้)
-
-**Client:**
-- ~~DemoController~~ - Network testing
-
-**Server:**
-- ~~DemoService~~ - Test responses
-
-**Events:**
-- ~~DEMO_*~~ - Test events
-
-### 🔨 TODO (กำลังทำ)
-
-- UIController - UI management
-- ProfileService - Data persistence
-- GameConfigs - Configuration
-
----
-
-## 📊 Documentation Version
-
-| Document | Version | Type | Last Updated |
-|----------|---------|------|--------------|
-| Quick Reference | 2.0 | ✅ Production | 2024 |
-| Dependencies | 2.0 | ✅ Production | 2024 |
-| Input Guide | 1.0 | ✅ Production | 2024 |
-| Production Features | 2.0 | ✅ Production | 2024 |
-| Demo Testing | 1.0 | 🧪 Demo | 2024 |
-
-### Recent Updates
-
-**v2.0 (Latest):**
-- ✅ **Separated Demo from Production**
-- ✅ Created dedicated demo-testing.md
-- ✅ Removed Demo references from Production docs
-- ✅ Clear component categorization
-
-**v1.1:**
-- ✅ Fixed Hold detection (Timer-based)
-- ✅ Added Release event handling
-
----
-
-## 🛠️ Additional Resources
-
-### Backend Development
-- See: `.github/agents/gameplay-backend.md`
-- Service template & security guidelines
-
-### Code Style
-- Follow: `.github/agents/gameplay-backend.md` → Coding Standards
-- Use `--!strict` mode
-- Export types properly
-
-### Production Testing
-- Use: InputController + InputHandler
-- **Avoid:** DemoController (ดู demo-testing.md)
+**Reliable Action (Important):**
+```
+Player Input → InputController → EventBus
+    → InputHandler → NetworkController.SendReliable()
+    → Server receives + validates
+    → Server sends ACK back
+    → Client confirms delivery
+    (If no ACK: Auto-retry up to 3 times)
+```
 
 ---
 
-## 🤝 Contributing to Docs
+## Core Systems
 
-เมื่อเพิ่มฟีเจอร์ใหม่:
+### 1. 📡 Network System
+- **Production-grade** security
+- Message acknowledgment (ACK)
+- Auto-retry mechanism
+- Anti-replay protection
+- Analytics tracking
 
-1. **Production Features:**
-   - อัพเดท `production-features.md`
-   - อัพเดท `quick-reference.md`
-   - เพิ่ม examples ที่ชัดเจน
+📄 [Full Documentation →](./NetworkSystem.md)
 
-2. **Demo/Testing:**
-   - อัพเดท `demo-testing.md` เท่านั้น
-   - **ห้ามเพิ่มใน Production docs**
+### 2. 🎮 Input System
+- **2-layer architecture**: Detection + Logic
+- Advanced pattern detection (Hold, DoubleTap, Combo)
+- Cross-platform support (PC, Mobile, Console)
+- Debounce protection
 
-3. **Version Control:**
-   - อัพเดท version number
-   - เพิ่ม changelog entry
-   - Test ตัวอย่างที่เขียน
+📄 [Full Documentation →](./InputSystem.md)
+
+### 3. 🎯 Event Bus System
+- Decoupled event communication
+- Type-safe events
+- Debugging support
+
+📄 [Full Documentation →](./Architecture.md#event-bus)
+
+### 4. 🛡️ Security System
+- Rate limiting (per-player & global)
+- Event validation
+- Suspicious activity tracking
+- Auto-kick system
+
+📄 [Full Documentation →](./NetworkSystem.md#security)
 
 ---
 
-*Happy Coding! 🚀*
-*Remember: Production ≠ Demo*
+## Getting Started
+
+### Prerequisites
+- Roblox Studio (latest version)
+- Rojo (optional, for VS Code sync)
+- Basic Luau knowledge
+
+### Installation
+
+1. **Clone Repository**
+   ```bash
+   git clone [repository-url]
+   cd OneShortArena-Roblox
+   ```
+
+2. **Open in Roblox Studio**
+   - Open `OneShortArena.rbxl`
+   - Or use Rojo: `rojo serve`
+
+3. **Configure Production Mode**
+   ```lua
+   -- ServerScriptService/Init.server.luau
+   local IS_PRODUCTION = false  -- Dev mode
+   
+   -- StarterPlayerScripts/Init.client.luau
+   local IS_PRODUCTION = false  -- Dev mode
+   ```
+
+4. **Test**
+   - Press F5 to test locally
+   - Check console for initialization logs
+
+---
+
+## Development Guide
+
+### Adding New Event
+
+1. **Define event in Events.luau**
+   ```lua
+   -- ReplicatedStorage/Shared/Events.luau
+   Events.YOUR_NEW_EVENT = "YourNewEvent"
+   ```
+
+2. **Allow event (Server)**
+   ```lua
+   -- ServerScriptService/Services/NetworkHandler.luau
+   NetworkHandler:AllowClientEvent(Events.YOUR_NEW_EVENT)
+   ```
+
+3. **Send from Client**
+   ```lua
+   -- Client controller
+   NetworkController:Send(Events.YOUR_NEW_EVENT, {
+       data = "example"
+   })
+   ```
+
+4. **Handle on Server**
+   ```lua
+   -- Server service
+   EventBus:On(Events.YOUR_NEW_EVENT, function(player, data)
+       print(`Received from {player.Name}:`, data)
+   end)
+   ```
+
+### Adding New Ability
+
+📄 See: [Development Guide →](./DevelopmentGuide.md#adding-abilities)
+
+### Production Deployment
+
+1. **Enable Production Mode**
+   ```lua
+   local IS_PRODUCTION = true
+   ```
+
+2. **Remove Debug Code**
+   - DemoController, TestController auto-skipped
+   - DemoService auto-skipped
+
+3. **Verify Security**
+   ```lua
+   -- Check rate limits
+   NetworkHandler:Configure({
+       maxPerWindow = 10,  -- Adjust as needed
+       debug = false
+   })
+   ```
+
+4. **Test in Private Server**
+   - Test all critical paths
+   - Monitor Analytics dashboard
+   - Check for suspicious activity
+
+5. **Publish**
+   - File → Publish to Roblox
+   - Update game description
+   - Monitor logs
+
+---
+
+## Architecture Principles
+
+### ✅ DO
+
+1. **Use Event-Driven Communication**
+   ```lua
+   EventBus:Emit(Events.SOMETHING_HAPPENED, data)
+   ```
+
+2. **Validate on Server**
+   ```lua
+   -- Server always validates
+   if not isValid(data) then return end
+   ```
+
+3. **Separate Concerns**
+   - InputController = Hardware detection
+   - InputHandler = Game logic
+   - NetworkController = Network transport
+
+4. **Use Reliable Send for Important Data**
+   ```lua
+   NetworkController:SendReliable(Events.PURCHASE, data)
+   ```
+
+### ❌ DON'T
+
+1. **Don't Trust Client**
+   ```lua
+   -- ❌ BAD
+   player.Coins = player.Coins + 100  -- Client can modify
+   
+   -- ✅ GOOD
+   ServerData:AddCoins(player, 100)   -- Server validates
+   ```
+
+2. **Don't Skip Validation**
+   ```lua
+   -- Always validate
+   NetworkHandler:RegisterValidator(eventName, validator)
+   ```
+
+3. **Don't Spam Events**
+   ```lua
+   -- ❌ BAD: 100 events per second
+   -- ✅ GOOD: Batch or throttle
+   ```
+
+---
+
+## Performance Guidelines
+
+### Client
+
+- ✅ Batch UI updates (max 30 FPS)
+- ✅ Use object pooling for VFX
+- ✅ Debounce input (0.1s minimum)
+- ✅ Clean up listeners on destroy
+
+### Server
+
+- ✅ Use DataStore cache
+- ✅ Limit event processing (rate limiting enabled)
+- ✅ Profile critical paths
+- ✅ Monitor Analytics dashboard
+
+### Network
+
+- ✅ Send only necessary data
+- ✅ Use Reliable Send sparingly
+- ✅ Compress large payloads
+- ✅ Monitor EPS (Events Per Second)
+
+---
+
+## Debugging
+
+### Enable Debug Mode
+
+```lua
+-- Server
+NetworkHandler:Configure({ debug = true })
+
+-- Client
+local DEBUG = true
+```
+
+### Common Issues
+
+**Event not reaching server?**
+```lua
+-- 1. Check allowlist
+NetworkHandler:AllowClientEvent(Events.YOUR_EVENT)
+
+-- 2. Check rate limit
+local stats = NetworkController:GetStats()
+print(stats.pendingMessages)  -- Should be 0
+
+-- 3. Retry
+NetworkController:RetryAllPending()
+```
+
+**Performance issues?**
+```lua
+-- Check Analytics
+local analytics = NetworkHandler:GetAnalytics()
+print("EPS:", analytics.eventsPerSecond)  -- Should be < 50
+
+-- Check Health
+local health = NetworkHandler:GetNetworkHealth()
+print("Status:", health.status)  -- Should be "Healthy"
+```
+
+---
+
+## Testing
+
+### Unit Tests (Future)
+```lua
+-- tests/InputController.spec.luau
+```
+
+### Integration Tests
+```lua
+-- Manual testing checklist:
+-- ✅ Input detection works
+-- ✅ Network sends/receives
+-- ✅ Security blocks exploits
+-- ✅ Analytics tracking works
+```
+
+---
+
+## Contributing
+
+1. Fork repository
+2. Create feature branch
+3. Follow code style (strict mode)
+4. Add documentation
+5. Test thoroughly
+6. Submit pull request
+
+---
+
+## Resources
+
+- 📄 [Network System](./NetworkSystem.md)
+- 📄 [Input System](./InputSystem.md)
+- 📄 [Architecture Deep Dive](./Architecture.md)
+- 📄 [Development Guide](./DevelopmentGuide.md)
+- 🎮 [Roblox API Reference](https://create.roblox.com/docs)
+
+---
+
+## License
+
+[Your License Here]
+
+---
+
+## Support
+
+- 💬 Discord: [Your Discord]
+- 📧 Email: [Your Email]
+- 🐛 Issues: [GitHub Issues]
+
+---
+
+**Version:** 2.0 - Production Grade  
+**Last Updated:** 2024  
+**Maintained by:** OneShortArena Team

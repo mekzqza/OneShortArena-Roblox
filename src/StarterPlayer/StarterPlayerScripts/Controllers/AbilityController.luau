@@ -5,7 +5,7 @@ local Players = game:GetService("Players")
 -- ดึงของที่เราเตรียมไว้
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
-local InputSettings = require(ReplicatedStorage.Shared.InputSettings)
+
 
 local AbilityController = {}
 
