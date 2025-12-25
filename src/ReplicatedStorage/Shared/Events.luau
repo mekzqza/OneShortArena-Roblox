@@ -52,8 +52,6 @@ Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Requ
 Events.PLAYER_ENTER_ARENA = "PlayerEnterArena"        -- Server → Client: Confirmation of arena entry
 Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player was eliminated
 
-Events.INPUT_ACTION= "INPUT_ACTION"
-
 -- ============================================================================
 -- 🖼️ UI Events
 -- ============================================================================
@@ -110,13 +108,6 @@ Events.DEBUG_SHOW_EVENTS = "Debug_ShowEvents"
 Events.DEBUG_TOGGLE = "Debug_Toggle"
 
 -- ============================================================================
--- 📚 Tutorial Events
--- ============================================================================
-Events.FIRST_TIME_TUTORIAL = "FirstTime_Tutorial"
-Events.TUTORIAL_STEP_COMPLETE = "Tutorial_StepComplete"
-Events.TUTORIAL_SKIPPED = "Tutorial_Skipped"
-
--- ============================================================================
 -- 📺 Demo Events
 -- ============================================================================
 Events.DEMO_PING = "DemoPing"                           -- Client → Server
@@ -137,6 +128,12 @@ Events.PLAYER_DEFEND = "PlayerDefend"
 Events.PLAYER_SPECIAL = "PlayerSpecial"
 Events.PLAYER_JUMP = "PlayerJump"
 Events.PLAYER_SPRINT = "PlayerSprint"
+
+-- ============================================================================
+-- 🕹️ TestEvent
+-- ============================================================================
+Events.TEST_PING = "TestPing"
+Events.TEST_PONG = "TestPong"
 
 
 Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
