@@ -1,438 +1,612 @@
-﻿```mermaid
+﻿# 🏗️ System Dependencies & Architecture
+
+## 📊 Dependency Graph (Production Grade)
+
+```mermaid
 graph TD
     %% --- Style Definitions ---
     classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef server fill:#fce4ec,stroke:#880e4f,stroke-width:2px;
     classDef shared fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef package fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,stroke-dasharray: 5 5;
     classDef network fill:#f3e5f5,stroke:#4a148c,stroke-width:3px;
     classDef demo fill:#ffebee,stroke:#c62828,stroke-width:2px,stroke-dasharray: 3 3;
 
-    %% --- Client Side (Blue) ---
-    subgraph Client [Client Side - StarterPlayerScripts]
-        ClientInit[Init.client.luau]:::client
-        InputController[InputController ✅]:::client
-        InputHandler[InputHandler ✅]:::client
-        NetworkController[NetworkController ✅]:::client
-        UIController[UIController 🔨]:::client
+    %% --- Shared Layer (Bottom) ---
+    subgraph SharedLayer [Shared - ReplicatedStorage]
+        Events[Events.luau<br/>Event Constants]:::shared
+        InputSettings[InputSettings.luau<br/>Key Bindings]:::shared
+        EventBus[EventBus.luau<br/>Event System]:::shared
+        RemoteEvent[NetworkBridge<br/>RemoteEvent]:::network
     end
 
-    %% --- Server Side (Pink) ---
-    subgraph Server [Server Side - ServerScriptService]
-        ServerInit[Init.server.luau]:::server
-        NetworkHandler[NetworkHandler ✅]:::server
-        GameService[GameService ✅]:::server
-        ArenaService[ArenaService ✅]:::server
-        CombatService[CombatService ✅]:::server
-        CooldownService[CooldownService ✅]:::server
-        ProfileService[ProfileService 🔨]:::server
+    %% --- Client Layer ---
+    subgraph ClientLayer [Client - StarterPlayerScripts]
+        InputController[InputController<br/>✅ Hardware Detection<br/>Tap/Hold/DoubleTap]:::client
+        InputHandler[InputHandler<br/>✅ Game Logic<br/>Attack/Defend/Special]:::client
+        NetworkController[NetworkController<br/>✅ Network Transport<br/>Reliable Send/ACK]:::client
+        AbilityController[AbilityController<br/>✅ VFX & Client Logic]:::client
     end
 
-    %% --- Demo Layer (Red - Temporary) ---
-    subgraph Demo [🧪 Demo Layer - ลบได้ในอนาคต]
-        DemoController[DemoController 🧪]:::demo
-        DemoService[DemoService 🧪]:::demo
+    %% --- Demo Layer (Temporary) ---
+    subgraph DemoLayer [🧪 Demo - Testing Only]
+        DemoController[DemoController<br/>🧪 Network Testing]:::demo
+        TestController[TestController<br/>🧪 Basic Testing]:::demo
     end
 
-    %% --- Shared Systems (Orange) ---
-    subgraph Shared [ReplicatedStorage/SystemsShared]
-        EventBus:::shared
-        Network[Network Folder]:::network
-        RemoteEvent[NetworkBridge]:::network
+    %% --- Server Layer ---
+    subgraph ServerLayer [Server - ServerScriptService]
+        NetworkHandler[NetworkHandler<br/>✅ Security & Validation<br/>ACK/Analytics/Anti-Replay]:::server
+        CooldownService[CooldownService<br/>✅ Server Cooldowns]:::server
+        GameService[GameService<br/>✅ Game State]:::server
+        ArenaService[ArenaService<br/>✅ Arena Management]:::server
     end
 
-    %% --- Shared Data (Orange) ---
-    subgraph SharedData [ReplicatedStorage/Shared]
-        Events[Events.luau]:::shared
-        InputSettings[InputSettings.luau]:::shared
-        Configs[GameConfigs 🔨]:::shared
+    %% --- Demo Service ---
+    subgraph DemoServiceLayer [🧪 Demo Service - Testing Only]
+        DemoService[DemoService<br/>🧪 Test Responses]:::demo
     end
 
-    %% --- Packages (Green) ---
-    subgraph Packages [Wally Packages]
-        Signal:::package
-        Promise[Promise 🔨]:::package
-    end
-
-    %% --- Client Initialization Flow ---
-    ClientInit -->|1. Requires| NetworkController
-    ClientInit -->|2. Requires| InputController
-    ClientInit -->|3. Requires| InputHandler
-    ClientInit -.->|4. Requires 🔨| UIController
-    ClientInit -.->|Demo Only 🧪| DemoController
-
-    %% --- Server Initialization Flow ---
-    ServerInit -->|1. Init & Start| NetworkHandler
-    ServerInit -->|2. Init & Start| CooldownService
-    ServerInit -->|3. Init & Start| GameService
-    ServerInit -->|4. Init & Start| ArenaService
-    ServerInit -->|5. Init & Start| CombatService
-    ServerInit -.->|Demo Only 🧪| DemoService
-
-    %% --- Production Input Flow ---
-    InputController -->|Emit INPUT_ACTION| EventBus
-    EventBus -->|Tap/Hold/DoubleTap| InputHandler
-    InputHandler -->|Send Actions| NetworkController
-    NetworkController -->|FireServer| RemoteEvent
-
-    %% --- Demo Flow (Temporary) ---
-    DemoController -.->|Test Events| NetworkController
-    DemoService -.->|Test Responses| NetworkHandler
-
-    %% --- Server Flow ---
-    RemoteEvent -->|OnServerEvent| NetworkHandler
-    NetworkHandler -->|Emit Events| EventBus
-    
-    EventBus -->|PLAYER_ATTACK| CombatService
-    EventBus -->|GAME_START| GameService
-    EventBus -->|Arena Events| ArenaService
-    
-    CombatService -->|Check Cooldown| CooldownService
-    CombatService -->|Send Response| NetworkHandler
-    
-    GameService -->|Broadcast| NetworkHandler
-    ArenaService -->|Notify Clients| NetworkHandler
-
-    %% --- Network Communication ---
-    NetworkHandler -->|FireClient/FireAllClients| RemoteEvent
-    RemoteEvent -->|OnClientEvent| NetworkController
-    NetworkController -->|Emit Events| EventBus
-    EventBus -->|Update UI| InputHandler
-
-    %% --- Dependencies ---
-    InputController -->|Uses| InputSettings
+    %% --- Client Dependencies ---
     InputController -->|Uses| Events
+    InputController -->|Uses| InputSettings
+    InputController -->|Emits to| EventBus
+    
+    InputHandler -->|Listens to| EventBus
     InputHandler -->|Uses| Events
+    InputHandler -->|Sends via| NetworkController
     
+    NetworkController -->|Uses| Events
+    NetworkController -->|FireServer| RemoteEvent
+    NetworkController -->|Listens to| EventBus
+    
+    AbilityController -->|Uses| Events
+    AbilityController -->|Listens to| EventBus
+
+    %% --- Demo Dependencies (Temporary) ---
+    DemoController -.->|Test Send| NetworkController
+    DemoController -.->|Uses| Events
+    TestController -.->|Test Send| NetworkController
+
+    %% --- Network Flow ---
+    RemoteEvent -->|OnServerEvent| NetworkHandler
+    NetworkHandler -->|FireClient| RemoteEvent
+    
+    %% --- Server Dependencies ---
     NetworkHandler -->|Uses| Events
-    CombatService -->|Uses| Events
-    GameService -->|Uses| Events
+    NetworkHandler -->|Emits to| EventBus
     
-    EventBus -->|Requires| Signal
-    ProfileService -.->|Uses 🔨| Promise
+    GameService -->|Listens to| EventBus
+    GameService -->|Uses| Events
+    GameService -->|Send via| NetworkHandler
+    
+    ArenaService -->|Listens to| EventBus
+    ArenaService -->|Uses| Events
+    ArenaService -->|Send via| NetworkHandler
+    
+    CooldownService -->|No Dependencies|CooldownService
+
+    %% --- Demo Service Dependencies ---
+    DemoService -.->|Listen to| EventBus
+    DemoService -.->|Uses| Events
+    DemoService -.->|Send via| NetworkHandler
 
     %% --- Legend ---
     subgraph Legend
-        L1[✅ Implemented - Production Ready]:::client
-        L2[🔨 Planned - Not Yet Implemented]:::shared
-        L3[🧪 Demo - For Testing Only]:::demo
+        L1[✅ Production Ready]:::client
+        L2[🧪 Demo/Testing Only<br/>Can be deleted]:::demo
+        L3[Network Layer]:::network
     end
 ```
 
 ---
 
-## 🏗️ สถาปัตยกรรมระบบ
+## 🔄 Data Flow (Production Path)
 
-### 📊 ภาพรวม Data Flow (Production)
+### Normal Action Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   PRODUCTION ARCHITECTURE                    │
+│                   PRODUCTION DATA FLOW                       │
 └─────────────────────────────────────────────────────────────┘
 
-Player Input (Keyboard/Mobile)
-         │
-         ▼
-┌──────────────────────┐
-│  InputController     │  ← จับ hardware input (Tap/Hold/DoubleTap)
-│  (Client)            │     Timer-based Hold detection
-└──────────────────────┘
-         │
-         │ EventBus:Emit(INPUT_ACTION, "Attack")
-         ▼
-┌──────────────────────┐
-│  InputHandler        │  ← แปลง input → game actions
-│  (Client)            │     Cooldown check, State validation
-└──────────────────────┘
-         │
-         │ NetworkController:Send(PLAYER_ATTACK, data)
-         ▼
-┌──────────────────────┐
-│  NetworkController   │  ← Client-Server bridge
-│  (Client)            │     Action queue, Batch send
-└──────────────────────┘
-         │
-         │ RemoteEvent:FireServer()
-         ▼
-┌──────────────────────┐
-│  NetworkHandler      │  ← Security layer
-│  (Server)            │     Rate limit, Validation, Whitelist
-└──────────────────────┘
-         │
-         │ EventBus:Emit(PLAYER_ATTACK, player, data)
-         ▼
-┌──────────────────────┐
-│  CombatService       │  ← Game logic
-│  (Server)            │     Process attack, Calculate damage
-└──────────────────────┘
-         │
-         ├─► CooldownService (Check/Set cooldown)
-         ├─► ProfileService (Update stats)
-         └─► NetworkHandler (Send response)
+1. Player Input (Hardware)
+   └─> Keyboard "E" pressed
+        │
+        ▼
+2. InputController (Detection Layer)
+   ├─> Detect input type: Tap/Hold/DoubleTap
+   ├─> Debounce protection (0.1s)
+   └─> Emit: EventBus:Emit(INPUT_ACTION, "ATTACK")
+        │
+        ▼
+3. InputHandler (Logic Layer)
+   ├─> Listen: EventBus:On(INPUT_ACTION)
+   ├─> Route to: HandleAttack()
+   ├─> Check cooldown (client-side, visual)
+   ├─> Validate state (alive? not in menu?)
+   ├─> Queue action
+   └─> Send: NetworkController:Send(PLAYER_ATTACK, data)
+        │
+        ▼
+4. NetworkController (Transport Layer)
+   ├─> Add to queue
+   ├─> Batch process (30 FPS)
+   └─> RemoteEvent:FireServer(PLAYER_ATTACK, data)
+        │
+        ▼ Network
+        │
+5. NetworkHandler (Security Layer)
+   ├─> OnServerEvent receives
+   ├─> Check rate limit (10 events/5s per player)
+   ├─> Check anti-replay (messageId)
+   ├─> Validate payload (sanitize)
+   ├─> Check allowlist (PLAYER_ATTACK allowed?)
+   └─> Emit: EventBus:Emit(PLAYER_ATTACK, player, data)
+        │
+        ▼
+6. GameService (Business Logic)
+   ├─> Listen: EventBus:On(PLAYER_ATTACK)
+   ├─> Check cooldown (server-side, CooldownService)
+   ├─> Validate game state (in combat? alive?)
+   ├─> Process attack (damage calculation)
+   ├─> Update game state
+   ├─> Set cooldown
+   └─> Send response: NetworkHandler:SendToClient(player, ATTACK_RESULT)
+        │
+        ▼
+7. NetworkController (Client receives)
+   ├─> OnClientEvent
+   ├─> Emit: EventBus:Emit(ATTACK_RESULT, data)
+   └─> Update UI (cooldown animation)
+```
+
+### Reliable Send Flow (Important Actions)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              RELIABLE SEND WITH ACK & RETRY                  │
+└─────────────────────────────────────────────────────────────┘
+
+1. Client: NetworkController:SendReliable(event, data)
+   ├─> Generate messageId (GUID)
+   ├─> data._msgId = messageId
+   ├─> Add to retry queue
+   └─> FireServer(event, data)
+        │
+        ▼
+2. Server: NetworkHandler receives
+   ├─> Extract messageId
+   ├─> Check anti-replay (duplicate messageId?)
+   ├─> Store messageId (60s TTL)
+   ├─> Process event
+   └─> Send ACK: SendToClient(player, "__ACK", {messageId})
+        │
+        ▼
+3. Client: Receives ACK
+   ├─> Match messageId
+   ├─> Remove from retry queue
+   └─> Success ✅
+        │
+4. If NO ACK received (timeout 5s):
+   ├─> Retry #1 (after 2s)
+   ├─> Retry #2 (after 2s)
+   ├─> Retry #3 (after 2s)
+   └─> If still no ACK: Emit NETWORK_SEND_FAILED
 ```
 
 ---
 
-## 📁 โครงสร้างไฟล์ (Production)
+## 🗂️ Module Dependencies Tree
 
-### Client (StarterPlayerScripts)
+### Client Modules
 
 ```
 StarterPlayerScripts/
-├── Init.client.luau                    ← Entry point
-└── Controllers/
-    ├── InputController.luau            ✅ Hardware input (Tap/Hold/DoubleTap)
-    ├── InputHandler.luau               ✅ Game actions (Attack/Defend/Special)
-    ├── NetworkController.luau          ✅ Network communication
-    ├── UIController.luau               🔨 UI management
-    └── DemoController.luau             🧪 Testing only (ลบได้)
+│
+├── Init.client.luau
+│   ├── Requires: Controllers/*
+│   ├── Calls: controller:Init()
+│   └── Calls: controller:Start()
+│
+├── InputController.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.Shared.InputSettings
+│   │   └── ReplicatedStorage.SystemsShared.EventBus
+│   └── Emits: INPUT_ACTION
+│
+├── InputHandler.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.SystemsShared.EventBus
+│   │   └── script.Parent.NetworkController
+│   ├── Listens: INPUT_ACTION
+│   └── Calls: NetworkController:Send()
+│
+├── NetworkController.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.SystemsShared.EventBus
+│   │   └── ReplicatedStorage.SystemsShared.Network.NetworkBridge
+│   ├── Creates: RemoteEvent connection
+│   └── Methods: Send(), SendReliable(), GetStats()
+│
+├── AbilityController.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   └── ReplicatedStorage.SystemsShared.EventBus
+│   └── Listens: ABILITY_CAST, ABILITY_EFFECT
+│
+└── 🧪 Demo Controllers (Development Only)
+    ├── DemoController.luau
+    │   └── Dependencies: NetworkController, Events
+    └── TestController.luau
+        └── Dependencies: NetworkController, Events
 ```
 
-**หน้าที่:**
-- **InputController**: จับ input จาก keyboard/mobile → ส่ง events ผ่าน EventBus
-- **InputHandler**: แปลง input events → game actions → ส่งไป Server
-- **NetworkController**: จัดการ RemoteEvent, Queue actions
-- **UIController**: อัพเดท UI ตาม server responses
-- **DemoController**: ทดสอบ network (**ไม่ใช้ใน Production**)
-
----
-
-### Server (ServerScriptService)
+### Server Modules
 
 ```
 ServerScriptService/
-├── Init.server.luau                    ← Entry point
-└── Services/
-    ├── NetworkHandler.luau             ✅ Network security & validation
-    ├── CooldownService.luau            ✅ Server-side cooldown tracking
-    ├── GameService.luau                ✅ Game state (rounds, lobby)
-    ├── ArenaService.luau               ✅ Arena setup & cleanup
-    ├── CombatService.luau              ✅ Combat logic & damage
-    ├── ProfileService.luau             🔨 Player data persistence
-    └── DemoService.luau                🧪 Testing only (ลบได้)
+│
+├── Init.server.luau
+│   ├── Requires: Services/*
+│   ├── Calls: service:Init() (dependency setup)
+│   └── Calls: service:Start() (runtime)
+│
+├── NetworkHandler.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.SystemsShared.EventBus
+│   │   └── ReplicatedStorage.SystemsShared.Network.NetworkBridge
+│   ├── Creates: RemoteEvent server connection
+│   ├── Features: Rate limiting, Anti-replay, ACK, Analytics
+│   └── Methods: SendToClient(), Broadcast(), SendToClientReliable()
+│
+├── GameService.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.SystemsShared.EventBus
+│   │   ├── script.Parent.NetworkHandler
+│   │   └── script.Parent.CooldownService
+│   ├── Listens: PLAYER_ATTACK, PLAYER_DEFEND, PLAYER_SPECIAL
+│   └── Manages: Game state, rounds, combat
+│
+├── ArenaService.luau
+│   ├── Dependencies:
+│   │   ├── ReplicatedStorage.Shared.Events
+│   │   ├── ReplicatedStorage.SystemsShared.EventBus
+│   │   └── script.Parent.NetworkHandler
+│   ├── Listens: GAME_START, GAME_END
+│   └── Manages: Arena spawning, cleanup
+│
+├── CooldownService.luau
+│   ├── Dependencies: None (pure logic)
+│   ├── Tracks: Per-player cooldowns
+│   └── Methods: IsOnCooldown(), SetCooldown(), GetRemaining()
+│
+└── 🧪 DemoService.luau (Development Only)
+    ├── Dependencies:
+    │   ├── ReplicatedStorage.Shared.Events
+    │   ├── ReplicatedStorage.SystemsShared.EventBus
+    │   └── script.Parent.NetworkHandler
+    └── Handles: DEMO_PING, DEMO_REQUEST_DATA, etc.
 ```
 
-**หน้าที่:**
-- **NetworkHandler**: รับ/ส่ง network events, Security validation
-- **CooldownService**: จัดการ cooldown server-authoritative
-- **GameService**: Game lifecycle (start, end, rounds)
-- **ArenaService**: Map management, spawn points
-- **CombatService**: Damage calculation, combat validation
-- **ProfileService**: Save/load player data
-- **DemoService**: ทดสอบ network responses (**ไม่ใช้ใน Production**)
-
----
-
-### Shared (ReplicatedStorage)
+### Shared Modules
 
 ```
 ReplicatedStorage/
-├── SystemsShared/
-│   ├── EventBus.luau                   ✅ Event system (Signal-based)
-│   └── Network/
-│       └── NetworkBridge               ✅ RemoteEvent (auto-created)
 │
-└── Shared/
-    ├── Events.luau                     ✅ Event name constants
-    ├── InputSettings.luau              ✅ Key bindings config
-    └── GameConfigs.luau                🔨 Game configurations
+├── Shared/
+│   ├── Events.luau
+│   │   └── No dependencies (pure data)
+│   │
+│   └── InputSettings.luau
+│       └── No dependencies (pure config)
+│
+└── SystemsShared/
+    ├── EventBus.luau
+    │   └── No dependencies (core system)
+    │
+    └── Network/
+        └── NetworkBridge (RemoteEvent)
+            └── Created by NetworkHandler:Init()
 ```
 
 ---
 
-## 🎯 ระบบหลัก (Production)
+## 🔐 Security Layers
 
-### 1. Input System
-
-**Components:**
 ```
-InputController → InputHandler → NetworkController → Server
+┌─────────────────────────────────────────────────────────────┐
+│                    SECURITY LAYERS                           │
+└─────────────────────────────────────────────────────────────┘
+
+Layer 1: Client Validation (InputHandler)
+├── Cooldown check (visual feedback)
+├── State check (alive? in menu?)
+└── Basic validation
+
+Layer 2: Network Security (NetworkHandler)
+├── Rate Limiting
+│   ├── Per-player: 10 events / 5 seconds
+│   ├── Global: 100 events / second
+│   └── Burst: 3 events / 0.5 seconds
+├── Event Allowlist
+│   └── Only allowed events processed
+├── Anti-Replay Protection
+│   ├── Message ID tracking
+│   └── Duplicate rejection (60s window)
+├── Payload Sanitization
+│   ├── Type checking
+│   ├── Size limits (MAX_STRING_LENGTH, MAX_TABLE_SIZE)
+│   └── Circular reference detection
+└── Suspicious Activity Tracking
+    ├── Strike system (5 strikes = kick)
+    └── Pattern detection
+
+Layer 3: Server Validation (GameService)
+├── Re-check cooldown (server-authoritative)
+├── Validate game state (in combat? round active?)
+├── Check resources (mana? stamina?)
+├── Validate target (alive? in range?)
+└── Verify permissions (can use ability?)
+
+Layer 4: Analytics & Monitoring
+├── Event tracking (all events logged)
+├── Error tracking (last 100 errors)
+├── Health monitoring (EPS, uptime)
+└── Suspicious player list
 ```
-
-**InputController** (`InputController.luau`)
-- รับ input จาก ContextActionService
-- ตรวจจับ: Tap, Hold (Timer-based), DoubleTap, Release, Combo
-- ส่ง events ผ่าน EventBus (ไม่ส่งไปยัง Server โดยตรง)
-
-**InputHandler** (`InputHandler.luau`)
-- รับ INPUT_ACTION events จาก InputController
-- แปลงเป็น game-specific actions (Attack, Defend, Special)
-- ตรวจสอบ cooldown ฝั่ง client (visual feedback)
-- Queue actions แล้วส่งเป็น batch ไปยัง Server
-
-**ไม่มี DemoController** ใน Production!
 
 ---
 
-### 2. Network System
+## 📊 Event Flow Map
 
-**Components:**
+### Production Events
+
 ```
-Client: NetworkController ↔ RemoteEvent ↔ Server: NetworkHandler
+CLIENT → SERVER:
+├── INPUT_ACTION (internal only, via EventBus)
+├── PLAYER_ATTACK
+├── PLAYER_DEFEND
+├── PLAYER_SPECIAL
+├── GAME_START_REQUESTED
+├── SETTINGS_CHANGED
+└── TOGGLE_UI
+
+SERVER → CLIENT:
+├── UI_SHOW_NOTIFICATION
+├── UI_UPDATE_SCORE
+├── UI_UPDATE_HEALTH
+├── RESULTS_SHOW_WINNER
+├── ATTACK_RESULT
+├── ABILITY_EFFECT
+└── __ACK (for reliable send)
 ```
 
-**NetworkController** (`NetworkController.luau`)
-- จัดการ RemoteEvent ฝั่ง Client
-- Queue actions และ batch send (ลด network traffic)
-- รับ responses จาก Server
+### Demo Events (Development Only)
 
-**NetworkHandler** (`NetworkHandler.luau`)
-- Security layer: Rate limit, Validation, Whitelist
-- ส่ง events ไปยัง Services ผ่าน EventBus
-- ส่ง responses กลับไปยัง Clients
+```
+🧪 CLIENT → SERVER:
+├── DEMO_PING
+├── DEMO_CHAT_MESSAGE
+├── DEMO_REQUEST_DATA
+├── TEST_CLIENT_BUTTON_CLICK
+├── TEST_BUTTON_PRESSED
+└── (Legacy: PLAYER_ATTACK/DEFEND/SPECIAL for testing)
 
-**ไม่มี DemoService** ใน Production!
+🧪 SERVER → CLIENT:
+├── DEMO_HELLO_RESPONSE
+├── DEMO_BROADCAST_MESSAGE
+├── DEMO_SEND_DATA
+├── DEMO_ANNOUNCEMENT
+└── TEST_SERVER_RESPONSE
+```
 
 ---
 
-### 3. Combat System
+## 🎯 Initialization Order
 
-**Components:**
-```
-CombatService + CooldownService + ProfileService
-```
+### Server Initialization
 
-**CombatService** (`CombatService.luau`)
-- รับ PLAYER_ATTACK, PLAYER_DEFEND, PLAYER_SPECIAL events
-- Validate: Cooldown, HP, Resources, Target
-- Calculate: Damage, Knockback, Effects
-- Update: ProfileService (stats)
-- Respond: NetworkHandler (results)
-
-**CooldownService** (`CooldownService.luau`)
-- Server-authoritative cooldown tracking
-- Per-player cooldown state
-- Configurable cooldown durations
-- Client notification
-
----
-
-## 🧪 Demo Layer (ชั่วคราว - ลบได้)
-
-### DemoController.luau
 ```lua
--- 🧪 DEMO ONLY - For testing network communication
--- ลบไฟล์นี้ได้เมื่อ InputHandler พร้อมใช้งาน
+-- Init.server.luau execution order:
 
--- Purpose:
--- - ทดสอบ Ping/Pong
--- - ทดสอบ Data requests
--- - ทดสอบ Broadcast
+1. Load Services
+   ├── NetworkHandler = require(Services.NetworkHandler)
+   ├── GameService = require(Services.GameService)
+   ├── ArenaService = require(Services.ArenaService)
+   └── DemoService = require(...) -- if not IS_PRODUCTION
+
+2. Init Phase (Dependency Setup)
+   ├── NetworkHandler:Init()
+   │   ├── Create RemoteEvent
+   │   ├── Setup allowlists
+   │   └── Register validators
+   ├── GameService:Init()
+   ├── ArenaService:Init()
+   └── DemoService:Init() -- if not IS_PRODUCTION
+
+3. Start Phase (Runtime)
+   ├── NetworkHandler:Start()
+   │   └── Connect OnServerEvent
+   ├── GameService:Start()
+   │   └── Listen to EventBus
+   ├── ArenaService:Start()
+   └── DemoService:Start() -- if not IS_PRODUCTION
 ```
 
-### DemoService.luau
+### Client Initialization
+
 ```lua
--- 🧪 DEMO ONLY - For testing server responses
--- ลบไฟล์นี้ได้เมื่อ CombatService พร้อมใช้งาน
+-- Init.client.luau execution order:
 
--- Purpose:
--- - ทดสอบ DEMO_PING
--- - ทดสอบ DEMO_REQUEST_DATA
--- - ทดสอบ DEMO_BROADCAST_MESSAGE
+1. Load Controllers
+   ├── For each ModuleScript in Controllers/
+   │   ├── Skip DemoController if IS_PRODUCTION
+   │   ├── Skip TestController if IS_PRODUCTION
+   │   └── require(moduleScript)
+
+2. Init Phase
+   ├── InputController:Init()
+   │   └── Bind all actions (ContextActionService)
+   ├── InputHandler:Init()
+   ├── NetworkController:Init()
+   │   └── Connect to RemoteEvent
+   └── AbilityController:Init()
+
+3. Start Phase
+   ├── InputController:Start()
+   │   └── Start combo monitoring
+   ├── InputHandler:Start()
+   │   ├── Listen to INPUT_ACTION
+   │   └── Start action queue processing
+   ├── NetworkController:Start()
+   │   ├── Listen for ACK
+   │   └── Start health monitoring
+   └── AbilityController:Start()
 ```
-
-**สิ่งที่ Demo ไม่ทำ:**
-- ❌ ไม่ใช้ใน Production
-- ❌ ไม่เข้า gameplay loop จริง
-- ❌ ไม่มี business logic สำคัญ
-
-**เมื่อไหร่ควรลบ Demo:**
-- ✅ เมื่อ InputHandler ทำงานครบ
-- ✅ เมื่อ CombatService ทำงานครบ
-- ✅ เมื่อ Testing ผ่านแล้ว
 
 ---
 
-## 📊 Comparison: Demo vs Production
+## 🧪 Demo vs Production Comparison
 
-| Feature | Demo | Production |
-|---------|------|------------|
-| **Purpose** | Testing network | Actual gameplay |
+| Aspect | Demo | Production |
+|--------|------|------------|
 | **Client** | DemoController | InputHandler |
-| **Server** | DemoService | CombatService |
-| **Events** | DEMO_PING, DEMO_REQUEST_DATA | PLAYER_ATTACK, PLAYER_DEFEND |
-| **Validation** | ❌ Basic | ✅ Full server-side |
-| **Cooldown** | ❌ None | ✅ CooldownService |
-| **Data Persistence** | ❌ None | ✅ ProfileService |
-| **Can Delete?** | ✅ Yes | ❌ No - Core system |
+| **Server** | DemoService | GameService |
+| **Purpose** | Network testing | Actual gameplay |
+| **Events** | DEMO_* | PLAYER_*, GAME_* |
+| **Validation** | ❌ Minimal | ✅ Full |
+| **Cooldown** | ❌ None | ✅ Server-authoritative |
+| **Analytics** | ❌ Basic | ✅ Full tracking |
+| **Can Delete** | ✅ Yes (after testing) | ❌ No (core system) |
+| **Enabled When** | IS_PRODUCTION = false | IS_PRODUCTION = true |
 
 ---
 
-## ✅ Implemented Components (Production Ready)
+## 📦 Module Export Types
 
-### Client Side
-- [x] **InputController** - Hardware input detection
-- [x] **InputHandler** - Game action handler
-- [x] **NetworkController** - Network communication
-- [ ] **UIController** - UI management (TODO)
+### Client Types
 
-### Server Side
-- [x] **NetworkHandler** - Security & validation
-- [x] **CooldownService** - Cooldown tracking
-- [x] **GameService** - Game state
-- [x] **ArenaService** - Arena management
-- [x] **CombatService** - Combat logic
-- [ ] **ProfileService** - Data persistence (TODO)
+```lua
+-- InputController
+export type InputController = {
+    Init: (self: InputController) -> (),
+    Start: (self: InputController) -> (),
+    EnableInput: (self: InputController, enabled: boolean) -> (),
+    GetInputState: (self: InputController) -> InputState,
+}
 
-### Shared
-- [x] **EventBus** - Event system
-- [x] **Events** - Event constants
-- [x] **InputSettings** - Input config
-- [x] **Network/NetworkBridge** - RemoteEvent
+-- InputHandler
+export type InputHandler = {
+    Init: (self: InputHandler) -> (),
+    Start: (self: InputHandler) -> (),
+    HandleAttack: (self: InputHandler) -> (),
+    HandleDefend: (self: InputHandler) -> (),
+}
+
+-- NetworkController
+export type NetworkController = {
+    Init: (self: NetworkController) -> (),
+    Start: (self: NetworkController) -> (),
+    Send: (self: NetworkController, eventName: string, data: any) -> (),
+    SendReliable: (self: NetworkController, eventName: string, data: any, maxRetries: number?) -> (),
+    GetStats: (self: NetworkController) -> {ping: number, pendingMessages: number},
+}
+```
+
+### Server Types
+
+```lua
+-- NetworkHandler
+export type NetworkHandler = {
+    Init: (self: NetworkHandler) -> (),
+    Start: (self: NetworkHandler) -> (),
+    SendToClient: (self: NetworkHandler, player: Player, eventName: string, ...any) -> (),
+    Broadcast: (self: NetworkHandler, eventName: string, ...any) -> (),
+    SendToClientReliable: (self: NetworkHandler, player: Player, eventName: string, data: any, callback: (() -> ())?) -> (),
+    GetAnalytics: (self: NetworkHandler) -> AnalyticsData,
+    GetNetworkHealth: (self: NetworkHandler) -> NetworkHealth,
+}
+
+-- GameService
+export type GameService = {
+    Init: (self: GameService) -> (),
+    Start: (self: GameService) -> (),
+}
+
+-- CooldownService
+export type CooldownService = {
+    IsOnCooldown: (self: CooldownService, player: Player, action: string) -> boolean,
+    SetCooldown: (self: CooldownService, player: Player, action: string) -> (),
+    GetRemaining: (self: CooldownService, player: Player, action: string) -> number,
+}
+```
 
 ---
 
-## 🎯 Migration Path (ลบ Demo ในอนาคต)
+## 🔄 Migration from Demo to Production
 
-### Phase 1: ปัจจุบัน
-```
-Production ✅ + Demo 🧪 (ทำงานควบคู่)
-```
+### When to Remove Demo
 
-### Phase 2: เมื่อ Production พร้อม
-```
-ลบไฟล์:
-- DemoController.luau
-- DemoService.luau
+✅ **Remove when:**
+- InputHandler fully implemented and tested
+- GameService handles all combat actions
+- All critical paths tested
+- Ready for production deployment
 
-ลบ Events:
-- DEMO_PING
-- DEMO_PONG
-- DEMO_REQUEST_DATA
-- etc.
+### How to Remove Demo
 
-ลบจาก Init:
-- Init.client.luau (remove DemoController)
-- Init.server.luau (remove DemoService)
-```
+```lua
+-- 1. Set IS_PRODUCTION = true
+-- ServerScriptService/Init.server.luau
+local IS_PRODUCTION = true
 
-### Phase 3: Production Only
-```
-Production ✅ เท่านั้น
+-- StarterPlayerScripts/Init.client.luau
+local IS_PRODUCTION = true
+
+-- 2. Demo files auto-skipped, or delete:
+-- ❌ DemoController.luau
+-- ❌ TestController.luau
+-- ❌ DemoService.luau
+
+-- 3. Remove demo events from Events.luau:
+-- ❌ DEMO_PING
+-- ❌ DEMO_PONG
+-- ❌ DEMO_REQUEST_DATA
+-- etc.
 ```
 
 ---
 
-## 📝 สรุป
+## 📝 Summary
 
-**Production Architecture:**
-```
-Input → InputController → InputHandler → Network → CombatService
-```
+**Core Dependencies:**
+- ✅ EventBus (no dependencies)
+- ✅ Events (no dependencies)
+- ✅ InputSettings (no dependencies)
 
-**Demo Layer (ชั่วคราว):**
-```
-DemoController → Network → DemoService
-(ใช้เพื่อทดสอบเท่านั้น - ลบได้)
-```
+**Client Layer:**
+- ✅ InputController → Events, InputSettings, EventBus
+- ✅ InputHandler → Events, EventBus, NetworkController
+- ✅ NetworkController → Events, EventBus, RemoteEvent
 
-**Key Points:**
-- ✅ **InputController** = Hardware input (Tap/Hold/DoubleTap)
-- ✅ **InputHandler** = Game actions (Attack/Defend)
-- ✅ **CombatService** = Combat logic (Damage/Validation)
-- 🧪 **Demo*** = Testing only (ลบได้ในอนาคต)
+**Server Layer:**
+- ✅ NetworkHandler → Events, EventBus, RemoteEvent
+- ✅ GameService → Events, EventBus, NetworkHandler, CooldownService
+- ✅ ArenaService → Events, EventBus, NetworkHandler
+- ✅ CooldownService → (no dependencies)
+
+**Demo Layer (Temporary):**
+- 🧪 DemoController → NetworkController, Events
+- 🧪 DemoService → Events, EventBus, NetworkHandler
 
 ---
 
-*Architecture v2.0*
-*Separated Demo from Production ✅*
+**Version:** 2.0 - Production Grade  
+**Last Updated:** 2024  
+**Features:** ACK, Retry, Analytics, Anti-Replay, Security  
+**Author:** OneShortArena Team
