@@ -113,6 +113,12 @@ function InputHandler:OnInputAction(actionName: string)
         
     elseif actionName == "TOGGLEMENU" then
         self:HandleToggleMenu()
+        
+    elseif actionName == "TESTPING" then
+        -- Forward to TestHandler via EventBus
+        EventBus:Emit("TEST_ACTION", "TESTPING")
+        print("[InputHandler] 🧪 Forwarded TESTPING to TestHandler")
+        
     else
         -- Unknown action
         print(`[InputHandler] ⚠️ Unhandled action: {actionName}`)
