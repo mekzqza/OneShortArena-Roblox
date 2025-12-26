@@ -58,9 +58,9 @@ Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player 
 Events.UI_OPENED = "UI_Opened"
 Events.UI_CLOSED = "UI_Closed"
 Events.TOGGLE_UI = "ToggleUI"
-Events.UI_SHOW_NOTIFICATION = "UIShowNotification"
-Events.UI_UPDATE_SCORE = "UIUpdateScore"
-Events.UI_UPDATE_HEALTH = "UIUpdateHealth"
+Events.UI_SHOW_NOTIFICATION = "UiShowNotification"
+Events.UI_UPDATE_SCORE = "UiUpdateScore"
+Events.UI_UPDATE_HEALTH = "UiUpdateHealth"
 
 -- ============================================================================
 -- 📢 Notification Events
