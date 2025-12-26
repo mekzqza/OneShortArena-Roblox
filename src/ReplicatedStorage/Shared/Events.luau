@@ -52,17 +52,15 @@ Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Requ
 Events.PLAYER_ENTER_ARENA = "PlayerEnterArena"        -- Server → Client: Confirmation of arena entry
 Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player was eliminated
 
-Events.INPUT_ACTION= "INPUT_ACTION"
-
 -- ============================================================================
 -- 🖼️ UI Events
 -- ============================================================================
 Events.UI_OPENED = "UI_Opened"
 Events.UI_CLOSED = "UI_Closed"
 Events.TOGGLE_UI = "ToggleUI"
-Events.UI_SHOW_NOTIFICATION = "UIShowNotification"
-Events.UI_UPDATE_SCORE = "UIUpdateScore"
-Events.UI_UPDATE_HEALTH = "UIUpdateHealth"
+Events.UI_SHOW_NOTIFICATION = "UiShowNotification"
+Events.UI_UPDATE_SCORE = "UiUpdateScore"
+Events.UI_UPDATE_HEALTH = "UiUpdateHealth"
 
 -- ============================================================================
 -- 📢 Notification Events
@@ -110,13 +108,6 @@ Events.DEBUG_SHOW_EVENTS = "Debug_ShowEvents"
 Events.DEBUG_TOGGLE = "Debug_Toggle"
 
 -- ============================================================================
--- 📚 Tutorial Events
--- ============================================================================
-Events.FIRST_TIME_TUTORIAL = "FirstTime_Tutorial"
-Events.TUTORIAL_STEP_COMPLETE = "Tutorial_StepComplete"
-Events.TUTORIAL_SKIPPED = "Tutorial_Skipped"
-
--- ============================================================================
 -- 📺 Demo Events
 -- ============================================================================
 Events.DEMO_PING = "DemoPing"                           -- Client → Server
@@ -128,12 +119,6 @@ Events.DEMO_CHAT_MESSAGE = "DemoChatMessage"             -- Client → Server
 Events.DEMO_UPDATE_COUNTER = "DemoUpdateCounter"         -- Server → Client
 Events.DEMO_BUTTON_CLICKED = "DemoButtonClicked"         -- Client → Server
 
-
-Events.TSET_PING = "TestPing"                             -- Client → Server
-Events.TEST_PONG = "TestPong"                             -- Server → Client
-Events.TEST_CLIENT_BUTTON_CLICK = "TestClientButtonClick" -- Client → Server
-Events.TEST_SERVER_RESPONSE = "TestServerResponse"        -- Server → Client	
-
 -- Input Events (Client → Internal)
 Events.INPUT_ACTION = "InputAction"
 
@@ -143,6 +128,12 @@ Events.PLAYER_DEFEND = "PlayerDefend"
 Events.PLAYER_SPECIAL = "PlayerSpecial"
 Events.PLAYER_JUMP = "PlayerJump"
 Events.PLAYER_SPRINT = "PlayerSprint"
+
+-- ============================================================================
+-- 🕹️ TestEvent
+-- ============================================================================
+Events.TEST_PING = "TestPing"
+Events.TEST_PONG = "TestPong"
 
 
 Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"

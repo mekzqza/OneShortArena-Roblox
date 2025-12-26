@@ -114,8 +114,10 @@ function InputHandler:OnInputAction(actionName: string)
     elseif actionName == "TOGGLEMENU" then
         self:HandleToggleMenu()
         
-    elseif actionName == "PING" then
-        self:HandlePing()
+    elseif actionName == "TESTPING" then
+        -- Forward to TestHandler via EventBus
+        EventBus:Emit("TEST_ACTION", "TESTPING")
+        print("[InputHandler] 🧪 Forwarded TESTPING to TestHandler")
         
     else
         -- Unknown action
@@ -234,11 +236,6 @@ function InputHandler:HandleToggleMenu()
     playerState.isInMenu = not playerState.isInMenu
     EventBus:Emit(Events.TOGGLE_UI, playerState.isInMenu)
     print(`[InputHandler] 📋 Menu: {playerState.isInMenu and "OPEN" or "CLOSED"}`)
-end
-
-function InputHandler:HandlePing()
-    NetworkController:Send(Events.DEMO_PING, tick())
-    print("[InputHandler] 📡 Ping sent")
 end
 
 -- === STATE MANAGEMENT ===

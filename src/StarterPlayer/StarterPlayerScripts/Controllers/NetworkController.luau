@@ -13,6 +13,7 @@ export type ModuleImpl = {
 	Init: (self: ModuleImpl) -> (),
 	Start: (self: ModuleImpl) -> (),
 	Send: (self: ModuleImpl, eventName: string, ...any) -> (),
+	SendReliable: (self: ModuleImpl, eventName: string, data: any, maxRetries: number?) -> (),
 	[string]: any,
 }
 

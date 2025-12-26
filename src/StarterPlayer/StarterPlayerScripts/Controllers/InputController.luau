@@ -121,15 +121,17 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
         holdTimers[actionName] = task.delay(HOLD_THRESHOLD, function()
             if inputTracking.holdStartTime[actionName] and not inputTracking.hasEmittedTap[actionName] then
                 inputTracking.isHolding[actionName] = true
-                inputTracking.hasEmittedTap[actionName] = true -- ป้องกันส่งซ้ำ
+                inputTracking.hasEmittedTap[actionName] = true
                 print(`[InputController] ⏱️ Hold detected: {actionName}`)
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "Hold")
             end
         end)
         
-        -- Double tap detection
+        -- Double tap detection (CHECK FIRST before emitting tap)
         local lastTap = inputTracking.lastTapTime[actionName] or 0
-        if (now - lastTap) < DOUBLE_TAP_WINDOW then
+        local isWithinDoubleTapWindow = (now - lastTap) < DOUBLE_TAP_WINDOW
+        
+        if isWithinDoubleTapWindow then
             inputTracking.tapCount[actionName] = (inputTracking.tapCount[actionName] or 0) + 1
             
             if inputTracking.tapCount[actionName] >= 2 then
@@ -141,10 +143,11 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
                     holdTimers[actionName] = nil
                 end
                 
-                inputTracking.hasEmittedTap[actionName] = true -- ป้องกันส่งซ้ำ
+                inputTracking.hasEmittedTap[actionName] = true
                 EventBus:Emit(EVENT_INPUT_ACTION, actionName .. "DoubleTap")
                 inputTracking.tapCount[actionName] = 0
                 
+                -- DON'T emit normal tap for double tap
                 return Enum.ContextActionResult.Sink
             end
         else
@@ -163,11 +166,16 @@ local function onInput(actionName: string, state: Enum.UserInputState, inputObje
             table.remove(inputTracking.inputBuffer, 1)
         end
         
-        -- Emit normal tap event (เฉพาะถ้ายังไม่ได้ส่ง)
+        -- Emit normal tap event (only if not already emitted)
         if not inputTracking.hasEmittedTap[actionName] then
-            inputTracking.hasEmittedTap[actionName] = true
-            print(`[InputController] ⌨️ Input Begin: {actionName}`)
-            EventBus:Emit(EVENT_INPUT_ACTION, actionName)
+            -- Delay tap emission slightly to detect double tap
+            task.delay(DOUBLE_TAP_WINDOW, function()
+                if not inputTracking.hasEmittedTap[actionName] then
+                    inputTracking.hasEmittedTap[actionName] = true
+                    print(`[InputController] ⌨️ Input Begin: {actionName}`)
+                    EventBus:Emit(EVENT_INPUT_ACTION, actionName)
+                end
+            end)
         end
         
         return Enum.ContextActionResult.Sink
