@@ -25,11 +25,19 @@ local NetworkHandler: NetworkHandler = {}
 local REMOTE_FOLDER_NAME = "Network"
 local REMOTE_EVENT_NAME = "NetworkBridge"
 
+
+--[[
+Production Grade Settings:
+local MAX_EVENTS_PER_WINDOW = 15
+local MAX_BURST_EVENTS = 5
+local KICK_THRESHOLD = 10  // เตะหลัง 10 strikes
+]]
+
 -- Enhanced rate limiting
 local DEBUG = false
 local RATE_LIMIT_WINDOW = 5
-local MAX_EVENTS_PER_WINDOW = 15  -- เพิ่มจาก 10 → 15
-local MAX_BURST_EVENTS = 5        -- เพิ่มจาก 3 → 5
+local MAX_EVENTS_PER_WINDOW = 3     -- 3 events in 5 seconds
+local MAX_BURST_EVENTS = 2           -- 2 events in 0.5 seconds
 local GLOBAL_RATE_LIMIT = 100 -- New: max events per second from all players
 local MAX_STRING_LENGTH = 500
 local MAX_TABLE_SIZE = 32
@@ -167,7 +175,7 @@ local function addSuspiciousStrike(player: Player, reason: string)
     record.strikes += 1
     record.lastStrike = now
 
-    warn(string.format("[NetworkHandler] Suspicious activity from %s: %s (Strike %d)", 
+    warn(string.format("[NetworkHandler] ⚠️ Suspicious activity from %s: %s (Strike %d)", 
         player.Name, reason, record.strikes))
 
     -- Auto-kick after too many strikes 5
@@ -210,13 +218,16 @@ local function checkRateLimit(player: Player): (boolean, string?)
 		record.burstTime = now
 	end
 
-	record.count += 1
-	if record.count > MAX_EVENTS_PER_WINDOW then
-		addSuspiciousStrike(player, "Rate limit exceeded")
-		return false, "Rate limit exceeded"
-	end
+    record.count += 1
+    if record.count > MAX_EVENTS_PER_WINDOW then
+        -- ✅ แสดงข้อความชัดเจน
+        warn(string.format("[NetworkHandler] 🚨 %s RATE LIMIT! (%d events in %ds)", 
+            player.Name, record.count, RATE_LIMIT_WINDOW))
+        addSuspiciousStrike(player, "Rate limit exceeded")
+        return false, "Rate limit exceeded"
+    end
 
-	return true
+    return true
 end
 
 

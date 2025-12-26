@@ -11,6 +11,7 @@ local Services = ServerScriptService:WaitForChild("Services")
 local NetworkHandler = require(Services.NetworkHandler)
 local GameService = require(Services.GameService)
 local ArenaService = require(Services.ArenaService)
+local TestService = require(Services.TestService) -- สำหรับทดสอบ server-side services
 
 -- Initialize core services
 print("[Init] Initializing NetworkHandler...")
@@ -22,11 +23,17 @@ GameService:Init()
 print("[Init] Initializing ArenaService...")
 ArenaService:Init()
 
+print("[Init] Initializing TestService...")
+TestService:Init()
+
+
+
 
 -- Start services (runtime phase)
 print("[Init] Starting services...")
 NetworkHandler:Start()
 GameService:Start()
 ArenaService:Start()
+TestService:Start()
 
 print("✅ All services initialized and started successfully.")

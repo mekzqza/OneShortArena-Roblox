@@ -10,6 +10,8 @@
 	- แสดงตัวอย่างการใช้งานทั้ง On, Once, Emit
 --]]
 
+--!strict
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
