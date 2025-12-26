@@ -26,11 +26,16 @@ local REMOTE_FOLDER_NAME = "Network"
 local REMOTE_EVENT_NAME = "NetworkBridge"
 
 
+
+
 --[[
 Production Grade Settings:
 local MAX_EVENTS_PER_WINDOW = 15
 local MAX_BURST_EVENTS = 5
 local KICK_THRESHOLD = 10  // เตะหลัง 10 strikes
+local MAX_DEPTH = 5                -- พอสมควร
+local MAX_TABLE_SIZE = 50          -- ไม่ใหญ่เกินไป
+local MAX_STRING_LENGTH = 1000     -- ไม่ยาวเกินไป
 ]]
 
 -- Enhanced rate limiting
@@ -39,9 +44,9 @@ local RATE_LIMIT_WINDOW = 5
 local MAX_EVENTS_PER_WINDOW = 3     -- 3 events in 5 seconds
 local MAX_BURST_EVENTS = 2           -- 2 events in 0.5 seconds
 local GLOBAL_RATE_LIMIT = 100 -- New: max events per second from all players
-local MAX_STRING_LENGTH = 500
-local MAX_TABLE_SIZE = 32
-local MAX_DEPTH = 3
+local MAX_STRING_LENGTH = 1000
+local MAX_TABLE_SIZE = 50
+local MAX_DEPTH = 5
 
 -- NEW: Analytics tracking
 local analytics = {
@@ -624,3 +629,127 @@ function NetworkHandler:GetSuspiciousPlayers(): {[number]: {strikes: number, las
 end
 
 return NetworkHandler
+
+--[[
+╔════════════════════════════════════════════════════════════════╗
+║           NETWORK SECURITY CONFIGURATION                       ║
+╠════════════════════════════════════════════════════════════════╣
+║ คำอธิบาย:                                                      ║
+║                                                                ║
+║ 🔧 DEBUG                                                       ║
+║    - เปิด/ปิด debug logs                                      ║
+║    - false = ปิด (Production)                                 ║
+║    - true  = เปิด (Development)                               ║
+║                                                                ║
+║ ⏱️ RATE_LIMIT_WINDOW                                          ║
+║    - หน้าต่างเวลาสำหรับนับ events (วินาที)                   ║
+║    - ถ้าส่ง events เกิน MAX_EVENTS_PER_WINDOW ใน 5 วินาที    ║
+║      → ถือว่า spam                                            ║
+║                                                                ║
+║ 📊 MAX_EVENTS_PER_WINDOW                                       ║
+║    - จำนวน events สูงสุดต่อหน้าต่าง                          ║
+║    - ตัวอย่าง: 3 events ใน 5 วินาที                          ║
+║    - เกิน = Strike + บล็อก event                             ║
+║                                                                ║
+║ 💨 MAX_BURST_EVENTS                                            ║
+║    - จำนวน events สูงสุดใน 0.5 วินาที (rapid fire)          ║
+║    - ป้องกันการกดปุ่มเร็วเกินไป                              ║
+║    - ตัวอย่าง: 2 events ใน 0.5s                              ║
+║                                                                ║
+║ 🌐 GLOBAL_RATE_LIMIT                                           ║
+║    - จำนวน events สูงสุดจากผู้เล่นทั้งหมดต่อวินาที          ║
+║    - ป้องกัน server ถูก DDoS                                 ║
+║    - 100 events/sec จากทุกคน                                 ║
+║                                                                ║
+║ 📝 MAX_STRING_LENGTH                                           ║
+║    - ความยาวสูงสุดของ string (characters)                    ║
+║    - ป้องกันส่ง string ยาวเกินไป                             ║
+║    - เกิน 1000 ตัวอักษร = unsafe                             ║
+║                                                                ║
+║ 📦 MAX_TABLE_SIZE                                              ║
+║    - จำนวน keys สูงสุดใน table หนึ่งชั้น                     ║
+║    - ป้องกันส่ง table ใหญ่เกินไป                             ║
+║    - ตัวอย่าง: {key1=..., key2=..., ..., key50=...}         ║
+║                                                                ║
+║ 🗂️ MAX_DEPTH                                                  ║
+║    - ความลึกสูงสุดของ nested table                            ║
+║    - ตัวอย่าง depth 5:                                        ║
+║      {a = {b = {c = {d = {e = "OK"}}}}}                      ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+]]
+
+-- -- ⚙️ Configuration Settings
+-- local DEBUG = false                    -- 🔧 Debug logs (false = Off, true = On)
+-- local RATE_LIMIT_WINDOW = 5            -- ⏱️ Time window for rate limiting (seconds)
+-- local MAX_EVENTS_PER_WINDOW = 3        -- 📊 Max events per window (3 in 5s)
+-- local MAX_BURST_EVENTS = 2             -- 💨 Max rapid events (2 in 0.5s)
+-- local GLOBAL_RATE_LIMIT = 100          -- 🌐 Global max events/second (all players)
+-- local MAX_STRING_LENGTH = 1000         -- 📝 Max string length (characters)
+-- local MAX_TABLE_SIZE = 50              -- 📦 Max keys per table level
+-- local MAX_DEPTH = 5                    -- 🗂️ Max nested table depth
+
+--[[
+╔════════════════════════════════════════════════════════════════╗
+║                    USAGE EXAMPLES                              ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║ 📊 MAX_EVENTS_PER_WINDOW = 3 (ใน 5 วินาที)                    ║
+║    ✅ Event 1 (0.0s) → OK                                      ║
+║    ✅ Event 2 (1.0s) → OK                                      ║
+║    ✅ Event 3 (2.0s) → OK                                      ║
+║    ❌ Event 4 (3.0s) → BLOCKED! (Strike +1)                   ║
+║                                                                ║
+║ 💨 MAX_BURST_EVENTS = 2 (ใน 0.5 วินาที)                       ║
+║    ✅ Event 1 (0.0s) → OK                                      ║
+║    ✅ Event 2 (0.1s) → OK                                      ║
+║    ❌ Event 3 (0.2s) → BLOCKED! (Burst limit)                 ║
+║                                                                ║
+║ 📦 MAX_TABLE_SIZE = 50                                         ║
+║    ✅ {key1=1, key2=2, ..., key50=50} → OK                    ║
+║    ❌ {key1=1, ..., key51=51} → UNSAFE!                       ║
+║                                                                ║
+║ 🗂️ MAX_DEPTH = 5                                              ║
+║    ✅ {a={b={c={d={e=1}}}}} → OK (depth 5)                   ║
+║    ❌ {a={b={c={d={e={f=1}}}}}} → UNSAFE! (depth 6)          ║
+║                                                                ║
+║ 📝 MAX_STRING_LENGTH = 1000                                    ║
+║    ✅ "สวัสดี" (6 chars) → OK                                 ║
+║    ❌ string.rep("A", 1001) → UNSAFE!                         ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+]]
+
+--[[
+╔════════════════════════════════════════════════════════════════╗
+║              RECOMMENDED SETTINGS BY ENVIRONMENT               ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║ 🧪 DEVELOPMENT / TESTING:                                      ║
+║    DEBUG = true                    -- เปิด debug logs         ║
+║    MAX_EVENTS_PER_WINDOW = 20      -- ผ่อนปรน                ║
+║    MAX_BURST_EVENTS = 10           -- ผ่อนปรน                ║
+║    MAX_TABLE_SIZE = 100            -- ใหญ่กว่า                ║
+║    MAX_DEPTH = 10                  -- ลึกกว่า                 ║
+║    MAX_STRING_LENGTH = 5000        -- ยาวกว่า                 ║
+║                                                                ║
+║ 🚀 PRODUCTION (Current):                                       ║
+║    DEBUG = false                   -- ปิด debug logs          ║
+║    MAX_EVENTS_PER_WINDOW = 3       -- เข้มงวด                ║
+║    MAX_BURST_EVENTS = 2            -- เข้มงวด                ║
+║    MAX_TABLE_SIZE = 50             -- พอดี                    ║
+║    MAX_DEPTH = 5                   -- พอดี                     ║
+║    MAX_STRING_LENGTH = 1000        -- พอดี                     ║
+║                                                                ║
+║ 🎮 PRODUCTION (Relaxed):                                       ║
+║    DEBUG = false                   -- ปิด debug               ║
+║    MAX_EVENTS_PER_WINDOW = 15      -- ผ่อนปรนกว่า            ║
+║    MAX_BURST_EVENTS = 5            -- ผ่อนปรนกว่า            ║
+║    MAX_TABLE_SIZE = 100            -- ใหญ่กว่า                ║
+║    MAX_DEPTH = 10                  -- ลึกกว่า                 ║
+║    MAX_STRING_LENGTH = 2000        -- ยาวกว่า                 ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+]]
+
+-- ...existing code...
