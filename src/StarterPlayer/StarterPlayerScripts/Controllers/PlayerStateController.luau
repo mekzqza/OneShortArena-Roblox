@@ -6,9 +6,8 @@ local Players = game:GetService("Players")
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local NetworkController = require(script.Parent.NetworkController)
-local Types = require(ReplicatedStorage.Shared.Types)
 
-export type PlayerStateController = Types.Controller & {
+export type PlayerStateController = {
     RequestJoinArena: (self: PlayerStateController) -> (),
     RequestReturnToLobby: (self: PlayerStateController) -> (),
     RequestSpectate: (self: PlayerStateController) -> (),
