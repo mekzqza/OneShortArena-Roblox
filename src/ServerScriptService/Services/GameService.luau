@@ -14,7 +14,7 @@ export type GameService = {
 	[string]: any,
 }
 
-local GameService: GameService = {}
+local GameService = {} :: GameService
 
 local gameState = {
 	isRunning = false,
@@ -24,6 +24,9 @@ local gameState = {
 
 function GameService:Init()
 	-- Initialize game state
+
+	NetworkHandler:AllowClientEvent(Events.PLAYER_ATTACK)
+
 	gameState.isRunning = false
 	gameState.currentRound = 0
 	gameState.playersInGame = {}

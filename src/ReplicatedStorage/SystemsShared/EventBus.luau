@@ -9,7 +9,7 @@
 	🔧 ฟีเจอร์:
 	- On: สมัครรับฟังอีเวนต์ (Subscribe)
 	- Once: สมัครรับฟังอีเวนต์แค่ครั้งเดียว แล้วจะถอนการสมัครอัตโนมัติ
-	- Off: ถอนการสมัครรับฟังอีเวนต์ทั้งหมดของอีเวนต์นั้น
+	- Off: ถอนการสมัครรับฟังอีเวนต์ทั้งหมด
 	- Emit: ส่งอีเวนต์พร้อมข้อมูล
 	- Clear: ลบอีเวนต์ทั้งหมดและทำความสะอาด memory
 	- GetEventNames: ดูรายชื่ออีเวนต์ทั้งหมดที่มีในระบบ
@@ -72,7 +72,7 @@ local function getSignal(eventName: string): BindableEvent
 	return EventBus.signals[eventName]
 end
 
---[[
+--[[]
 	On: สมัครรับฟังอีเวนต์
 	หน้าที่: เชื่อมต่อ callback function กับ event ที่ระบุ
 	@param eventName: string - ชื่อของ event ที่ต้องการฟัง
@@ -85,7 +85,35 @@ end
 	end)
 --]]
 function EventBus:On(eventName: string, callback: EventCallback): EventConnection
-	assert(type(eventName) == "string", "eventName must be a string")
+	-- Enhanced validation with detailed error message
+	if type(eventName) ~= "string" then
+		-- แสดงรายละเอียดใน console ก่อน
+		warn("╔════════════════════════════════════════════════════════════════╗")
+		warn("║          ❌ EventBus:On() - Invalid Event Name                 ║")
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn(string.format("║ Expected: string                                               ║"))
+		warn(string.format("║ Got:      %-55s ║", type(eventName)))
+		warn(string.format("║ Value:    %-55s ║", tostring(eventName)))
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn("║ 💡 Common Issues:                                              ║")
+		warn("║   • Event not defined in Events.luau                           ║")
+		warn("║   • Typo in event name (e.g., Events.GAEM_START)              ║")
+		warn("║   • Using nil or undefined variable                            ║")
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn("║ 📍 Stack Trace:                                                ║")
+		
+		-- แสดง stack trace ทีละบรรทัด
+		local stack = debug.traceback("", 3)
+		for line in stack:gmatch("[^\r\n]+") do
+			warn("║ " .. line)
+		end
+		
+		warn("╚════════════════════════════════════════════════════════════════╝")
+		
+		-- ส่ง error สั้นๆ
+		error(string.format("EventBus:On() - eventName must be a string, got %s (value: %s)", type(eventName), tostring(eventName)), 2)
+	end
+	
 	assert(type(callback) == "function", "callback must be a function")
 	
 	local signal = getSignal(eventName)
@@ -132,7 +160,7 @@ function EventBus:Once(eventName: string, callback: EventCallback): EventConnect
 	return connection
 end
 
---[[
+--[[]
 	Emit: ส่งอีเวนต์พร้อมข้อมูล
 	หน้าที่: เรียก callback functions ทั้งหมดที่สมัครรับฟัง event นี้
 	@param eventName: string - ชื่อของ event ที่ต้องการส่ง
@@ -142,7 +170,34 @@ end
 	EventBus:Emit("PlayerJoined", "John", 5, true)
 --]]
 function EventBus:Emit(eventName: string, ...: any)
-	assert(type(eventName) == "string", "eventName must be a string")
+	-- Enhanced validation for Emit
+	if type(eventName) ~= "string" then
+		-- แสดงรายละเอียดใน console ก่อน
+		warn("╔════════════════════════════════════════════════════════════════╗")
+		warn("║          ❌ EventBus:Emit() - Invalid Event Name               ║")
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn(string.format("║ Expected: string                                               ║"))
+		warn(string.format("║ Got:      %-55s ║", type(eventName)))
+		warn(string.format("║ Value:    %-55s ║", tostring(eventName)))
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn("║ 💡 Common Issues:                                              ║")
+		warn("║   • Event not defined in Events.luau                           ║")
+		warn("║   • Typo in event name                                         ║")
+		warn("║   • Using nil variable                                         ║")
+		warn("╠════════════════════════════════════════════════════════════════╣")
+		warn("║ 📍 Stack Trace:                                                ║")
+		
+		-- แสดง stack trace ทีละบรรทัด
+		local stack = debug.traceback("", 3)
+		for line in stack:gmatch("[^\r\n]+") do
+			warn("║ " .. line)
+		end
+		
+		warn("╚════════════════════════════════════════════════════════════════╝")
+		
+		-- ส่ง error สั้นๆ
+		error(string.format("EventBus:Emit() - eventName must be a string, got %s (value: %s)", type(eventName), tostring(eventName)), 2)
+	end
 	
 	-- ตรวจสอบว่ามี signal หรือไม่ (ไม่สร้างใหม่ถ้ายังไม่มี)
 	local signal = EventBus.signals[eventName]

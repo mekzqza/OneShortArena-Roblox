@@ -5,7 +5,7 @@ local Players = game:GetService("Players")
 -- ดึงของที่เราเตรียมไว้
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
-local InputSettings = require(ReplicatedStorage.Shared.InputSettings)
+
 
 local AbilityController = {}
 
@@ -40,7 +40,7 @@ local function SpawnMagicCube()
 	-- 5. ลบทิ้งเมื่อผ่านไป 3 วินาที (กันแลค)
 	game:GetService("Debris"):AddItem(magicPart, 3)
 	
-	print("✨ Spawned Magic Cube!")
+	print("[AbilityController-client] ✨ Spawned Magic Cube!")
 end
 
 function AbilityController:Init()
@@ -52,10 +52,10 @@ function AbilityController:Init()
 			SpawnMagicCube()
 		
 		elseif actionName =="RESPAWN" then
-			print("🔄 Respawn button pressed (No respawn logic yet)")
+			print("[AbilityController-client] 🔄 Respawn button pressed (No respawn logic yet)")
 			
 		elseif actionName == "INTERACT" then
-			print("🔘 Interact button pressed (Nothing spawned)")
+			print("[AbilityController-client] 🔘 Interact button pressed (Nothing spawned)")
 		end
 		
 	end)

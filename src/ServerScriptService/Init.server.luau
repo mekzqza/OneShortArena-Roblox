@@ -11,13 +11,9 @@ local Services = ServerScriptService:WaitForChild("Services")
 local NetworkHandler = require(Services.NetworkHandler)
 local GameService = require(Services.GameService)
 local ArenaService = require(Services.ArenaService)
-local CombatService = require(Services.CombatService)
+local TestService = require(Services.TestService) -- สำหรับทดสอบ server-side services
 
-
---เอาไว้ทดสอบระบบ
-local DemoService = require(Services.DemoService) -- Add demo
-
--- Initialize services (setup phase)
+-- Initialize core services
 print("[Init] Initializing NetworkHandler...")
 NetworkHandler:Init()
 
@@ -27,19 +23,17 @@ GameService:Init()
 print("[Init] Initializing ArenaService...")
 ArenaService:Init()
 
-print("[Init] Initializing CombatService...")
-CombatService:Init()
+print("[Init] Initializing TestService...")
+TestService:Init()
 
-print("[Init] Initializing DemoService...")
-DemoService:Init()
+
+
 
 -- Start services (runtime phase)
 print("[Init] Starting services...")
 NetworkHandler:Start()
 GameService:Start()
 ArenaService:Start()
-CombatService:Start()
-DemoService:Start()
+TestService:Start()
 
 print("✅ All services initialized and started successfully.")
-print("🎮 Demo Mode: Use DemoController methods to test network communication")

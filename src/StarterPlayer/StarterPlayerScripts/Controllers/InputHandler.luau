@@ -20,7 +20,7 @@ export type InputHandler = {
     [string]: any,
 }
 
-local InputHandler: InputHandler = {}
+local InputHandler = {} :: InputHandler
 
 local player = Players.LocalPlayer
 
@@ -61,10 +61,10 @@ function InputHandler:Start()
         self:OnGameStateUpdate(state)
     end)
     
-    -- Listen for server cooldown updates
+    --[[ Listen for server cooldown updates
     EventBus:On(Events.COOLDOWN_UPDATE, function(data: any)
         self:OnCooldownUpdate(data)
-    end)
+    end)]]
     
     -- Process action queue
     task.spawn(function()
@@ -90,33 +90,32 @@ function InputHandler:OnInputAction(actionName: string)
     end
     
     -- Route to appropriate handler
-    if actionName == "Attack" then
+    if actionName == "ATTACK" then
         self:HandleAttack()
         
-    elseif actionName == "AttackHold" then
+    elseif actionName == "ATTACKHOLD" then
         self:HandleChargedAttack()
         
-    elseif actionName == "AttackDoubleTap" then
+    elseif actionName == "ATTACKDOUBLETAP" then
         self:HandleDashAttack()
         
-    elseif actionName == "Defend" then
+    elseif actionName == "DEFEND" then
         self:HandleDefend()
         
-    elseif actionName == "DefendHold" then
+    elseif actionName == "DEFENDHOLD" then
         self:HandleParry()
         
-    elseif actionName == "Special" then
+    elseif actionName == "SPECIAL" then
         self:HandleSpecial()
         
-    elseif actionName == "ComboTripleStrike" then
+    elseif actionName == "COMBOTRIPLESTRIKE" then
         self:HandleCombo("TripleStrike")
         
-    elseif actionName == "ToggleMenu" then
+    elseif actionName == "TOGGLEMENU" then
         self:HandleToggleMenu()
         
-    elseif actionName == "Ping" then
-        self:HandlePing()
-        
+    elseif actionName == "TESTPING" then
+        print("[InputHandler] 🧪 Forwarded TESTPING to TestHandler")
     else
         -- Unknown action
         print(`[InputHandler] ⚠️ Unhandled action: {actionName}`)
@@ -216,7 +215,7 @@ function InputHandler:HandleSpecial()
     self:SetCooldown("Special")
     print("[InputHandler] ✨ Special queued")
 end
-
+--[[
 function InputHandler:HandleCombo(comboName: string)
     print(`[InputHandler] 🔥 Combo: {comboName}`)
     
@@ -226,6 +225,7 @@ function InputHandler:HandleCombo(comboName: string)
         position = self:GetPlayerPosition(),
     })
 end
+]]
 
 -- === UI ACTIONS ===
 
@@ -233,11 +233,6 @@ function InputHandler:HandleToggleMenu()
     playerState.isInMenu = not playerState.isInMenu
     EventBus:Emit(Events.TOGGLE_UI, playerState.isInMenu)
     print(`[InputHandler] 📋 Menu: {playerState.isInMenu and "OPEN" or "CLOSED"}`)
-end
-
-function InputHandler:HandlePing()
-    NetworkController:Send(Events.DEMO_PING, tick())
-    print("[InputHandler] 📡 Ping sent")
 end
 
 -- === STATE MANAGEMENT ===
@@ -303,7 +298,7 @@ function InputHandler:ProcessActionQueue()
     -- Send queued actions to server
     for _, queuedAction in ipairs(actionQueue) do
         NetworkController:Send(queuedAction.action, queuedAction.data)
-    end
+    end 
     
     -- Clear queue
     table.clear(actionQueue)
