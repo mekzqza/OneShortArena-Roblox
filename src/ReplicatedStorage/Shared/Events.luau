@@ -58,6 +58,9 @@ Events.PLAYER_STATE_SET_DIED = "Player_StateSetDied"
 Events.PLAYER_STATE_CHANGED = "Player_StateChanged"
 Events.PLAYER_STATE_CHANGED_INTERNAL = "Player_StateChangedInternal"
 
+
+Events.PLAYER_TELEPORTED_TO_LOBBY = "Player_TeleportedToLobby"
+
 -- ============================================================================
 -- 🖼️ UI Events
 -- ============================================================================

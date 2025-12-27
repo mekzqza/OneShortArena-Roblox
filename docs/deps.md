@@ -610,3 +610,26 @@ local IS_PRODUCTION = true
 **Last Updated:** 2024  
 **Features:** ACK, Retry, Analytics, Anti-Replay, Security  
 **Author:** OneShortArena Team
+
+---
+
+## 6️⃣ อัปเดต docs/deps.md - เพิ่ม IdempotentGuard
+
+### Utility Modules
+
+```
+ServerScriptService/Utils/
+│
+└── IdempotentGuard.luau
+    ├── Purpose: Prevent double Init/Start
+    ├── Features:
+    │   ✅ Thread-safe state tracking
+    │   ✅ Lifecycle validation
+    │   ✅ Analytics tracking
+    │   └── Global registry
+    └── Usage:
+        local guard = IdempotentGuard.new("MyService")
+        if guard:MarkInitialized() then
+            -- Init logic
+        end
+```
