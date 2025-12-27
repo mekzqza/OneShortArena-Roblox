@@ -43,14 +43,20 @@ Events.PLAYER_SELF_SCORED = "Player_SelfScored"
 Events.PLAYER_STATS_UPDATED = "Player_StatsUpdated"
 Events.PLAYER_DAMAGED = "Player_Damaged"
 Events.PLAYER_HEALED = "Player_Healed"
-Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Request to enter arena
+Events.PLAYER_REQUEST_PLAY = "Player_RequestPlay"      -- Client → Server: Request to enter arena
 Events.JOIN_SUCCESS = "JoinSuccess"
 Events.JOIN_FAILED = "JoinFailed"
 
 -- Gameplay Loop Events
-Events.PLAYER_REQUEST_PLAY = "PlayerRequestPlay"      -- Client → Server: Request to enter arena
-Events.PLAYER_ENTER_ARENA = "PlayerEnterArena"        -- Server → Client: Confirmation of arena entry
-Events.PLAYER_DIED = "PlayerDied"                     -- Server → All: Player was eliminated
+Events.PLAYER_REQUEST_TO_ARENA = "Player_RequestToArena"      -- Client → Server: Request to enter arena
+Events.PLAYER_REQUEST_TO_LOBBY = "Player_RequestToLobby"      -- Client → Server: Request to return to lobby
+Events.PLAYER_REQUEST_TO_SPECTATE = "Player_RequestToSpectate" -- Client → Server: Request to spectate
+
+Events.PLAYER_STATE_SET_LOBBY = "Player_StateSetLobby"
+Events.PLAYER_STATE_SET_ARENA = "Player_StateSetArena"
+Events.PLAYER_STATE_SET_DIED = "Player_StateSetDied"
+Events.PLAYER_STATE_CHANGED = "Player_StateChanged"
+Events.PLAYER_STATE_CHANGED_INTERNAL = "Player_StateChangedInternal"
 
 -- ============================================================================
 -- 🖼️ UI Events
