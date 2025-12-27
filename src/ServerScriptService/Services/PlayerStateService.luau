@@ -1,6 +1,6 @@
 --!strict
 
---[ [
+--[[
 ╔════════════════════════════════════════════════════════════════╗
 ║           PLAYER STATE SERVICE - PRODUCTION GRADE              ║
 ╠════════════════════════════════════════════════════════════════╣
@@ -21,7 +21,6 @@ local Players = game:GetService("Players")
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
-local Types = require(ReplicatedStorage.Shared.Types)
 
 -- ═══════════════════════════════════════════════════════════════
 -- TYPE DEFINITIONS
@@ -43,7 +42,7 @@ export type PlayerStateData = {
 	lastTransitionTime: number,
 }
 
-export type PlayerStateService = Types.Service & {
+export type PlayerStateService = {
 	GetState: (self: PlayerStateService, player: Player | number) -> PlayerState?,
 	SetState: (self: PlayerStateService, player: Player | number, newState: PlayerState, reason: string?) -> boolean,
 	CanTransition: (self: PlayerStateService, player: Player | number, targetState: PlayerState) -> (boolean, string?),
