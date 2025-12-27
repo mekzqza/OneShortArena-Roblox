@@ -3,7 +3,6 @@ local SrverScriptService = game:GetService("ServerScriptService")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
-local NetworkController = require(script.Parent.NetworkController)	
 
 
 
