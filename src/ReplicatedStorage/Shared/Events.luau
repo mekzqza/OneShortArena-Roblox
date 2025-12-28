@@ -60,6 +60,7 @@ Events.PLAYER_STATE_CHANGED_INTERNAL = "Player_StateChangedInternal"
 
 
 Events.PLAYER_TELEPORTED_TO_LOBBY = "Player_TeleportedToLobby"
+Events.PLAYER_TELEPORTED_TO_ARENA = "PlayerTeleportedToArena" -- New Event
 
 -- ============================================================================
 -- 🖼️ UI Events

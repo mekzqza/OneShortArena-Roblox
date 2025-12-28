@@ -21,6 +21,7 @@ local Players = game:GetService("Players")
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 
 -- ═══════════════════════════════════════════════════════════════
 -- TYPE DEFINITIONS
@@ -56,6 +57,9 @@ export type PlayerStateService = {
 -- ═══════════════════════════════════════════════════════════════
 
 local PlayerStateService = {} :: PlayerStateService
+
+-- ✅ Create idempotent guard
+local guard = IdempotentGuard.new("PlayerStateService", true)
 
 -- Valid states
 local VALID_STATES: {[PlayerState]: true} = {
@@ -150,6 +154,11 @@ end
 -- ═══════════════════════════════════════════════════════════════
 
 function PlayerStateService:Init()
+	-- ✅ Guard: Prevent double init
+	if not guard:MarkInitialized() then
+		return
+	end
+	
 	-- Allow client events
 	NetworkHandler:AllowClientEvent(Events.PLAYER_REQUEST_TO_ARENA)
 	NetworkHandler:AllowClientEvent(Events.PLAYER_REQUEST_TO_LOBBY)
@@ -166,6 +175,11 @@ function PlayerStateService:Init()
 end
 
 function PlayerStateService:Start()
+	-- ✅ Guard: Prevent double start & require init
+	if not guard:MarkStarted() then
+		return
+	end
+	
 	-- ═══════════════════════════════════════════════════════════
 	-- PLAYER LIFECYCLE EVENTS
 	-- ═══════════════════════════════════════════════════════════
@@ -317,9 +331,9 @@ function PlayerStateService:CanTransition(player: Player | number, targetState: 
 	
 	local currentState = stateData.currentState
 	
-	-- Check if same state
+	-- ✅ แก้ไข: ถ้า state เดียวกัน ให้ return true (idempotent)
 	if currentState == targetState then
-		return false, "Already in target state"
+		return true, "Already in target state (idempotent)"  -- ✅ Changed from false to true
 	end
 	
 	-- Check transition rules
