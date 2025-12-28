@@ -620,16 +620,30 @@ local IS_PRODUCTION = true
 ```
 ServerScriptService/Utils/
 │
-└── IdempotentGuard.luau
-    ├── Purpose: Prevent double Init/Start
+├── IdempotentGuard.luau
+│   ├── Purpose: Prevent double Init/Start
+│   ├── Features:
+│   │   ✅ Thread-safe state tracking
+│   │   ✅ Lifecycle validation
+│   │   ✅ Analytics tracking
+│   │   └── Global registry
+│   └── Usage:
+│       local guard = IdempotentGuard.new("MyService")
+│       if guard:MarkInitialized() then
+│           -- Init logic
+│       end
+│
+└── ExecutionGuard.luau
+    ├── Purpose: Advanced execution control
     ├── Features:
-    │   ✅ Thread-safe state tracking
-    │   ✅ Lifecycle validation
-    │   ✅ Analytics tracking
-    │   └── Global registry
+    │   ✅ RunOnce - Execute function only once
+    │   ✅ In-progress lock - Prevent concurrent execution
+    │   ✅ Result reuse - Cache and return results
+    │   ✅ Timeout support - Auto-release locks
+    │   └── Thread-safe
     └── Usage:
-        local guard = IdempotentGuard.new("MyService")
-        if guard:MarkInitialized() then
-            -- Init logic
-        end
+        local guard = ExecutionGuard.new()
+        local success, result = guard:RunOnce("loadData", function()
+            return loadDataFromAPI()
+        end, { timeout = 10, cacheResult = true })
 ```
