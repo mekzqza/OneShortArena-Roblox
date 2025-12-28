@@ -1,95 +1,118 @@
---[[
-	EventBus Module - ระบบสื่อสารภายในของเกม (Production-Ready)
-	
-	📌 หน้าที่หลัก:
-	EventBus เป็นหัวใจสำคัญของการสื่อสารภายในระบบของเรา
-	ใช้สำหรับส่งข้อมูลระหว่าง Client-Client และ Server-Server
-	โดยไม่ต้องพึ่งพา RemoteEvent/RemoteFunction
-	
-	🔧 ฟีเจอร์:
-	- On: สมัครรับฟังอีเวนต์ (Subscribe)
-	- Once: สมัครรับฟังอีเวนต์แค่ครั้งเดียว แล้วจะถอนการสมัครอัตโนมัติ
-	- Off: ถอนการสมัครรับฟังอีเวนต์ทั้งหมด
-	- Emit: ส่งอีเวนต์พร้อมข้อมูล
-	- Clear: ลบอีเวนต์ทั้งหมดและทำความสะอาด memory
-	- GetEventNames: ดูรายชื่ออีเวนต์ทั้งหมดที่มีในระบบ
-	
-	📖 ตัวอย่างการใช้งาน:
-	
-	-- การสมัครรับฟังอีเวนต์
-	local connection = EventBus:On("PlayerJoined", function(playerName, level)
-		print(playerName .. " joined with level " .. level)
-	end)
-	
-	-- การส่งอีเวนต์
-	EventBus:Emit("PlayerJoined", "John", 5)
-	
-	-- การสมัครรับฟังแค่ครั้งเดียว
-	EventBus:Once("GameStarted", function()
-		print("Game has started!")
-	end)
-	
-	-- การถอนการสมัคร (ผ่าน connection)
-	connection:Disconnect()
-	
-	-- การถอนการสมัครทั้งหมดของอีเวนต์
-	EventBus:Off("PlayerJoined")
-	
-	-- การลบอีเวนต์ทั้งหมด (ใช้ตอน cleanup)
-	EventBus:Clear()
-	
-	⚠️ ข้อควรระวัง:
-	- ต้องเก็บ connection ไว้ ถ้าต้องการ Disconnect ในภายหลัง
-	- ใช้ Once สำหรับอีเวนต์ที่ต้องการรับแค่ครั้งเดียว เพื่อป้องกัน memory leak
-	- ใช้ Off หรือ Clear เมื่อไม่ใช้งานแล้ว เพื่อป้องกัน memory leak
-	- EventBus ใช้ได้ทั้ง Client และ Server แต่จะไม่สื่อสารข้ามกัน
-	
-	💡 Best Practices:
-	- ตั้งชื่ออีเวนต์ให้มีความหมายชัด เช่น "Player_Died", "UI_Opened"
-	- ใช้ Once สำหรับอีเวนต์ที่เกิดครั้งเดียว เช่น "GameInitialized"
-	- จัดกลุ่มอีเวนต์ด้วย prefix เช่น "UI_", "Player_", "Game_"
-	- ทำ cleanup ใน Destroy หรือ Cleanup functions
---]]
+--!strict
 
-local EventBus = {}
-EventBus.signals = {} -- เก็บ BindableEvent ทั้งหมด
+--[[
+╔════════════════════════════════════════════════════════════════╗
+║         EVENTBUS MODULE - PRODUCTION GRADE (Signal-Based)      ║
+╠════════════════════════════════════════════════════════════════╣
+║ Purpose: Type-safe event communication system                 ║
+║ Features:                                                      ║
+║  ✅ Uses Signal library (Production-grade)                    ║
+║  ✅ Type-safe event handling                                  ║
+║  ✅ Memory-efficient cleanup                                  ║
+║  ✅ Enhanced error messages                                   ║
+║  ✅ Analytics tracking                                        ║
+║  ✅ Connection management                                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+📖 ตัวอย่างการใช้งาน:
+
+-- การสมัครรับฟังอีเวนต์
+local connection = EventBus:On("PlayerJoined", function(playerName, level)
+	print(playerName .. " joined with level " .. level)
+end)
+
+-- การส่งอีเวนต์
+EventBus:Emit("PlayerJoined", "John", 5)
+
+-- การสมัครรับฟังแค่ครั้งเดียว
+EventBus:Once("GameStarted", function()
+	print("Game has started!")
+end)
+
+-- การถอนการสมัคร
+connection:Disconnect()
+
+-- การถอนการสมัครทั้งหมดของอีเวนต์
+EventBus:Off("PlayerJoined")
+
+💡 Best Practices:
+- ตั้งชื่ออีเวนต์ให้มีความหมายชัด
+- ใช้ Once สำหรับอีเวนต์ที่เกิดครั้งเดียว
+- ทำ cleanup ด้วย Disconnect() หรือ Off()
+- ใช้ GetEventNames() เพื่อ debug
+]]
+
+-- ═══════════════════════════════════════════════════════════════
+-- DEPENDENCIES
+-- ═══════════════════════════════════════════════════════════════
+
+local Signal = require(game.ReplicatedStorage.Packages.Signal)
+
+-- ═══════════════════════════════════════════════════════════════
+-- TYPE DEFINITIONS
+-- ═══════════════════════════════════════════════════════════════
 
 type EventCallback = (...any) -> ()
-type EventConnection = RBXScriptConnection
+type SignalConnection = typeof(Signal.new():Connect(function() end))
 
---[[
-	ฟังก์ชันภายใน: getSignal
-	หน้าที่: สร้างหรือดึง BindableEvent สำหรับ event ที่ระบุ
-	@param eventName: string - ชื่อของ event
-	@return BindableEvent - signal object สำหรับ event นั้น
---]]
-local function getSignal(eventName: string): BindableEvent
-	-- ตรวจสอบว่ามี signal อยู่แล้วหรือไม่
-	if not EventBus.signals[eventName] then
-		-- สร้างใหม่ถ้ายังไม่มี
-		EventBus.signals[eventName] = Instance.new("BindableEvent")
+export type EventBus = {
+	-- Core methods
+	On: (self: EventBus, eventName: string, callback: EventCallback) -> SignalConnection,
+	Once: (self: EventBus, eventName: string, callback: EventCallback) -> SignalConnection,
+	Emit: (self: EventBus, eventName: string, ...any) -> (),
+	Off: (self: EventBus, eventName: string) -> (),
+	
+	-- Utilities
+	Clear: (self: EventBus) -> (),
+	GetEventNames: (self: EventBus) -> {string},
+	GetListenerCount: (self: EventBus, eventName: string) -> number,
+	GetAnalytics: (self: EventBus) -> {[string]: any},
+	
+	-- Internal
+	_signals: {[string]: any},
+	_analytics: {[string]: any},
+}
+
+local EventBus = {} :: EventBus
+EventBus._signals = {}
+
+-- ═══════════════════════════════════════════════════════════════
+-- ANALYTICS
+-- ═══════════════════════════════════════════════════════════════
+
+EventBus._analytics = {
+	totalEvents = 0,
+	totalEmits = 0,
+	eventCounts = {} :: {[string]: {subscribes: number, emits: number}},
+	errors = {} :: {{timestamp: number, event: string, error: string}},
+	startTime = os.clock(),
+}
+
+-- ═══════════════════════════════════════════════════════════════
+-- PRIVATE FUNCTIONS
+-- ═══════════════════════════════════════════════════════════════
+
+local function getSignal(eventName: string)
+	if not EventBus._signals[eventName] then
+		EventBus._signals[eventName] = Signal.new()
+		EventBus._analytics.totalEvents += 1
+		
+		-- Track event creation
+		if not EventBus._analytics.eventCounts[eventName] then
+			EventBus._analytics.eventCounts[eventName] = {
+				subscribes = 0,
+				emits = 0,
+			}
+		end
 	end
-	return EventBus.signals[eventName]
+	return EventBus._signals[eventName]
 end
 
---[[]
-	On: สมัครรับฟังอีเวนต์
-	หน้าที่: เชื่อมต่อ callback function กับ event ที่ระบุ
-	@param eventName: string - ชื่อของ event ที่ต้องการฟัง
-	@param callback: function - ฟังก์ชันที่จะถูกเรียกเมื่อ event เกิดขึ้น
-	@return RBXScriptConnection - connection object สำหรับ disconnect ในภายหลัง
-	
-	ตัวอย่าง:
-	local conn = EventBus:On("PlayerDied", function(playerName)
-		print(playerName .. " has died")
-	end)
---]]
-function EventBus:On(eventName: string, callback: EventCallback): EventConnection
-	-- Enhanced validation with detailed error message
+local function validateEventName(eventName: any, functionName: string)
 	if type(eventName) ~= "string" then
-		-- แสดงรายละเอียดใน console ก่อน
+		-- Enhanced error message
 		warn("╔════════════════════════════════════════════════════════════════╗")
-		warn("║          ❌ EventBus:On() - Invalid Event Name                 ║")
+		warn(`║          ❌ EventBus:{functionName}() - Invalid Event Name        ║`)
 		warn("╠════════════════════════════════════════════════════════════════╣")
 		warn(string.format("║ Expected: string                                               ║"))
 		warn(string.format("║ Got:      %-55s ║", type(eventName)))
@@ -102,7 +125,6 @@ function EventBus:On(eventName: string, callback: EventCallback): EventConnectio
 		warn("╠════════════════════════════════════════════════════════════════╣")
 		warn("║ 📍 Stack Trace:                                                ║")
 		
-		-- แสดง stack trace ทีละบรรทัด
 		local stack = debug.traceback("", 3)
 		for line in stack:gmatch("[^\r\n]+") do
 			warn("║ " .. line)
@@ -110,163 +132,280 @@ function EventBus:On(eventName: string, callback: EventCallback): EventConnectio
 		
 		warn("╚════════════════════════════════════════════════════════════════╝")
 		
-		-- ส่ง error สั้นๆ
-		error(string.format("EventBus:On() - eventName must be a string, got %s (value: %s)", type(eventName), tostring(eventName)), 2)
+		error(string.format(
+			"EventBus:%s() - eventName must be a string, got %s (value: %s)",
+			functionName,
+			type(eventName),
+			tostring(eventName)
+		), 3)
 	end
+end
+
+local function trackError(eventName: string, errorMsg: string)
+	table.insert(EventBus._analytics.errors, {
+		timestamp = os.clock(),
+		event = eventName,
+		error = errorMsg,
+	})
 	
+	-- Keep only last 100 errors
+	if #EventBus._analytics.errors > 100 then
+		table.remove(EventBus._analytics.errors, 1)
+	end
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- PUBLIC METHODS
+-- ═══════════════════════════════════════════════════════════════
+
+--[[
+	On: Subscribe to event
+	
+	@param eventName string - Event name to listen to
+	@param callback function - Function to call when event fires
+	@return SignalConnection - Connection object (call :Disconnect() to unsubscribe)
+	
+	Example:
+		local conn = EventBus:On("PlayerDied", function(playerName)
+			print(playerName .. " died")
+		end)
+		
+		-- Later: conn:Disconnect()
+]]
+function EventBus:On(eventName: string, callback: EventCallback): SignalConnection
+	validateEventName(eventName, "On")
 	assert(type(callback) == "function", "callback must be a function")
 	
 	local signal = getSignal(eventName)
-	return signal.Event:Connect(callback)
-end
-
---[[
-	Once: สมัครรับฟังอีเวนต์แค่ครั้งเดียว
-	หน้าที่: เชื่อมต่อ callback function กับ event แต่จะถูกถอนการเชื่อมต่ออัตโนมัติหลังจากถูกเรียกครั้งแรก
-	@param eventName: string - ชื่อของ event ที่ต้องการฟัง
-	@param callback: function - ฟังก์ชันที่จะถูกเรียกเมื่อ event เกิดขึ้น
-	@return RBXScriptConnection - connection object สำหรับ disconnect ในภายหลัง (ถ้าต้องการยกเลิกก่อนที่จะถูกเรียก)
 	
-	ตัวอย่าง:
-	EventBus:Once("GameStarted", function()
-		print("Game has started!")
-	end)
---]]
-function EventBus:Once(eventName: string, callback: EventCallback): EventConnection
-	assert(type(eventName) == "string", "eventName must be a string")
-	assert(type(callback) == "function", "callback must be a function")
+	-- Track subscription
+	EventBus._analytics.eventCounts[eventName].subscribes += 1
 	
-	-- ใช้ flag เพื่อป้องกัน race condition
-	local hasBeenCalled = false
+	-- Connect with error handling
 	local connection
-	
-	connection = self:On(eventName, function(...)
-		-- ตรวจสอบว่าถูกเรียกไปแล้วหรือยัง (thread-safe)
-		if hasBeenCalled then
-			return
+	connection = signal:Connect(function(...)
+		local success, err = pcall(callback, ...)
+		if not success then
+			trackError(eventName, tostring(err))
+			warn(string.format(
+				"[EventBus] ❌ Error in listener for '%s': %s",
+				eventName,
+				tostring(err)
+			))
 		end
-		hasBeenCalled = true
-		
-		-- ถอนการเชื่อมต่อ
-		if connection then
-			connection:Disconnect()
-			connection = nil
-		end
-		
-		-- เรียก callback พร้อมส่งต่อ arguments ทั้งหมด
-		callback(...)
 	end)
 	
 	return connection
 end
 
---[[]
-	Emit: ส่งอีเวนต์พร้อมข้อมูล
-	หน้าที่: เรียก callback functions ทั้งหมดที่สมัครรับฟัง event นี้
-	@param eventName: string - ชื่อของ event ที่ต้องการส่ง
-	@param ...: any - ข้อมูลที่ต้องการส่งไปยัง callbacks (รองรับหลาย arguments)
+--[[
+	Once: Subscribe to event (fires only once)
 	
-	ตัวอย่าง:
-	EventBus:Emit("PlayerJoined", "John", 5, true)
---]]
-function EventBus:Emit(eventName: string, ...: any)
-	-- Enhanced validation for Emit
-	if type(eventName) ~= "string" then
-		-- แสดงรายละเอียดใน console ก่อน
-		warn("╔════════════════════════════════════════════════════════════════╗")
-		warn("║          ❌ EventBus:Emit() - Invalid Event Name               ║")
-		warn("╠════════════════════════════════════════════════════════════════╣")
-		warn(string.format("║ Expected: string                                               ║"))
-		warn(string.format("║ Got:      %-55s ║", type(eventName)))
-		warn(string.format("║ Value:    %-55s ║", tostring(eventName)))
-		warn("╠════════════════════════════════════════════════════════════════╣")
-		warn("║ 💡 Common Issues:                                              ║")
-		warn("║   • Event not defined in Events.luau                           ║")
-		warn("║   • Typo in event name                                         ║")
-		warn("║   • Using nil variable                                         ║")
-		warn("╠════════════════════════════════════════════════════════════════╣")
-		warn("║ 📍 Stack Trace:                                                ║")
-		
-		-- แสดง stack trace ทีละบรรทัด
-		local stack = debug.traceback("", 3)
-		for line in stack:gmatch("[^\r\n]+") do
-			warn("║ " .. line)
+	@param eventName string - Event name
+	@param callback function - Function to call
+	@return SignalConnection - Connection (auto-disconnects after first fire)
+	
+	Example:
+		EventBus:Once("GameStarted", function()
+			print("Game started!")
+		end)
+]]
+function EventBus:Once(eventName: string, callback: EventCallback): SignalConnection
+	validateEventName(eventName, "Once")
+	assert(type(callback) == "function", "callback must be a function")
+	
+	local signal = getSignal(eventName)
+	
+	-- Track subscription
+	EventBus._analytics.eventCounts[eventName].subscribes += 1
+	
+	-- Use Signal's Once method
+	local connection
+	connection = signal:Once(function(...)
+		local success, err = pcall(callback, ...)
+		if not success then
+			trackError(eventName, tostring(err))
+			warn(string.format(
+				"[EventBus] ❌ Error in Once listener for '%s': %s",
+				eventName,
+				tostring(err)
+			))
 		end
-		
-		warn("╚════════════════════════════════════════════════════════════════╝")
-		
-		-- ส่ง error สั้นๆ
-		error(string.format("EventBus:Emit() - eventName must be a string, got %s (value: %s)", type(eventName), tostring(eventName)), 2)
-	end
+	end)
 	
-	-- ตรวจสอบว่ามี signal หรือไม่ (ไม่สร้างใหม่ถ้ายังไม่มี)
-	local signal = EventBus.signals[eventName]
+	return connection
+end
+
+--[[
+	Emit: Fire event with data
+	
+	@param eventName string - Event name
+	@param ... any - Arguments to pass to listeners
+	
+	Example:
+		EventBus:Emit("PlayerJoined", "John", 5, true)
+]]
+function EventBus:Emit(eventName: string, ...: any)
+	validateEventName(eventName, "Emit")
+	
+	local signal = EventBus._signals[eventName]
 	if signal then
-		-- Fire ตรงๆ เพราะ BindableEvent มี error handling ภายในอยู่แล้ว
-		-- Listener แต่ละตัวจะ run แยกกัน ถ้า listener ตัวหนึ่ง error จะไม่กระทบตัวอื่น
+		-- Track emit
+		EventBus._analytics.totalEmits += 1
+		EventBus._analytics.eventCounts[eventName].emits += 1
+		
+		-- Fire signal (Signal library handles errors internally)
 		signal:Fire(...)
 	end
-	-- ถ้าไม่มี signal ก็ไม่ต้องทำอะไร (ไม่มีใครสมัครรับฟัง)
-	-- หมายเหตุ: เราไม่ใช้ getSignal() เพราะไม่ต้องการสร้าง signal ใหม่เมื่อยังไม่มีใครฟัง
+	-- If no signal exists, no listeners are registered (silent ignore)
 end
 
 --[[
-	Off: ถอนการสมัครรับฟังอีเวนต์ทั้งหมด
-	หน้าที่: ลบ callbacks ทั้งหมดที่สมัครรับฟัง event นี้และทำลาย signal
-	@param eventName: string - ชื่อของ event ที่ต้องการถอนการสมัคร
+	Off: Disconnect all listeners for event
 	
-	ตัวอย่าง:
-	EventBus:Off("PlayerJoined")
---]]
+	@param eventName string - Event name
+	
+	Example:
+		EventBus:Off("PlayerJoined")
+]]
 function EventBus:Off(eventName: string)
-	assert(type(eventName) == "string", "eventName must be a string")
+	validateEventName(eventName, "Off")
 	
-	local signal = EventBus.signals[eventName]
+	local signal = EventBus._signals[eventName]
 	if signal then
-		-- ทำลาย BindableEvent เพื่อถอน connections ทั้งหมด
+		-- Destroy signal (disconnects all connections)
 		signal:Destroy()
-		EventBus.signals[eventName] = nil
+		EventBus._signals[eventName] = nil
+		
+		-- Keep analytics data
+		EventBus._analytics.totalEvents -= 1
 	end
 end
 
 --[[
-	Clear: ลบอีเวนต์ทั้งหมดและทำความสะอาด
-	หน้าที่: ทำลาย signals ทั้งหมดและล้าง memory
-	ใช้เมื่อต้องการ reset ระบบ EventBus หรือก่อนจะปิดระบบ
+	Clear: Disconnect all events
 	
-	⚠️ ระวัง: จะลบ event listeners ทั้งหมดในระบบ!
+	⚠️ Warning: Removes ALL event listeners!
 	
-	ตัวอย่าง:
-	EventBus:Clear()
---]]
+	Example:
+		EventBus:Clear()
+]]
 function EventBus:Clear()
-	-- วนลบทุก signal และล้าง reference ในตาราง
-	for eventName, signal in pairs(EventBus.signals) do
+	for eventName, signal in pairs(EventBus._signals) do
 		if signal then
 			signal:Destroy()
 		end
-		-- ล้าง reference ทันที
-		EventBus.signals[eventName] = nil
+		EventBus._signals[eventName] = nil
 	end
+	
+	-- Reset analytics
+	EventBus._analytics.totalEvents = 0
 end
 
 --[[
-	GetEventNames: ดูรายชื่ออีเวนต์ทั้งหมด
-	หน้าที่: ส่งคืนรายการชื่อ events ทั้งหมดที่มีในระบบ
-	@return table - ตารางที่เก็บชื่อ events ทั้งหมด
+	GetEventNames: Get list of all registered events
 	
-	ตัวอย่าง:
-	local events = EventBus:GetEventNames()
-	for _, eventName in ipairs(events) do
-		print("Event:", eventName)
-	end
---]]
+	@return {string} - Array of event names
+	
+	Example:
+		local events = EventBus:GetEventNames()
+		for _, name in ipairs(events) do
+			print("Event:", name)
+		end
+]]
 function EventBus:GetEventNames(): {string}
-	local eventNames = {}
-	for eventName, _ in pairs(EventBus.signals) do
-		table.insert(eventNames, eventName)
+	local names = {}
+	for eventName, _ in pairs(EventBus._signals) do
+		table.insert(names, eventName)
 	end
-	return eventNames
+	return names
+end
+
+--[[
+	GetListenerCount: Get number of listeners for event
+	
+	@param eventName string - Event name
+	@return number - Number of active listeners
+	
+	Example:
+		local count = EventBus:GetListenerCount("PlayerJoined")
+		print("Listeners:", count)
+]]
+function EventBus:GetListenerCount(eventName: string): number
+	validateEventName(eventName, "GetListenerCount")
+	
+	local signal = EventBus._signals[eventName]
+	if signal and signal.GetConnectionCount then
+		return signal:GetConnectionCount()
+	end
+	return 0
+end
+
+--[[
+	GetAnalytics: Get analytics data
+	
+	@return table - Analytics data
+	
+	Example:
+		local analytics = EventBus:GetAnalytics()
+		print("Total events:", analytics.totalEvents)
+		print("Total emits:", analytics.totalEmits)
+]]
+function EventBus:GetAnalytics(): {[string]: any}
+	local uptime = os.clock() - EventBus._analytics.startTime
+	
+	return {
+		totalEvents = EventBus._analytics.totalEvents,
+		totalEmits = EventBus._analytics.totalEmits,
+		eventCounts = EventBus._analytics.eventCounts,
+		errors = EventBus._analytics.errors,
+		uptime = uptime,
+		emitsPerSecond = uptime > 0 and EventBus._analytics.totalEmits / uptime or 0,
+	}
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- DEBUG UTILITIES
+-- ═══════════════════════════════════════════════════════════════
+
+--[[
+	PrintSummary: Print summary of all events (debug)
+]]
+function EventBus:PrintSummary()
+	print("╔════════════════════════════════════════════════════════════════╗")
+	print("║                    EVENTBUS SUMMARY                            ║")
+	print("╠════════════════════════════════════════════════════════════════╣")
+	
+	local analytics = self:GetAnalytics()
+	print(string.format("║ Total Events: %d", analytics.totalEvents))
+	print(string.format("║ Total Emits: %d", analytics.totalEmits))
+	print(string.format("║ Emits/sec: %.2f", analytics.emitsPerSecond))
+	print(string.format("║ Uptime: %.2fs", analytics.uptime))
+	print("╠════════════════════════════════════════════════════════════════╣")
+	
+	if analytics.totalEvents > 0 then
+		print("║ Events:")
+		for eventName, stats in pairs(analytics.eventCounts) do
+			local listeners = self:GetListenerCount(eventName)
+			print(string.format(
+				"║   %-30s Listeners: %d, Emits: %d",
+				eventName,
+				listeners,
+				stats.emits
+			))
+		end
+	end
+	
+	if #analytics.errors > 0 then
+		print("╠════════════════════════════════════════════════════════════════╣")
+		print(string.format("║ Recent Errors: %d", #analytics.errors))
+		for i = math.max(1, #analytics.errors - 5), #analytics.errors do
+			local err = analytics.errors[i]
+			print(string.format("║   [%.2fs] %s: %s", err.timestamp, err.event, err.error:sub(1, 40)))
+		end
+	end
+	
+	print("╚════════════════════════════════════════════════════════════════╝")
 end
 
 return EventBus
