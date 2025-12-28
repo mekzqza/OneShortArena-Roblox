@@ -21,6 +21,7 @@ local utils = ServerScriptService:WaitForChild("Utils")
 -- Load core services in dependency order
 local NetworkHandler = require(Services.NetworkHandler)
 local LobbyService = require(Services.LobbyService)
+local ArenaService = require(Services.ArenaService)
 local PlayerStateService = require(Services.PlayerStateService)
 local GameService = require(Services.GameService)
 local TestService = require(Services.TestService)
@@ -36,6 +37,9 @@ NetworkHandler:Init()
 print("[Init] Initializing LobbyService...")
 LobbyService:Init()
 
+print("[Init] Initializing ArenaService...")  -- ✅ เพิ่ม
+ArenaService:Init()
+
 print("[Init] Initializing PlayerStateService...")
 PlayerStateService:Init()
 
@@ -49,6 +53,7 @@ TestService:Init()
 print("[Init] Starting services...")
 NetworkHandler:Start()
 LobbyService:Start()
+ArenaService:Start()  -- ✅ เพิ่ม
 PlayerStateService:Start()
 GameService:Start()
 TestService:Start()
