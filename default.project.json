@@ -20,6 +20,11 @@
       "SystemsShared": {
         "$path": "src/ReplicatedStorage/SystemsShared"
       },
+
+      "Utils": {
+        "$path": "src/ReplicatedStorage/Utils"
+      },
+
       "Packages": {
         "$path": "Packages"
       }
