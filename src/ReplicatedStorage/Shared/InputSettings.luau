@@ -1,10 +1,9 @@
-
 --!strict
 
 -- InputSettings: centralized input action names and default bindings.
 -- Note: ready for future dynamic remapping; current module provides read-only helpers.
 
-export type ActionId = "ATTACK" | "DASH" | "INTERACT" 
+export type ActionId = "ATTACK" | "DASH" | "INTERACT" | "PLAY" | "CANCEL"
 export type ActionNameMap = { [ActionId]: string }
 export type Binding = Enum.KeyCode | Enum.UserInputType
 export type BindingMap = { [ActionId]: { Binding } }
@@ -16,6 +15,8 @@ local ACTIONS: ActionNameMap = table.freeze({
     INTERACT = "Interact",
     RESPAWN = "Respawn",
     TESTPING = "TestPing",
+    PLAY = "Play",
+    CANCEL = "Cancel",
 })
 
 local DEFAULT_BINDINGS: BindingMap = table.freeze({
@@ -24,6 +25,8 @@ local DEFAULT_BINDINGS: BindingMap = table.freeze({
     INTERACT = table.freeze({ Enum.KeyCode.F, Enum.KeyCode.ButtonX }),
     RESPAWN =table.freeze({ Enum.KeyCode.R, Enum.KeyCode.ButtonA }),
     TESTPING = table.freeze({ Enum.KeyCode.P, Enum.KeyCode.ButtonY }),
+	PLAY = table.freeze({Enum.KeyCode.Return}),      -- Enter key (keyboard backup)
+	CANCEL = table.freeze({Enum.KeyCode.Escape}),    -- Escape key (keyboard backup)
 })
 
 local MOBILE_BUTTON_NAMES: MobileButtonMap = table.freeze({
@@ -32,7 +35,8 @@ local MOBILE_BUTTON_NAMES: MobileButtonMap = table.freeze({
     INTERACT = "InteractButton",
     RESPAWN = "RespawnButton",
     TESTPING = "TestPingButton",
-
+	PLAY = "PlayButton",
+	CANCEL = "CancelButton",
 })
 
 local function copyArray<T>(source: { T }): { T }
@@ -62,7 +66,7 @@ function InputSettings.GetMobileButtonName(actionId: ActionId): string?
 end
 
 function InputSettings.GetAllActions(): { ActionId }
-    return { "ATTACK", "DASH", "INTERACT" }
+    return { "ATTACK", "DASH", "INTERACT", "PLAY", "CANCEL" }
 end
 
 -- Expose raw tables if needed (read-only, already frozen)
