@@ -30,6 +30,9 @@
       "Services": {
         "$path": "src/ServerScriptService/Services"
       },
+      "Utils": {
+        "$path": "src/ServerScriptService/Utils"
+      },
       "Init": {
         "$path": "src/ServerScriptService/Init.server.luau"
       }
