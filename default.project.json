@@ -20,6 +20,11 @@
       "SystemsShared": {
         "$path": "src/ReplicatedStorage/SystemsShared"
       },
+
+      "Utils": {
+        "$path": "src/ReplicatedStorage/Utils"
+      },
+
       "Packages": {
         "$path": "Packages"
       }
@@ -29,6 +34,9 @@
       "$className": "ServerScriptService",
       "Services": {
         "$path": "src/ServerScriptService/Services"
+      },
+      "Utils": {
+        "$path": "src/ServerScriptService/Utils"
       },
       "Init": {
         "$path": "src/ServerScriptService/Init.server.luau"

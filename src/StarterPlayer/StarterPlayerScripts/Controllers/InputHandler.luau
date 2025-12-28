@@ -74,6 +74,15 @@ function InputHandler:Start()
         end
     end)
     
+    -- ✅ Listen for PLAY action (from UI button)
+    EventBus:On(Events.INPUT_ACTION, function(actionName: string)
+        if actionName == "PLAY" then
+            self:HandlePlay()
+        elseif actionName == "CANCEL" then
+            self:HandleCancel()
+        end
+    end)
+    
     print("[InputHandler] 🚀 Started")
     self:PrintKeyBindings()
 end
@@ -233,6 +242,28 @@ function InputHandler:HandleToggleMenu()
     playerState.isInMenu = not playerState.isInMenu
     EventBus:Emit(Events.TOGGLE_UI, playerState.isInMenu)
     print(`[InputHandler] 📋 Menu: {playerState.isInMenu and "OPEN" or "CLOSED"}`)
+end
+
+-- ✅ Handle PLAY button
+function InputHandler:HandlePlay()
+    print("[InputHandler] ▶️ Play button pressed")
+    
+    -- Send to server
+    NetworkController:Send(Events.PLAYER_REQUEST_TO_ARENA, {
+        action = "join",
+        timestamp = tick()
+    })
+end
+
+-- ✅ Handle CANCEL button
+function InputHandler:HandleCancel()
+    print("[InputHandler] ⏸️ Cancel button pressed")
+    
+    -- Send to server
+    NetworkController:Send(Events.PLAYER_REQUEST_TO_LOBBY, {
+        action = "cancel",
+        timestamp = tick()
+    })
 end
 
 -- === STATE MANAGEMENT ===
