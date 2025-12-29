@@ -1,6 +1,7 @@
 --!strict
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 
 -- ═══════════════════════════════════════════════════════════════
 -- IDEMPOTENT GUARD
@@ -15,8 +16,14 @@ print("🔌 Server Init: Starting Services...")
 
 -- Get Services folder
 local Services = ServerScriptService:WaitForChild("Services")
---load utils
 local utils = ServerScriptService:WaitForChild("Utils")
+
+-- ✅ Preload NetworkConfig
+local Configs = ServerStorage:WaitForChild("Configs")
+local NetworkConfig = require(Configs.NetworkConfig)
+
+print("[Init] 📡 Loaded NetworkConfig")
+NetworkConfig.PrintSummary()
 
 -- Load core services in dependency order
 local NetworkHandler = require(Services.NetworkHandler)

@@ -459,8 +459,4 @@ function NetworkHandler:SetEventRateLimit(eventName: string, rate: number, windo
     NetworkConfig.SetEventRateLimit(eventName, rate, window)
 end
 
-function NetworkHandler:GetPlayerEventStats(player: Player): {[string]: {count: number, limit: number, remaining: number}}
-    return getEventRateLimitStats(player.UserId)
-end
-
 return NetworkHandler
