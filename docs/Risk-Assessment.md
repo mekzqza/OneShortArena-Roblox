@@ -165,9 +165,9 @@ end)
 
 ---
 
-### 4. Network Rate Limit - Per-Event Not Implemented
+### 4. Network Rate Limit - Per-Event ✅ IMPLEMENTED
 
-**Status:** ⚠️ PARTIAL FIX
+**Status:** ✅ FIXED
 
 **Original Problem:**
 ```lua
@@ -175,48 +175,30 @@ end)
 -- Attacker sends 10x TEST_PING → blocks PLAYER_REQUEST_TO_ARENA
 ```
 
-**Current State:**
-- Global rate limit exists (10 events/5s per player)
-- Per-event rate limits documented but NOT fully implemented
-
-**Recommended Implementation:**
+**Applied Fix:**
 ```lua
--- filepath: NetworkHandler.luau
-
-local eventRateLimits = {
-    [Events.PLAYER_REQUEST_TO_ARENA] = {rate = 1, window = 5},
-    [Events.PLAYER_REQUEST_TO_LOBBY] = {rate = 1, window = 5},
-    [Events.PLAYER_ATTACK] = {rate = 20, window = 5},
-    [Events.TEST_PING] = {rate = 10, window = 5},
+local EVENT_RATE_LIMITS = {
+    PlayerRequestToArena = {rate = 1, window = 5},  -- Strict
+    PlayerAttack = {rate = 10, window = 5},          -- Moderate
+    TestPing = {rate = 20, window = 5},              -- Lenient
 }
 
-local playerEventCounts = {} -- {[userId]: {[eventName]: {count, resetTime}}}
-
 local function checkEventRateLimit(player, eventName)
-    local userId = player.UserId
-    local config = eventRateLimits[eventName]
-    
-    if not config then return true end
-    
-    local now = os.clock()
-    local userData = playerEventCounts[userId] or {}
-    local eventData = userData[eventName] or {count = 0, resetTime = now + config.window}
-    
-    if now > eventData.resetTime then
-        eventData = {count = 0, resetTime = now + config.window}
-    end
-    
-    eventData.count += 1
-    userData[eventName] = eventData
-    playerEventCounts[userId] = userData
-    
-    return eventData.count <= config.rate
+    local config = EVENT_RATE_LIMITS[eventName] or DEFAULT
+    -- Per-player, per-event tracking
 end
 ```
 
-**Residual Risk:** HIGH
-- Without per-event limits, DoS still possible
-- Priority: Implement before production launch
+**Verification:**
+- ✅ Per-event configuration
+- ✅ Per-player tracking
+- ✅ Automatic window reset
+- ✅ Analytics tracking per event type
+- ✅ Cleanup on player leave
+
+**Residual Risk:** LOW
+- New events need manual rate limit configuration
+- Default fallback (10/5s) may be too lenient for some cases
 
 ---
 
