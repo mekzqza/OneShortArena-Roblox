@@ -47,6 +47,7 @@ EventBus:Off("PlayerJoined")
 -- ═══════════════════════════════════════════════════════════════
 
 local Signal = require(game.ReplicatedStorage.Packages.Signal)
+local Players = game:GetService("Players")
 
 -- ═══════════════════════════════════════════════════════════════
 -- TYPE DEFINITIONS
@@ -407,5 +408,49 @@ function EventBus:PrintSummary()
 	
 	print("╚════════════════════════════════════════════════════════════════╝")
 end
+
+-- เพิ่ม player-scoped connections
+local playerConnections: {[number]: {RBXScriptConnection}} = {}
+
+function EventBus:OnForPlayer(player: Player, eventName: string, callback: EventCallback): SignalConnection
+    local userId = player.UserId
+    
+    if not playerConnections[userId] then
+        playerConnections[userId] = {}
+    end
+    
+    local connection = self:On(eventName, function(...)
+        -- Only call if player still exists
+        if Players:GetPlayerByUserId(userId) then
+            callback(...)
+        end
+    end)
+    
+    table.insert(playerConnections[userId], connection)
+    return connection
+end
+
+function EventBus:CleanupPlayer(userId: number)
+    local connections = playerConnections[userId]
+    if connections then
+        for _, conn in ipairs(connections) do
+            conn:Disconnect()
+        end
+        playerConnections[userId] = nil
+    end
+end
+
+-- Call this in PlayerRemoving!
+
+-- Strict mode: Only allow predefined events
+-- local STRICT_MODE = true
+-- local allowedEvents = {} -- Populate from Events.luau
+
+-- function EventBus:On(eventName: string, callback: EventCallback)
+--     if STRICT_MODE and not allowedEvents[eventName] then
+--         error(`[EventBus] Unknown event: {eventName}. Did you forget to add it to Events.luau?`)
+--     end
+--     -- ...existing code...
+-- end
 
 return EventBus

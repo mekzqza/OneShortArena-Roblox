@@ -43,6 +43,13 @@
       }
     },
 
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "Configs": {
+        "$path": "src/ServerStorage/Configs"
+      }
+    },
+
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {

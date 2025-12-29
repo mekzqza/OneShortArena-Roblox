@@ -127,7 +127,7 @@ function InputHandler:OnInputAction(actionName: string)
         print("[InputHandler] 🧪 Forwarded TESTPING to TestHandler")
     else
         -- Unknown action
-        print(`[InputHandler] ⚠️ Unhandled action: {actionName}`)
+        warn(`[InputHandler] ⚠️ Unhandled action: {actionName}`)
     end
 end
 

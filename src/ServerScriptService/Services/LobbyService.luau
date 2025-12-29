@@ -153,19 +153,15 @@ function LobbyService:Init()
 		print(string.format("[LobbyService] ✅ Found %d spawn points", #spawnPoints))
 	end
 	
-	-- Allow client events
-	NetworkHandler:AllowClientEvent(Events.PLAYER_REQUEST_TO_LOBBY)
-	
 	print("[LobbyService] 🏠 Initialized")
 end
 
 function LobbyService:Start()
-	-- ✅ Guard: Prevent double start & require init
-	if not guard:MarkStarted() then
-		return
-	end
-	
-	-- ═══════════════════════════════════════════════════════════
+    if not guard:MarkStarted() then
+        return
+    end
+    
+    -- ═══════════════════════════════════════════════════════════
 	-- PLAYER LIFECYCLE
 	-- ═══════════════════════════════════════════════════════════
 	
@@ -182,35 +178,39 @@ function LobbyService:Start()
 			self:SpawnPlayerInLobby(player)
 		end
 	end)
-	
+
 	-- ═══════════════════════════════════════════════════════════
 	-- EVENT LISTENERS
 	-- ═══════════════════════════════════════════════════════════
 	
 	-- Listen for return to lobby requests
-	EventBus:On(Events.PLAYER_REQUEST_TO_LOBBY, function(player: Player, data: any)
-		print(string.format("[LobbyService] 📨 %s requested to return to Lobby", player.Name))
-		
-		local success = self:TeleportPlayerToLobby(player)
-		
-		if success then
-			print(string.format("[LobbyService] ✅ %s teleported to Lobby", player.Name))
-			
-			-- Notify client
-			NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_LOBBY, {
-				success = true,
-				timestamp = os.clock()
-			})
-		else
-			warn(string.format("[LobbyService] ❌ Failed to teleport %s to Lobby", player.Name))
-			
-			NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_LOBBY, {
-				success = false,
-				reason = "No spawn points available",
-				timestamp = os.clock()
-			})
-		end
-	end)
+	EventBus:On(Events.PLAYER_STATE_CHANGED_INTERNAL, function(player: Player, stateData: any)
+        -- เฉพาะเมื่อ state เปลี่ยนเป็น Lobby
+        if stateData.newState ~= "Lobby" then
+            return
+        end
+        
+        print(string.format("[LobbyService] %s state changed to Lobby, spawning...", player.Name))
+        
+        local success = self:TeleportPlayerToLobby(player)
+        
+        if success then
+            print(string.format("[LobbyService] ✅ %s teleported to Lobby", player.Name))
+            
+            NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_LOBBY, {
+                success = true,
+                timestamp = os.clock()
+            })
+        else
+            warn(string.format("[LobbyService] ❌ Failed to teleport %s to Lobby", player.Name))
+            
+            NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_LOBBY, {
+                success = false,
+                reason = "No spawn points available",
+                timestamp = os.clock()
+            })
+        end
+    end)
 	
 	-- ═══════════════════════════════════════════════════════════
 	-- ANALYTICS
