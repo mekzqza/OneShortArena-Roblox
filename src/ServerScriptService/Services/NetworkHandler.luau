@@ -4,8 +4,8 @@
     NETWORK HANDLER - PRODUCTION GRADE
     
     Features:
-      - Global rate limiting (10 events/5s per player)
-      - Per-event rate limiting (configurable per event type)
+      - Global rate limiting (configurable)
+      - Per-event rate limiting (configurable)
       - Anti-replay protection
       - Payload sanitization
       - Event allowlist
@@ -15,11 +15,15 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
 
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
+
+-- ✅ Load NetworkConfig
+local NetworkConfig = require(ServerStorage.Configs.NetworkConfig)
 
 -- ═══════════════════════════════════════════════════════════════
 -- TYPE DEFINITIONS
@@ -42,44 +46,28 @@ local NetworkHandler = {} :: NetworkHandler
 local guard = IdempotentGuard.new("NetworkHandler", true)
 
 -- ═══════════════════════════════════════════════════════════════
--- CONSTANTS
+-- LOAD CONFIGURATION FROM NetworkConfig
 -- ═══════════════════════════════════════════════════════════════
 
 local REMOTE_FOLDER_NAME = "Network"
 local REMOTE_EVENT_NAME = "NetworkBridge"
 
--- Global rate limits
-local GLOBAL_RATE_LIMIT = 10
-local GLOBAL_RATE_WINDOW = 5
+-- ✅ Use config values
+local GLOBAL_RATE_LIMIT = NetworkConfig.GlobalRateLimit
+local GLOBAL_RATE_WINDOW = NetworkConfig.GlobalRateWindow
+local BURST_LIMIT = NetworkConfig.BurstLimit
+local BURST_WINDOW = NetworkConfig.BurstWindow
 
--- ═══════════════════════════════════════════════════════════════
--- PER-EVENT RATE LIMITS
--- ═══════════════════════════════════════════════════════════════
+local EVENT_RATE_LIMITS = NetworkConfig.EventRateLimits
+local DEFAULT_EVENT_RATE_LIMIT = NetworkConfig.DefaultEventRateLimit
 
-local EVENT_RATE_LIMITS: {[string]: {rate: number, window: number}} = {
-    -- Arena/Lobby - strict
-    PlayerRequestToArena = {rate = 1, window = 5},
-    PlayerRequestToLobby = {rate = 1, window = 5},
-    PlayerRequestToSpectate = {rate = 1, window = 5},
-    
-    -- Combat - moderate
-    PlayerAttack = {rate = 10, window = 5},
-    PlayerDefend = {rate = 10, window = 5},
-    PlayerSpecial = {rate = 5, window = 5},
-    
-    -- Movement - lenient
-    PlayerMove = {rate = 30, window = 5},
-    PlayerJump = {rate = 20, window = 5},
-    
-    -- UI - moderate
-    SettingsChanged = {rate = 5, window = 5},
-    ToggleUI = {rate = 10, window = 5},
-    
-    -- Test - lenient
-    TestPing = {rate = 20, window = 5},
-}
+local MAX_STRIKES = NetworkConfig.MaxStrikes
+local MESSAGE_ID_TTL = NetworkConfig.MessageIdTTL
+local MAX_PAYLOAD_SIZE = NetworkConfig.MaxPayloadSize
+local MAX_STRING_LENGTH = NetworkConfig.MaxStringLength
+local MAX_TABLE_DEPTH = NetworkConfig.MaxTableDepth
 
-local DEFAULT_EVENT_RATE_LIMIT = {rate = 10, window = 5}
+local LOG_LEVEL = NetworkConfig.LogLevel
 
 -- ═══════════════════════════════════════════════════════════════
 -- STATE
@@ -112,7 +100,34 @@ local analytics = {
 }
 
 -- ═══════════════════════════════════════════════════════════════
--- RATE LIMIT FUNCTIONS
+-- LOGGING HELPER (Uses NetworkConfig.LogLevel)
+-- ═══════════════════════════════════════════════════════════════
+
+local LOG_LEVELS = {
+    None = 0,
+    Error = 1,
+    Warn = 2,
+    Info = 3,
+    Debug = 4,
+}
+
+local function log(level: "Error" | "Warn" | "Info" | "Debug", message: string)
+    local configLevel = LOG_LEVELS[LOG_LEVEL] or 0
+    local messageLevel = LOG_LEVELS[level] or 0
+    
+    if messageLevel <= configLevel then
+        if level == "Error" then
+            error("[NetworkHandler] " .. message)
+        elseif level == "Warn" then
+            warn("[NetworkHandler] " .. message)
+        else
+            print("[NetworkHandler] " .. message)
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- RATE LIMIT FUNCTIONS (Using NetworkConfig)
 -- ═══════════════════════════════════════════════════════════════
 
 local function checkGlobalRateLimit(player: Player): boolean
@@ -132,7 +147,8 @@ local function checkEventRateLimit(player: Player, eventName: string): (boolean,
     local userId = player.UserId
     local now = os.clock()
     
-    local config = EVENT_RATE_LIMITS[eventName] or DEFAULT_EVENT_RATE_LIMIT
+    -- ✅ Use NetworkConfig to get rate limit
+    local config = NetworkConfig.GetEventRateLimit(eventName)
     
     if not playerEventRateLimits[userId] then
         playerEventRateLimits[userId] = {}
@@ -156,6 +172,44 @@ local function checkEventRateLimit(player: Player, eventName: string): (boolean,
             "'%s' limit exceeded (%d/%d, %.1fs reset)",
             eventName, eventData.count, config.rate, remaining
         )
+    end
+    
+    return true
+end
+
+-- ✅ NEW: Payload validation
+local function validatePayload(data: any): (boolean, string?)
+    if type(data) ~= "table" then
+        return true
+    end
+    
+    -- Check table depth
+    local function getDepth(tbl: any, depth: number): number
+        depth = depth or 0
+        if depth > MAX_TABLE_DEPTH then
+            return depth
+        end
+        
+        local maxChildDepth = depth
+        for _, value in pairs(tbl) do
+            if type(value) == "table" then
+                local childDepth = getDepth(value, depth + 1)
+                maxChildDepth = math.max(maxChildDepth, childDepth)
+            end
+        end
+        return maxChildDepth
+    end
+    
+    local depth = getDepth(data, 0)
+    if depth > MAX_TABLE_DEPTH then
+        return false, `Payload too deep: {depth} levels (max {MAX_TABLE_DEPTH})`
+    end
+    
+    -- Check string lengths
+    for key, value in pairs(data) do
+        if type(value) == "string" and #value > MAX_STRING_LENGTH then
+            return false, `String too long: {#value} chars (max {MAX_STRING_LENGTH})`
+        end
     end
     
     return true
@@ -244,10 +298,15 @@ function NetworkHandler:Init()
         remoteEvent.Parent = networkFolder
     end
     
-    print("[NetworkHandler] 🚀 Initialized (Production Grade)")
-    print("  ✅ Global rate limit:", GLOBAL_RATE_LIMIT, "per", GLOBAL_RATE_WINDOW, "s")
-    print("  ✅ Per-event rate limits: ENABLED")
-    print("  ✅ Anti-replay protection: ENABLED")
+    log("Info", "🚀 Initialized (Production Grade)")
+    log("Info", `  ✅ Global rate limit: {GLOBAL_RATE_LIMIT} per {GLOBAL_RATE_WINDOW}s`)
+    log("Info", `  ✅ Per-event rate limits: {#EVENT_RATE_LIMITS} events configured`)
+    log("Info", `  ✅ Max strikes: {MAX_STRIKES}`)
+    log("Info", `  ✅ Log level: {LOG_LEVEL}`)
+    log("Info", "  ✅ Anti-replay protection: ENABLED")
+    
+    -- Print config summary
+    NetworkConfig.PrintSummary()
 end
 
 function NetworkHandler:Start()
@@ -259,13 +318,26 @@ function NetworkHandler:Start()
     remoteEvent.OnServerEvent:Connect(function(player: Player, eventName: string, ...)
         analytics.totalReceived += 1
         
-        -- ✅ Check 1: Per-event rate limit (FIRST - most specific)
+        local args = {...}
+        local data = args[1]
+        
+        -- ✅ Check 0: Payload validation
+        if type(data) == "table" then
+            local payloadValid, payloadReason = validatePayload(data)
+            if not payloadValid then
+                log("Warn", `⚠️ {player.Name} invalid payload: {payloadReason}`)
+                addSuspiciousActivity(player, "invalid_payload")
+                return
+            end
+        end
+        
+        -- ✅ Check 1: Per-event rate limit
         local eventAllowed, eventReason = checkEventRateLimit(player, eventName)
         if not eventAllowed then
             analytics.blockedByEventRateLimit += 1
             analytics.eventRateLimitBlocks[eventName] = (analytics.eventRateLimitBlocks[eventName] or 0) + 1
             
-            warn(string.format("[NetworkHandler] ⚠️ %s EVENT RATE LIMIT: %s", player.Name, eventReason))
+            log("Warn", `⚠️ {player.Name} EVENT RATE LIMIT: {eventReason}`)
             addSuspiciousActivity(player, "event_rate_limit:" .. eventName)
             return
         end
@@ -292,8 +364,6 @@ function NetworkHandler:Start()
         end
         
         -- ✅ Check 4: Anti-replay
-        local args = {...}
-        local data = args[1]
         if not checkAntiReplay(data) then
             analytics.blockedByAntiReplay += 1
             
@@ -302,10 +372,10 @@ function NetworkHandler:Start()
             return
         end
         
-        -- ✅ All checks passed - emit event
+        -- ✅ All checks passed
         EventBus:Emit(eventName, player, ...)
         
-        -- Send ACK if message has ID
+        -- Send ACK
         if type(data) == "table" and data._msgId then
             self:SendToClient(player, "__ACK", {messageId = data._msgId})
         end
@@ -342,7 +412,7 @@ function NetworkHandler:Start()
         end
     end)
     
-    print("[NetworkHandler] 🚀 Started - Listening for events")
+    log("Info", "🚀 Started - Listening for events")
 end
 
 function NetworkHandler:AllowClientEvent(eventName: string)
@@ -379,58 +449,14 @@ function NetworkHandler:GetEventRateLimitConfig(): {[string]: {rate: number, win
     return EVENT_RATE_LIMITS
 end
 
+-- ✅ NEW: Get current config
+function NetworkHandler:GetConfig(): typeof(NetworkConfig)
+    return NetworkConfig
+end
+
+-- ✅ NEW: Update rate limit (runtime)
 function NetworkHandler:SetEventRateLimit(eventName: string, rate: number, window: number)
-    EVENT_RATE_LIMITS[eventName] = {rate = rate, window = window}
-    print(string.format("[NetworkHandler] ✅ Set rate limit for '%s': %d per %ds", eventName, rate, window))
-end
-
-function NetworkHandler:GetPlayerEventStats(player: Player): {[string]: any}
-    local userId = player.UserId
-    local stats = {}
-    local now = os.clock()
-    
-    local playerEvents = playerEventRateLimits[userId]
-    if not playerEvents then
-        return stats
-    end
-    
-    for eventName, eventData in pairs(playerEvents) do
-        local config = EVENT_RATE_LIMITS[eventName] or DEFAULT_EVENT_RATE_LIMIT
-        local remaining = math.max(0, eventData.resetTime - now)
-        
-        stats[eventName] = {
-            count = eventData.count,
-            limit = config.rate,
-            window = config.window,
-            remaining = remaining
-        }
-    end
-    
-    return stats
-end
-
-return NetworkHandler--     
---     -- ...existing global rate limit and other checks...
--- end)
-
--- ═══════════════════════════════════════════════════════════════
--- CLEANUP ON PLAYER LEAVE
--- ═══════════════════════════════════════════════════════════════
-
--- In PlayerRemoving handler, add:
--- cleanupPlayerEventRateLimits(player.UserId)
-
--- ═══════════════════════════════════════════════════════════════
--- PUBLIC METHODS TO ADD
--- ═══════════════════════════════════════════════════════════════
-
-function NetworkHandler:GetEventRateLimitConfig(): {[string]: {rate: number, window: number}}
-    return EVENT_RATE_LIMITS
-end
-
-function NetworkHandler:SetEventRateLimit(eventName: string, rate: number, window: number)
-    EVENT_RATE_LIMITS[eventName] = {rate = rate, window = window}
-    print(string.format("[NetworkHandler] ✅ Set rate limit for '%s': %d per %ds", eventName, rate, window))
+    NetworkConfig.SetEventRateLimit(eventName, rate, window)
 end
 
 function NetworkHandler:GetPlayerEventStats(player: Player): {[string]: {count: number, limit: number, remaining: number}}

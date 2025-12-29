@@ -167,36 +167,35 @@ end)
 
 ### 4. Network Rate Limit - Per-Event ✅ IMPLEMENTED
 
-**Status:** ✅ FIXED
+**Status:** ✅ FIXED + ENHANCED
 
-**Original Problem:**
+**Implementation:**
 ```lua
--- All events share same rate limit
--- Attacker sends 10x TEST_PING → blocks PLAYER_REQUEST_TO_ARENA
-```
+-- Centralized configuration
+local NetworkConfig = require(ServerStorage.Configs.NetworkConfig)
 
-**Applied Fix:**
-```lua
-local EVENT_RATE_LIMITS = {
+-- Over 30+ event types configured
+EventRateLimits = {
     PlayerRequestToArena = {rate = 1, window = 5},  -- Strict
     PlayerAttack = {rate = 10, window = 5},          -- Moderate
-    TestPing = {rate = 20, window = 5},              -- Lenient
+    PlayerMove = {rate = 30, window = 5},            -- Lenient
+    -- ... 30+ more ...
 }
 
-local function checkEventRateLimit(player, eventName)
-    local config = EVENT_RATE_LIMITS[eventName] or DEFAULT
-    -- Per-player, per-event tracking
-end
+-- Runtime adjustable
+NetworkHandler:SetEventRateLimit("NewEvent", 5, 10)
 ```
 
-**Verification:**
-- ✅ Per-event configuration
-- ✅ Per-player tracking
-- ✅ Automatic window reset
-- ✅ Analytics tracking per event type
-- ✅ Cleanup on player leave
+**Features:**
+- ✅ Centralized configuration file
+- ✅ 30+ pre-configured event types
+- ✅ Runtime adjustable rate limits
+- ✅ Automatic Studio detection (lenient in dev)
+- ✅ Payload size validation
+- ✅ Table depth protection
+- ✅ Configurable log levels
 
-**Residual Risk:** LOW
+**Residual Risk:** VERY LOW
 - New events need manual rate limit configuration
 - Default fallback (10/5s) may be too lenient for some cases
 
