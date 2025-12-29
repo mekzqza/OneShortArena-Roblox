@@ -1,17 +1,12 @@
 # 🏟️ Lobby to Arena Teleport System - Production Guide
 
-## 📋 Table of Contents
+## 📋 Version Info
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Flow Diagram](#flow-diagram)
-- [Security & P0 Fixes](#security--p0-fixes)
-- [Setup Guide](#setup-guide)
-- [Creating UI Buttons](#creating-ui-buttons)
-- [Service Integration](#service-integration)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Best Practices](#best-practices)
+| Component | Version | Status |
+|-----------|---------|--------|
+| System | 2.0 | ✅ Production Ready |
+| Security | P0 Fixed | ✅ Hardened |
+| NetworkConfig | 1.0 | ✅ Centralized |
 
 ---
 
@@ -36,15 +31,24 @@
 
 ### Services Involved:
 
-| Service | Responsibility | P0 Protections |
-|---------|---------------|----------------|
-| **LobbyGuiController** | UI button → EventBus | ✅ Client-side cooldown |
-| **InputHandler** | EventBus → Network request | ✅ Action validation |
-| **NetworkController** | Send request to server | ✅ Message queue |
-| **NetworkHandler** | Security validation | ✅ Rate limiting, Anti-replay |
-| **PlayerStateService** | State: Lobby → Arena | ✅ Transition locks, Cooldowns |
-| **ArenaService** | Spawn player in arena | ✅ Server-side validation |
-| **LobbyService** | Return to lobby | ✅ State-based spawning |
+| Service | Responsibility | Config |
+|---------|---------------|--------|
+| **LobbyGuiController** | UI button → EventBus | 1s cooldown |
+| **InputHandler** | EventBus → Network | Validation |
+| **NetworkController** | Send to server | Retry/ACK |
+| **NetworkHandler** | Security validation | NetworkConfig |
+| **PlayerStateService** | State management | 2s cooldown |
+| **ArenaService** | Arena spawning | 5s cooldown |
+| **LobbyService** | Lobby spawning | State-based |
+
+### Rate Limits (from NetworkConfig):
+
+```lua
+EventRateLimits = {
+    PlayerRequestToArena = {rate = 1, window = 5},
+    PlayerRequestToLobby = {rate = 1, window = 5},
+}
+```
 
 ---
 
@@ -131,170 +135,30 @@
 
 ---
 
-## 🔐 Security & P0 Fixes
-
-### Critical Issues Fixed (P0):
-
-#### 1. **Race Condition in PlayerStateService** ✅ FIXED
-
-**Problem:**
-```lua
--- ❌ Before: Multiple threads could modify state simultaneously
-function SetState(player, newState)
-    local stateData = getState(player)  -- Thread 1 reads
-    -- Thread 2 reads here too!
-    stateData.currentState = newState  -- Both write!
-end
-```
-
-**Solution:**
-```lua
--- ✅ After: Atomic transition lock
-local transitionLocks = {}
-
-function SetState(player, newState)
-    if not acquireTransitionLock(userId) then
-        return false  -- Already transitioning
-    end
-    
-    -- Protected section
-    local success = pcall(function()
-        -- ... transition logic ...
-    end)
-    
-    releaseTransitionLock(userId)  -- Always release
-    return success
-end
-```
-
----
-
-#### 2. **Client Authority Exploit - Teleport Bypass** ✅ FIXED
-
-**Problem:**
-```lua
--- ❌ Before: Client could spam teleport requests
--- Exploiter sends 100 requests per second
-NetworkController:Send(PLAYER_REQUEST_TO_ARENA, {})
--- Server processes all → lag, unfair advantage
-```
-
-**Solution:**
-```lua
--- ✅ Layer 1: Client-side cooldown (UI)
-if buttonCooldowns[button] then
-    return  -- Don't even send request
-end
-
--- ✅ Layer 2: Server-side cooldown (PlayerStateService)
-if isOnCooldown(userId) then
-    return false, "Cooldown active (1.5s remaining)"
-end
-
--- ✅ Layer 3: Arena validation (ArenaService)
-if (now - lastTeleport) < TELEPORT_COOLDOWN then
-    return false, "Teleport cooldown (3.2s remaining)"
-end
-
--- ✅ Layer 4: Combat check
-if isPlayerInCombat(userId) then
-    return false, "Cannot teleport while in combat"
-end
-```
-
----
-
-#### 3. **EventBus Memory Leak** ✅ FIXED
-
-**Problem:**
-```lua
--- ❌ Before: Listeners never cleaned up
-EventBus:On(Events.PLAYER_REQUEST_TO_ARENA, function(player, data)
-    -- Connection never disconnected when player leaves
-end)
--- After 1000 players → server OOM!
-```
-
-**Solution:**
-```lua
--- ✅ After: Cleanup on PlayerRemoving
-Players.PlayerRemoving:Connect(function(player)
-    local userId = player.UserId
-    
-    -- Cleanup PlayerStateService
-    playerStates[userId] = nil
-    transitionLocks[userId] = nil
-    transitionCooldowns[userId] = nil
-    
-    -- Cleanup ArenaService
-    teleportCooldowns[userId] = nil
-    playersInCombat[userId] = nil
-    
-    -- EventBus cleanup (if using OnForPlayer)
-    EventBus:CleanupPlayer(userId)
-end)
-```
-
----
-
-#### 4. **Network Rate Limit Bypass** ✅ FIXED
-
-**Problem:**
-```lua
--- ❌ Before: All events share same rate limit
--- Attacker sends 10x TEST_PING → blocks PLAYER_REQUEST_TO_ARENA
-```
-
-**Solution:**
-```lua
--- ✅ After: Per-event rate limits
-local eventRateLimits = {
-    [Events.PLAYER_REQUEST_TO_ARENA] = {rate = 1, window = 5},
-    [Events.PLAYER_REQUEST_TO_LOBBY] = {rate = 1, window = 5},
-    [Events.TEST_PING] = {rate = 10, window = 5},  -- More lenient
-}
-
-local function checkEventRateLimit(player, eventName)
-    -- Per-event, per-player tracking
-    -- ...
-end
-```
-
----
-
-### Security Layers:
+## 🔐 Security Layers
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  MULTI-LAYER SECURITY                        │
-└─────────────────────────────────────────────────────────────┘
+Layer 1: UI Cooldown (1s)
+    └── LobbyGuiController.buttonCooldowns
 
-Layer 1: UI (Client-side)
-├── Button cooldown (1s)
-├── Visual feedback (disabled state)
-└── Prevent spam clicks
+Layer 2: Per-Event Rate Limit
+    └── NetworkConfig.EventRateLimits["PlayerRequestToArena"]
+    └── 1 request per 5 seconds
 
-Layer 2: InputHandler (Client-side)
-├── State validation (alive? in menu?)
-└── Basic checks before network send
+Layer 3: Global Rate Limit
+    └── NetworkConfig.GlobalRateLimit = 10 per 5s
 
-Layer 3: NetworkHandler (Server-side)
-├── Rate limiting (10 events/5s per player)
-├── Anti-replay (message ID tracking)
-├── Payload sanitization
-└── Event allowlist
+Layer 4: Transition Lock
+    └── PlayerStateService.transitionLocks[userId]
 
-Layer 4: PlayerStateService (Server-side)
-├── Transition cooldown (2s)
-├── Transition lock (race condition prevention)
-├── State validation (Lobby → Arena allowed?)
-└── Atomic state updates
+Layer 5: Transition Cooldown (2s)
+    └── PlayerStateService.transitionCooldowns[userId]
 
-Layer 5: ArenaService (Server-side)
-├── Teleport cooldown (5s)
-├── Combat check (5s after damage)
-├── Character validation
-└── Health check
+Layer 6: Teleport Cooldown (5s)
+    └── ArenaService.teleportCooldowns[userId]
+
+Layer 7: Combat Check (5s)
+    └── ArenaService.playersInCombat[userId]
 ```
 
 ---
@@ -651,3 +515,18 @@ Click 3 (0.2s later):
 [LobbyGuiController] ⏱️ PLAY on cooldown (ignored)
 (ไม่ส่ง event! ✅)
 ```
+
+---
+
+## 📚 Related Documentation
+
+- [deps.md](./deps.md) - Architecture overview
+- [Risk-Assessment.md](./Risk-Assessment.md) - Security audit
+- [NetworkConfig-Guide.md](./NetworkConfig-Guide.md) - Rate limits
+
+---
+
+**Version:** 2.0 - P0 Security Fixes Applied  
+**Last Updated:** 2024  
+**Status:** Production Ready ✅  
+**Author:** OneShortArena Team
