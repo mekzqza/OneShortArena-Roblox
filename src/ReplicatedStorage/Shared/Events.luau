@@ -148,6 +148,24 @@ Events.TEST_PONG = "TestPong"
 
 Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
 
+-- Death Events
+Events.PLAYER_DIED = "PlayerDied"                           -- DeathService → PlayerStateService
+Events.PLAYER_DEATH_ANNOUNCED = "PlayerDeathAnnounced"      -- Server → All clients
+Events.PLAYER_RESPAWN_REQUESTED = "PlayerRespawnRequested"  -- DeathService → PlayerStateService
+Events.PLAYER_DAMAGED = "PlayerDamaged"                     -- Humanoid.HealthChanged
+Events.PLAYER_ATTACKED = "PlayerAttacked"                   -- Combat system → DeathService
+Events.PLAYER_KILL_STREAK = "PlayerKillStreak"              -- Kill streak milestone
+
+-- ============================================================================
+-- ⚔️ Match Events (NEW)
+-- ============================================================================
+Events.MATCH_REGISTERED = "MatchRegistered"
+Events.MATCH_STARTED = "MatchStarted"
+Events.MATCH_ENDED = "MatchEnded"
+Events.MATCH_CANCELLED = "MatchCancelled"
+Events.MATCH_PLAYER_JOINED = "MatchPlayerJoined"
+Events.MATCH_PLAYER_LEFT = "MatchPlayerLeft"
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด

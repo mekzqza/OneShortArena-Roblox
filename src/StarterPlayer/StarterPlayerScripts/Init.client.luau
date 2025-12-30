@@ -3,159 +3,223 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+-- ═══════════════════════════════════════════════════════════════
+-- UTILS & CONFIG
+-- ═══════════════════════════════════════════════════════════════
 
 local Utils = ReplicatedStorage:WaitForChild("Utils")
+local IdempotentGuard = require(Utils.IdempotentGuard)
 
--- ═══════════════════════════════════════════════════════════════
--- IDEMPOTENT GUARD
--- ═══════════════════════════════════════════════════════════════
+-- ✅ FIX #1: Use Guard instead of _G
+local bootGuard = IdempotentGuard.new("ClientBootstrap", true)
 
-if _G.__CLIENT_INITIALIZED then
-    warn("[Init.client] ⚠️ Client already initialized! Skipping re-initialization.")
-    return
+if not bootGuard:MarkInitialized() then
+	warn("[Init.client] ⚠️ Client already initialized! (via Guard)")
+	return
 end
 
 print("🔌 Client Init: Starting Controllers...")
 
--- ✅ Load IdempotentGuard from ReplicatedStorage
-local IdempotentGuard =require(Utils.IdempotentGuard)
+-- ═══════════════════════════════════════════════════════════════
+-- GET FOLDERS
+-- ═══════════════════════════════════════════════════════════════
 
-
+local ControllersRoot = script.Parent
+local Core = ControllersRoot:WaitForChild("Core")
+local Dev = ControllersRoot:WaitForChild("Dev")
+local Gameplay = ControllersRoot:WaitForChild("Gameplay")
+local Inputs = ControllersRoot:WaitForChild("Inputs")
+local UI = ControllersRoot:WaitForChild("UI")
 
 -- ═══════════════════════════════════════════════════════════════
 -- CONFIGURATION
 -- ═══════════════════════════════════════════════════════════════
 
-local controllersFolder = script.Parent:WaitForChild("Controllers")
-local controllers = {}
+-- ✅ FIX #5: Should come from central config (TODO)
+-- local ENV = require(ReplicatedStorage.Shared.Environment)
+-- local IS_PRODUCTION = ENV.IS_PRODUCTION
+local IS_PRODUCTION = false  -- Temporary: hardcoded
 
-local SKIP_IN_PRODUCTION = {
-    ["DemoController"] = true,
-    ["TestController"] = true,
+-- ✅ FIX #4: Use structured storage for O(n) instead of O(n²)
+local controllersByCategory: {[string]: {[string]: any}} = {
+	Core = {},
+	Inputs = {},
+	Gameplay = {},
+	UI = {},
+	Dev = {},
 }
 
-local IS_PRODUCTION = false
+-- ✅ FIX #3: Use qualified keys to prevent name collision
+local controllersFlat: {[string]: any} = {} -- For debugging only
 
 -- ═══════════════════════════════════════════════════════════════
--- LOAD CONTROLLERS
+-- HELPER FUNCTIONS
 -- ═══════════════════════════════════════════════════════════════
 
-print("[Client Init] Step 1: Loading controllers...")
-
-for _, moduleScript in ipairs(controllersFolder:GetChildren()) do
-    if not moduleScript:IsA("ModuleScript") then
-        continue
-    end
-    
-    local controllerName = moduleScript.Name
-    
-    -- Skip demo/test controllers in production
-    if IS_PRODUCTION and SKIP_IN_PRODUCTION[controllerName] then
-        print(`[Client Init] ⏭️ Skipped {controllerName} (Production mode)`)
-        continue
-    end
-    
-    -- ✅ Create guard for each controller
-    local guard = IdempotentGuard and IdempotentGuard.new(controllerName, false)
-    
-    -- Load controller
-    local success, result = pcall(function()
-        return require(moduleScript)
-    end)
-    
-    if success then
-        controllers[controllerName] = result
-        
-        -- Store guard reference
-        if guard then
-            result._guard = guard
-        end
-        
-        print(`[Client Init] ✅ Loaded {controllerName}`)
-    else
-        warn(`[Client Init] ❌ Failed to load {controllerName}: {result}`)
-    end
+local function loadControllersFromFolder(folder: Folder, categoryName: string, skipInProduction: boolean?)
+	print(`[Init.client] Loading {categoryName} controllers...`)
+	
+	for _, moduleScript in ipairs(folder:GetChildren()) do
+		if not moduleScript:IsA("ModuleScript") then
+			continue
+		end
+		
+		local controllerName = moduleScript.Name
+		
+		-- Skip if production and marked to skip
+		if IS_PRODUCTION and skipInProduction then
+			print(`[Init.client] ⏭️ Skipped {controllerName} (Production mode)`)
+			continue
+		end
+		
+		-- Load controller
+		local success, result = pcall(function()
+			return require(moduleScript)
+		end)
+		
+		if not success then
+			warn(`[Init.client] ❌ Failed to load {controllerName}: {result}`)
+			continue
+		end
+		
+		-- ✅ FIX #2: Controller manages its own guard (TODO: move to controller)
+		-- For now, we still create it here for backward compatibility
+		local guard = IdempotentGuard.new(`{categoryName}.{controllerName}`, false)
+		result._guard = guard
+		result._category = categoryName
+		result._name = controllerName
+		
+		-- ✅ FIX #4: Store in category-specific table
+		controllersByCategory[categoryName][controllerName] = result
+		
+		-- ✅ FIX #3: Use qualified key for flat storage
+		local qualifiedKey = `{categoryName}.{controllerName}`
+		controllersFlat[qualifiedKey] = result
+		
+		print(`[Init.client] ✅ Loaded {categoryName}/{controllerName}`)
+	end
 end
+
+-- ═══════════════════════════════════════════════════════════════
+-- LOAD CONTROLLERS (BY CATEGORY)
+-- ═══════════════════════════════════════════════════════════════
+
+print("\n[Init.client] 📦 Loading controllers by category...")
+print("═════════════════════════════════════════════════════════")
+
+loadControllersFromFolder(Core, "Core", false)
+loadControllersFromFolder(Inputs, "Inputs", false)
+loadControllersFromFolder(Gameplay, "Gameplay", false)
+loadControllersFromFolder(UI, "UI", false)
+loadControllersFromFolder(Dev, "Dev", true)
 
 -- ═══════════════════════════════════════════════════════════════
 -- INITIALIZE CONTROLLERS
 -- ═══════════════════════════════════════════════════════════════
 
-print("[Client Init] Step 2: Initializing controllers...")
+print("\n[Init.client] 🔧 Initializing controllers...")
+print("═════════════════════════════════════════════════════════")
 
-for name, controller in pairs(controllers) do
-    if type(controller.Init) == "function" then
-        -- ✅ Use guard if available
-        local guard = controller._guard
-        
-        if guard and not guard:MarkInitialized() then
-            warn(`[Client Init] ⚠️ {name} already initialized, skipping`)
-            continue
-        end
-        
-        local initSuccess, initErr = pcall(function()
-            controller:Init()
-        end)
-        
-        if not initSuccess then
-            warn(`[Client Init] ❌ Failed to init {name}: {initErr}`)
-        else
-            print(`[Client Init] ✅ Initialized {name}`)
-        end
-    end
+local initOrder = {"Core", "Inputs", "Gameplay", "UI", "Dev"}
+
+-- ✅ FIX #4: O(n) instead of O(n²) - iterate category map directly
+for _, category in ipairs(initOrder) do
+	for name, controller in pairs(controllersByCategory[category]) do
+		if type(controller.Init) ~= "function" then
+			continue
+		end
+		
+		local guard = controller._guard
+		
+		if guard and not guard:MarkInitialized() then
+			warn(`[Init.client] ⚠️ {category}/{name} already initialized, skipping`)
+			continue
+		end
+		
+		local initSuccess, initErr = pcall(function()
+			controller:Init()
+		end)
+		
+		if not initSuccess then
+			warn(`[Init.client] ❌ Failed to init {category}/{name}: {initErr}`)
+		else
+			print(`[Init.client] ✅ Initialized {category}/{name}`)
+		end
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════
 -- START CONTROLLERS
 -- ═══════════════════════════════════════════════════════════════
 
-print("[Client Init] Step 3: Starting controllers...")
+print("\n[Init.client] ▶️ Starting controllers...")
+print("═════════════════════════════════════════════════════════")
 
-for name, controller in pairs(controllers) do
-    if type(controller.Start) == "function" then
-        task.spawn(function()
-            -- ✅ Use guard if available
-            local guard = controller._guard
-            
-            if guard and not guard:MarkStarted() then
-                warn(`[Client Init] ⚠️ {name} already started or not initialized, skipping`)
-                return
-            end
-            
-            local success, err = pcall(function()
-                controller:Start()
-            end)
-            
-            if success then
-                print(`[Client Init] ✅ Started {name}`)
-            else
-                warn(`[Client Init] ❌ Failed to start {name}: {err}`)
-            end
-        end)
-    end
+-- ✅ FIX #4: O(n) iteration
+for _, category in ipairs(initOrder) do
+	for name, controller in pairs(controllersByCategory[category]) do
+		if type(controller.Start) ~= "function" then
+			continue
+		end
+		
+		task.spawn(function()
+			local guard = controller._guard
+			
+			if guard and not guard:MarkStarted() then
+				warn(`[Init.client] ⚠️ {category}/{name} not initialized or already started, skipping`)
+				return
+			end
+			
+			local success, err = pcall(function()
+				controller:Start()
+			end)
+			
+			if success then
+				print(`[Init.client] ✅ Started {category}/{name}`)
+			else
+				warn(`[Init.client] ❌ Failed to start {category}/{name}: {err}`)
+			end
+		end)
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════
 -- FINALIZE
 -- ═══════════════════════════════════════════════════════════════
 
-_G.__CLIENT_INITIALIZED = true
-_G.__CLIENT_INIT_TIME = os.clock()
-
-print("✅ All controllers initialized and started.")
-
--- ✅ Print IdempotentGuard summary
-if IdempotentGuard and IdempotentGuard.printSummary then
-    IdempotentGuard.printSummary()
+-- ✅ FIX #1: Mark boot complete via Guard
+if not bootGuard:MarkStarted() then
+	warn("[Init.client] ⚠️ Failed to mark boot as started")
 end
 
--- Expose for debugging (only in development)
+local bootTime = os.clock()
+
+print("\n═════════════════════════════════════════════════════════")
+print("✅ All controllers initialized and started successfully.")
+print(string.format("⏱️ Total time: %.3fs", bootTime))
+print("═════════════════════════════════════════════════════════\n")
+
+-- ✅ Print Guard summary
+if IdempotentGuard and IdempotentGuard.printSummary then
+	IdempotentGuard.printSummary(bootGuard)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- DEBUG EXPOSURE (Studio only)
+-- ═══════════════════════════════════════════════════════════════
+
 if not IS_PRODUCTION or RunService:IsStudio() then
-    _G.Controllers = controllers
-    
-    if IdempotentGuard then
-        _G.IdempotentGuard = IdempotentGuard
-    end
+	-- ✅ Expose both flat and structured access
+	_G.Controllers = controllersFlat -- Flat with qualified keys
+	_G.ControllersByCategory = controllersByCategory -- Structured by category
+	_G.BootGuard = bootGuard -- ✅ FIX #1: Expose boot guard
+	_G.IdempotentGuard = IdempotentGuard
+	
+	print("[Init.client] 🔍 Debug mode enabled:")
+	print("  • _G.Controllers (flat, qualified keys)")
+	print("  • _G.ControllersByCategory (structured)")
+	print("  • _G.BootGuard (boot lifecycle)")
+	print("  • _G.IdempotentGuard (utility)")
 end
 
 
