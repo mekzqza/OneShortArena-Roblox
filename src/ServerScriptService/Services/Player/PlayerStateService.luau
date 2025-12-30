@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
-local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local NetworkHandler = require(ServerScriptService.Services.Core.NetworkHandler)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 
 -- ═══════════════════════════════════════════════════════════════
