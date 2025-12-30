@@ -46,6 +46,7 @@ print("[Init] Loading Gameplay services...")
 local ArenaService = require(Gameplay.ArenaService)
 local CooldownService = require(Gameplay.CooldownService)
 local DeathService = require(Gameplay.DeathService)
+local DownedService = require(Gameplay.DownedService)  -- ✅ NEW
 local GameService = require(Gameplay.GameService)
 local LobbyService = require(Gameplay.LobbyService)
 local MatchService = require(Gameplay.MatchService)
@@ -81,6 +82,7 @@ print("[Init] 3️⃣ Gameplay Layer...")
 LobbyService:Init()
 ArenaService:Init()
 DeathService:Init()
+DownedService:Init()  -- ✅ NEW (after DeathService)
 MatchService:Init()
 CooldownService:Init()
 GameService:Init()
@@ -105,6 +107,7 @@ PlayerStateService:Start()
 LobbyService:Start()
 ArenaService:Start()
 DeathService:Start()
+DownedService:Start()  -- ✅ NEW
 MatchService:Start()
 CooldownService:Start()
 GameService:Start()
@@ -141,6 +144,7 @@ if game:GetService("RunService"):IsStudio() then
 		ArenaService = ArenaService,
 		CooldownService = CooldownService,
 		DeathService = DeathService,
+		DownedService = DownedService,  -- ✅ NEW
 		GameService = GameService,
 		LobbyService = LobbyService,
 		MatchService = MatchService,

@@ -166,6 +166,23 @@ Events.MATCH_CANCELLED = "MatchCancelled"
 Events.MATCH_PLAYER_JOINED = "MatchPlayerJoined"
 Events.MATCH_PLAYER_LEFT = "MatchPlayerLeft"
 
+-- ============================================================================
+-- DOWNED SYSTEM EVENTS (NEW)
+-- ============================================================================
+Events.PLAYER_DOWNED = "PlayerDowned"                    -- Player entered Downed state
+Events.PLAYER_DOWNED_COUNTDOWN = "PlayerDownedCountdown" -- Countdown tick update
+Events.PLAYER_REVIVED = "PlayerRevived"                  -- Player was revived
+Events.PLAYER_FINISHED = "PlayerFinished"                -- Player was finished (killed while downed)
+
+-- Client → Server
+Events.PLAYER_REQUEST_REVIVE = "PlayerRequestRevive"     -- Request revive (self/item/robux)
+Events.PLAYER_REQUEST_FINISH = "PlayerRequestFinish"     -- Request to finish downed player
+Events.TEAMMATE_REQUEST_REVIVE = "TeammateRequestRevive" -- Teammate revive request
+
+-- Internal (Server only)
+Events.PLAYER_DOWNED_INTERNAL = "PlayerDownedInternal"   -- Internal downed notification
+Events.PLAYER_DOWNED_TIMEOUT = "PlayerDownedTimeout"     -- Downed timer expired
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด

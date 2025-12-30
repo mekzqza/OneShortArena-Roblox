@@ -212,14 +212,33 @@ local function handleDeath(player: Player, character: Model, humanoid: Humanoid)
 			killer and (" by " .. killer.Name) or ""
 		))
 		
-		-- ✅ EMIT EVENT ONLY - Let other services handle the rest
-		EventBus:Emit(Events.PLAYER_DIED, player, {
-			cause = context.cause,
-			killer = context.killer,
-			weapon = context.weapon,
-			position = context.position,
-			timestamp = context.timestamp,
-		})
+		-- ✅ NEW: Check if death should go through Downed state
+		-- Environmental deaths (void, etc.) bypass Downed
+		local shouldBypassDowned = (deathCause == "Environmental") or (deathCause == "Script")
+		
+		if shouldBypassDowned then
+			-- Direct death - bypass Downed state
+			EventBus:Emit(Events.PLAYER_DIED, player, {
+				cause = context.cause,
+				killer = context.killer,
+				weapon = context.weapon,
+				position = context.position,
+				timestamp = context.timestamp,
+				bypassedDowned = true,
+			})
+		else
+			-- ✅ Combat death - emit PLAYER_DAMAGED instead
+			-- DownedService will handle the Downed state
+			-- Note: This is handled by DownedService listening to PLAYER_DAMAGED
+			EventBus:Emit(Events.PLAYER_DIED, player, {
+				cause = context.cause,
+				killer = context.killer,
+				weapon = context.weapon,
+				position = context.position,
+				timestamp = context.timestamp,
+				-- DownedService จะ intercept นี้ถ้า player ยังไม่ Downed
+			})
+		end
 		
 		-- Broadcast to clients
 		NetworkHandler:Broadcast(Events.PLAYER_DEATH_ANNOUNCED, {
