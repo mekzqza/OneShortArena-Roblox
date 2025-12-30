@@ -146,9 +146,7 @@ function Module:GetStats(): {ping: number, pendingMessages: number}
 	}
 end
 
-function Module:Start()
-	-- No-op
-end
+
 
 function Module:Send(eventName: string, ...: any)
 	remoteEvent:FireServer(eventName, ...)
