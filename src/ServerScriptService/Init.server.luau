@@ -30,7 +30,8 @@ local NetworkHandler = require(Services.NetworkHandler)
 local LobbyService = require(Services.LobbyService)
 local ArenaService = require(Services.ArenaService)
 local PlayerStateService = require(Services.PlayerStateService)
-local DeathService = require(Services.DeathService)  -- ✅ เพิ่ม
+local DeathService = require(Services.DeathService)
+local MatchService = require(Services.MatchService)  -- ✅ เพิ่ม
 local GameService = require(Services.GameService)
 local TestService = require(Services.TestService)
 
@@ -54,6 +55,9 @@ PlayerStateService:Init()
 print("[Init] Initializing DeathService...")  -- ✅ เพิ่ม
 DeathService:Init()
 
+print("[Init] Initializing MatchService...")  -- ✅ เพิ่ม
+MatchService:Init()
+
 print("[Init] Initializing GameService...")
 GameService:Init()
 
@@ -67,6 +71,7 @@ LobbyService:Start()
 ArenaService:Start()  -- ✅ เพิ่ม
 PlayerStateService:Start()
 DeathService:Start()  -- ✅ เพิ่ม
+MatchService:Start()  -- ✅ เพิ่ม
 GameService:Start()
 TestService:Start()
 
