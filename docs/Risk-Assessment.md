@@ -164,6 +164,38 @@ analytics.suspiciousActivity          -- Alert if > 10/hour
 
 ---
 
+## 📈 System Architecture Updates (v3.1)
+
+| Component | Version | Changes | Status |
+|-----------|---------|---------|--------|
+| **DeathService** | 2.1 | Simplified (Detect → Emit only) | ✅ Reduced complexity |
+| **MatchService** | 1.0 | NEW - Match management | ✅ Single responsibility |
+| **Separation of Concerns** | ✅ | Match logic moved out | ✅ Improved maintainability |
+
+### ✅ Separation of Concerns
+
+**Before:**
+```
+DeathService → 800+ lines
+├─ Death detection
+├─ Match tracking
+├─ Kill streaks
+├─ Respawn delays
+└─ Analytics
+```
+
+**After:**
+```
+DeathService → 300 lines (Detect, Classify, Emit)
+MatchService → 400 lines (Match management)
+
+✅ Single Responsibility Principle
+✅ Easier to test
+✅ Easier to maintain
+```
+
+---
+
 **Assessment:** System is production-ready with all P0 issues resolved.  
 **Next Review:** Before major update or 30 days  
 **Author:** OneShortArena Security Team
