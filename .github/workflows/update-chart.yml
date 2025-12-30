@@ -28,35 +28,95 @@ jobs:
 
       - name: Create Puppeteer Config
         run: |
-          echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
+          echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]}' > puppeteer-config.json
 
       - name: Verify deps.md exists
         run: |
-          echo "Checking docs/deps.md..."
-          cat docs/deps.md
-          echo "---END OF FILE---"
+          echo "📄 Checking docs/deps.md..."
+          if [ ! -f docs/deps.md ]; then
+            echo "❌ ERROR: docs/deps.md not found!"
+            exit 1
+          fi
+          echo "✅ File exists"
+          echo "---FILE PREVIEW---"
+          head -20 docs/deps.md
+          echo "---END PREVIEW---"
 
-      - name: Generate PNG from Mermaid
+      - name: Generate SVG from Mermaid
         run: |
-          echo "Running mermaid-cli..."
-          mmdc -i docs/deps.md -o ./deps.png -p puppeteer-config.json -b transparent || echo "mmdc failed with exit code $?"
-          echo "Listing current directory:"
-          ls -la
-          echo "Listing docs directory:"
-          ls -la docs/
+          echo "🎨 Generating SVG from Mermaid diagram..."
           
-          # ย้ายไฟล์ไปที่ถูกต้อง
-          if [ -f ./deps.png ]; then
-            mv ./deps.png docs/deps.png
-            echo "SUCCESS: Moved deps.png to docs/"
-          elif [ -f ./deps-1.png ]; then
-            mv ./deps-1.png docs/deps.png
-            echo "SUCCESS: Moved deps-1.png to docs/"
-          elif [ -f docs/deps.png ]; then
-            echo "SUCCESS: deps.png already in docs/"
+          # ทำความสะอาด output ก่อน
+          rm -f *.svg *.png docs/*.svg.tmp 2>/dev/null || true
+          
+          # สร้าง SVG (อาจได้ deps.svg หรือ deps-1.svg)
+          mmdc -i docs/deps.md -o deps.svg -e svg -p puppeteer-config.json -b transparent -w 1920 -H 1080 || {
+            echo "❌ mmdc command failed with exit code $?"
+            exit 1
+          }
+          
+          echo "📁 Listing generated files..."
+          ls -la *.svg 2>/dev/null || echo "No SVG files in root"
+          ls -la docs/*.svg 2>/dev/null || echo "No SVG files in docs/"
+          
+          # ตรวจหาไฟล์ SVG ที่ถูกสร้าง
+          SVG_FILE=""
+          
+          # ตรวจสอบหลายชื่อที่เป็นไปได้
+          if [ -f "deps.svg" ]; then
+            SVG_FILE="deps.svg"
+            echo "✅ Found: deps.svg"
+          elif [ -f "deps-1.svg" ]; then
+            SVG_FILE="deps-1.svg"
+            echo "✅ Found: deps-1.svg"
+          elif [ -f "docs/deps.svg" ]; then
+            SVG_FILE="docs/deps.svg"
+            echo "✅ Found: docs/deps.svg (already in place)"
+          elif [ -f "docs/deps-1.svg" ]; then
+            SVG_FILE="docs/deps-1.svg"
+            echo "✅ Found: docs/deps-1.svg"
           else
-            echo "ERROR: No PNG file was created!"
-            find . -name "*.png" -type f
+            # ค้นหาไฟล์ SVG ใดๆ ที่มี "deps" ในชื่อ
+            SVG_FILE=$(find . -maxdepth 2 -name "*deps*.svg" -type f | head -1)
+            if [ -n "$SVG_FILE" ]; then
+              echo "✅ Found SVG via fallback search: $SVG_FILE"
+            else
+              echo "❌ ERROR: No SVG file generated!"
+              echo "📁 Searching for any SVG files:"
+              find . -name "*.svg" -type f
+              exit 1
+            fi
+          fi
+          
+          # ย้ายไฟล์ไปยังตำแหน่งที่ถูกต้อง
+          if [ "$SVG_FILE" != "docs/deps.svg" ]; then
+            echo "📦 Moving $SVG_FILE to docs/deps.svg"
+            mv "$SVG_FILE" docs/deps.svg
+          fi
+          
+          # ทำความสะอาดไฟล์ชั่วคราว
+          echo "🧹 Cleaning up temporary files..."
+          rm -f *.svg *.png puppeteer-config.json 2>/dev/null || true
+          rm -f docs/*-[0-9].svg 2>/dev/null || true
+          
+          # ตรวจสอบผลลัพธ์สุดท้าย
+          if [ -f "docs/deps.svg" ]; then
+            echo "✅ SUCCESS: docs/deps.svg created!"
+            ls -lh docs/deps.svg
+            
+            # แสดงขนาดไฟล์
+            SIZE=$(du -h docs/deps.svg | cut -f1)
+            echo "📊 File size: $SIZE"
+            
+            # ตรวจสอบว่าเป็น SVG จริงหรือไม่
+            if head -1 docs/deps.svg | grep -q "<?xml\|<svg"; then
+              echo "✅ Valid SVG file detected"
+            else
+              echo "⚠️ WARNING: File may not be a valid SVG"
+              head -5 docs/deps.svg
+            fi
+          else
+            echo "❌ ERROR: Final file docs/deps.svg not found!"
             exit 1
           fi
 
@@ -64,6 +124,21 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/deps.png
-          git diff --staged --quiet || git commit -m "Auto-update mermaid chart [skip ci]"
-          git push
+          
+          # เพิ่มไฟล์
+          git add docs/deps.svg
+          
+          # ตรวจสอบว่ามีการเปลี่ยนแปลงหรือไม่
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            echo "📝 Committing changes..."
+            git commit -m "🎨 Auto-update Mermaid diagram (SVG) [skip ci]"
+            
+            echo "🚀 Pushing to repository..."
+            git push
+            
+            echo "✅ Changes pushed successfully!"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

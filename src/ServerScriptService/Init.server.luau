@@ -1,61 +1,123 @@
 --!strict
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 
 -- ═══════════════════════════════════════════════════════════════
 -- IDEMPOTENT GUARD
 -- ═══════════════════════════════════════════════════════════════
 
 if _G.__SERVER_INITIALIZED then
-    warn("[Init.server] ⚠️ Server already initialized! Skipping re-initialization.")
-    return
+	warn("[Init.server] ⚠️ Server already initialized! Skipping re-initialization.")
+	return
 end
 
 print("🔌 Server Init: Starting Services...")
 
--- Get Services folder
-local Services = ServerScriptService:WaitForChild("Services")
---load utils
-local utils = ServerScriptService:WaitForChild("Utils")
+-- ═══════════════════════════════════════════════════════════════
+-- GET FOLDERS
+-- ═══════════════════════════════════════════════════════════════
 
--- Load core services in dependency order
-local NetworkHandler = require(Services.NetworkHandler)
-local LobbyService = require(Services.LobbyService)
-local ArenaService = require(Services.ArenaService)
-local PlayerStateService = require(Services.PlayerStateService)
-local GameService = require(Services.GameService)
+local Services = ServerScriptService:WaitForChild("Services")
+local Utils = ServerScriptService:WaitForChild("Utils")
+
+-- ✅ NEW: Services subfolders
+local Core = Services:WaitForChild("Core")
+local Gameplay = Services:WaitForChild("Gameplay")
+local Player = Services:WaitForChild("Player")
+
+-- ✅ Preload NetworkConfig
+local Configs = ServerStorage:WaitForChild("Configs")
+local NetworkConfig = require(Configs.NetworkConfig)
+
+print("[Init] 📡 Loaded NetworkConfig")
+NetworkConfig.PrintSummary()
+
+-- ═══════════════════════════════════════════════════════════════
+-- LOAD SERVICES (NEW STRUCTURE)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Core Services
+print("[Init] Loading Core services...")
+local NetworkHandler = require(Core.NetworkHandler)
+
+-- Gameplay Services
+print("[Init] Loading Gameplay services...")
+local ArenaService = require(Gameplay.ArenaService)
+local CombatService = require(Gameplay.CombatService)    -- ✅ NEW
+local CooldownService = require(Gameplay.CooldownService)
+local DeathService = require(Gameplay.DeathService)
+local DownedService = require(Gameplay.DownedService)
+local GameService = require(Gameplay.GameService)
+local LobbyService = require(Gameplay.LobbyService)
+local MatchService = require(Gameplay.MatchService)
+local RespawnService = require(Gameplay.RespawnService)  -- ✅ NEW
+
+-- Player Services
+print("[Init] Loading Player services...")
+local PlayerStateService = require(Player.PlayerStateService)
+
 local TestService = require(Services.TestService)
 
---load utils for idempotent guard service
-local IdempotentGuard  = require(utils.IdempotentGuard)
+-- Utils
+print("[Init] Loading Utils...")
+local IdempotentGuard = require(Utils.IdempotentGuard)
 
+-- ═══════════════════════════════════════════════════════════════
+-- INITIALIZE SERVICES (DEPENDENCY ORDER)
+-- ═══════════════════════════════════════════════════════════════
 
--- Initialize core services
-print("[Init] Initializing NetworkHandler...")
+print("\n[Init] 🔧 Initializing services...")
+print("═════════════════════════════════════════════════════════")
+
+-- 1. Core Services (no dependencies)
+print("[Init] 1️⃣ Core Layer...")
 NetworkHandler:Init()
 
-print("[Init] Initializing LobbyService...")
-LobbyService:Init()
-
-print("[Init] Initializing ArenaService...")  -- ✅ เพิ่ม
-ArenaService:Init()
-
-print("[Init] Initializing PlayerStateService...")
+-- 2. Player Services (depend on Core)
+print("[Init] 2️⃣ Player Layer...")
 PlayerStateService:Init()
 
-print("[Init] Initializing GameService...")
+
+-- 3. Gameplay Services (depend on Player)
+print("[Init] 3️⃣ Gameplay Layer...")
+LobbyService:Init()
+ArenaService:Init()
+CombatService:Init()   -- ✅ NEW (before DeathService)
+DeathService:Init()
+DownedService:Init()
+RespawnService:Init()  -- ✅ NEW (after DownedService)
+MatchService:Init()
+CooldownService:Init()
 GameService:Init()
 
-print("[Init] Initializing TestService...")
+-- 4. Test/Debug Services (optional, last)
+print("[Init] 4️⃣ Test Layer...")
 TestService:Init()
 
--- Start services (runtime phase)
-print("[Init] Starting services...")
+-- ═══════════════════════════════════════════════════════════════
+-- START SERVICES (RUNTIME PHASE)
+-- ═══════════════════════════════════════════════════════════════
+
+print("\n[Init] ▶️ Starting services...")
+print("═════════════════════════════════════════════════════════")
+
+-- Start in same order as Init
 NetworkHandler:Start()
-LobbyService:Start()
-ArenaService:Start()  -- ✅ เพิ่ม
+
 PlayerStateService:Start()
+
+
+LobbyService:Start()
+ArenaService:Start()
+CombatService:Start()   -- ✅ NEW
+DeathService:Start()
+DownedService:Start()
+RespawnService:Start()  -- ✅ NEW
+MatchService:Start()
+CooldownService:Start()
 GameService:Start()
+
 TestService:Start()
 
 -- ═══════════════════════════════════════════════════════════════
@@ -65,16 +127,43 @@ TestService:Start()
 _G.__SERVER_INITIALIZED = true
 _G.__SERVER_INIT_TIME = os.clock()
 
+print("\n═════════════════════════════════════════════════════════")
 print("✅ All services initialized and started successfully.")
+print(string.format("⏱️ Total time: %.3fs", os.clock() - (_G.__SERVER_INIT_TIME or 0)))
+print("═════════════════════════════════════════════════════════\n")
 
 -- ✅ Print IdempotentGuard summary (if available)
 if IdempotentGuard and IdempotentGuard.printSummary then
-    IdempotentGuard.printSummary()
+	IdempotentGuard.printSummary()
 end
 
 -- Expose for debugging (only in Studio)
 if game:GetService("RunService"):IsStudio() then
-    if IdempotentGuard then
-        _G.IdempotentGuard = IdempotentGuard
-    end
+	_G.Services = {
+		-- Core
+		NetworkHandler = NetworkHandler,
+		
+		-- Player
+		PlayerStateService = PlayerStateService,
+		
+		-- Gameplay
+		ArenaService = ArenaService,
+		CombatService = CombatService,     -- ✅ NEW
+		CooldownService = CooldownService,
+		DeathService = DeathService,
+		DownedService = DownedService,
+		GameService = GameService,
+		LobbyService = LobbyService,
+		MatchService = MatchService,
+		RespawnService = RespawnService,   -- ✅ NEW
+		
+		-- Test
+		TestService = TestService,
+	}
+	
+	if IdempotentGuard then
+		_G.IdempotentGuard = IdempotentGuard
+	end
+	
+	print("[Init] 🔍 Debug mode: _G.Services exposed")
 end

@@ -333,6 +333,14 @@ function IdempotentGuard.printSummary()
 	print("╚════════════════════════════════════════════════════════════════╝")
 end
 
+-- เพิ่ม cleanup method
+function IdempotentGuard.remove(name: string)
+    if guards[name] then
+        guards[name] = nil
+        globalStats.totalGuardsCreated -= 1
+    end
+end
+
 return IdempotentGuard
 
 --[[]

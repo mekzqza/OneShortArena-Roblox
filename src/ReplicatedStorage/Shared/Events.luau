@@ -148,6 +148,48 @@ Events.TEST_PONG = "TestPong"
 
 Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
 
+-- Death Events
+Events.PLAYER_DIED = "PlayerDied"                           -- DeathService → PlayerStateService
+Events.PLAYER_DEATH_ANNOUNCED = "PlayerDeathAnnounced"      -- Server → All clients
+Events.PLAYER_RESPAWN_REQUESTED = "PlayerRespawnRequested"  -- DeathService → PlayerStateService
+Events.PLAYER_RESPAWNED = "PlayerRespawned"                 -- ✅ NEW
+Events.PLAYER_DAMAGED = "PlayerDamaged"                     -- Humanoid.HealthChanged
+Events.PLAYER_ATTACKED = "PlayerAttacked"                   -- Combat system → DeathService
+Events.PLAYER_KILL_STREAK = "PlayerKillStreak"              -- Kill streak milestone
+
+-- ============================================================================
+-- ⚔️ Match Events (NEW)
+-- ============================================================================
+Events.MATCH_REGISTERED = "MatchRegistered"
+Events.MATCH_STARTED = "MatchStarted"
+Events.MATCH_ENDED = "MatchEnded"
+Events.MATCH_CANCELLED = "MatchCancelled"
+Events.MATCH_PLAYER_JOINED = "MatchPlayerJoined"
+Events.MATCH_PLAYER_LEFT = "MatchPlayerLeft"
+
+-- ============================================================================
+-- COMBAT EVENTS
+-- ============================================================================
+Events.PLAYER_FATAL_HIT = "PlayerFatalHit"           -- ✅ NEW
+Events.PLAYER_DAMAGE_APPLIED = "PlayerDamageApplied" -- ✅ NEW
+
+-- ============================================================================
+-- DOWNED SYSTEM EVENTS (NEW)
+-- ============================================================================
+Events.PLAYER_DOWNED = "PlayerDowned"                    -- Player entered Downed state
+Events.PLAYER_DOWNED_COUNTDOWN = "PlayerDownedCountdown" -- Countdown tick update
+Events.PLAYER_REVIVED = "PlayerRevived"                  -- Player was revived
+Events.PLAYER_FINISHED = "PlayerFinished"                -- Player was finished (killed while downed)
+
+-- Client → Server
+Events.PLAYER_REQUEST_REVIVE = "PlayerRequestRevive"     -- Request revive (self/item/robux)
+Events.PLAYER_REQUEST_FINISH = "PlayerRequestFinish"     -- Request to finish downed player
+Events.TEAMMATE_REQUEST_REVIVE = "TeammateRequestRevive" -- Teammate revive request
+
+-- Internal (Server only)
+Events.PLAYER_DOWNED_INTERNAL = "PlayerDownedInternal"   -- Internal downed notification
+Events.PLAYER_DOWNED_TIMEOUT = "PlayerDownedTimeout"     -- Downed timer expired
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด

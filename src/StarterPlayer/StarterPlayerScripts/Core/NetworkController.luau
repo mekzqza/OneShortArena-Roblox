@@ -82,16 +82,7 @@ function Module:Start()
 		end
 	end)
 	
-	-- Connection health monitoring
-	task.spawn(function()
-		while true do
-			task.wait(10)
-			local ping = self:GetPing()
-			if ping > 500 then
-				warn(`[NetworkController] High latency detected: {ping}ms`)
-			end
-		end
-	end)
+
 end
 
 -- NEW: Send with automatic retry
@@ -136,18 +127,6 @@ function Module:CheckRetry(messageId: string, maxRetries: number)
 			return
 		end
 	end
-end
-
--- NEW: Get network stats
-function Module:GetStats(): {ping: number, pendingMessages: number}
-	return {
-		ping = self:GetPing(),
-		pendingMessages = #sentMessages,
-	}
-end
-
-function Module:Start()
-	-- No-op
 end
 
 function Module:Send(eventName: string, ...: any)

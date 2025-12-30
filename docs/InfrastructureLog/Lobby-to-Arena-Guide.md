@@ -1,16 +1,12 @@
 # 🏟️ Lobby to Arena Teleport System - Production Guide
 
-## 📋 Table of Contents
+## 📋 Version Info
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Flow Diagram](#flow-diagram)
-- [Setup Guide](#setup-guide)
-- [Creating UI Buttons](#creating-ui-buttons)
-- [Service Integration](#service-integration)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Best Practices](#best-practices)
+| Component | Version | Status |
+|-----------|---------|--------|
+| System | 2.0 | ✅ Production Ready |
+| Security | P0 Fixed | ✅ Hardened |
+| NetworkConfig | 1.0 | ✅ Centralized |
 
 ---
 
@@ -20,11 +16,12 @@
 
 ### ✨ Features:
 
-- ✅ **UI Button Integration** - ปุ่มกดเข้า Arena
+- ✅ **UI Button Integration** - ปุ่มกดเข้า Arena พร้อม cooldown protection
 - ✅ **Event-Driven** - ใช้ EventBus สื่อสาร
-- ✅ **State Management** - PlayerStateService ติดตาม state
+- ✅ **State Management** - PlayerStateService ติดตาม state พร้อม transition locks
 - ✅ **Smart Spawning** - เลือก spawn point แบบสุ่ม + collision avoidance
-- ✅ **Network Security** - Rate limiting, validation
+- ✅ **Network Security** - Rate limiting, validation, anti-spam
+- ✅ **P0 Security Fixes** - Race condition protection, exploit prevention
 - ✅ **Analytics** - ติดตามสถิติการใช้งาน
 - ✅ **Error Handling** - Fallback spawns, timeout handling
 
@@ -34,15 +31,24 @@
 
 ### Services Involved:
 
-| Service | Responsibility |
-|---------|---------------|
-| **LobbyGuiController** | UI button → EventBus |
-| **InputHandler** | EventBus → Network request |
-| **NetworkController** | Send request to server |
-| **NetworkHandler** | Security validation |
-| **PlayerStateService** | State: Lobby → Arena |
-| **ArenaService** | Spawn player in arena |
-| **LobbyService** | Return to lobby |
+| Service | Responsibility | Config |
+|---------|---------------|--------|
+| **LobbyGuiController** | UI button → EventBus | 1s cooldown |
+| **InputHandler** | EventBus → Network | Validation |
+| **NetworkController** | Send to server | Retry/ACK |
+| **NetworkHandler** | Security validation | NetworkConfig |
+| **PlayerStateService** | State management | 2s cooldown |
+| **ArenaService** | Arena spawning | 5s cooldown |
+| **LobbyService** | Lobby spawning | State-based |
+
+### Rate Limits (from NetworkConfig):
+
+```lua
+EventRateLimits = {
+    PlayerRequestToArena = {rate = 1, window = 5},
+    PlayerRequestToLobby = {rate = 1, window = 5},
+}
+```
 
 ---
 
@@ -50,16 +56,18 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              LOBBY TO ARENA TELEPORT FLOW                    │
+│         LOBBY TO ARENA TELEPORT FLOW (P0 SECURED)            │
 └─────────────────────────────────────────────────────────────┘
 
 1. Player กดปุ่ม "Play" (UI)
    │
-   │  📱 UI Layer
+   │  📱 UI Layer (P0: Cooldown Protection)
    ▼
 2. LobbyGuiController
    ├─> Detect: MouseButton1Click
-   ├─> Validate: Cooldown check
+   ├─> ✅ P0 Check: Button cooldown (1s)
+   │   └─> if on cooldown → block, don't emit
+   ├─> Set cooldown flag
    └─> Emit: EventBus:Emit(INPUT_ACTION, "PLAY")
    │
    │  🎮 Input Layer
@@ -70,33 +78,49 @@
    ├─> Validate: Player alive? Not in menu?
    └─> Send: NetworkController:Send(PLAYER_REQUEST_TO_ARENA)
    │
-   │  🌐 Network Layer
+   │  🌐 Network Layer (P0: Rate Limiting)
    ▼
 4. Server: NetworkHandler
    ├─> Receive: OnServerEvent(PLAYER_REQUEST_TO_ARENA)
-   ├─> Security: Rate limit (10 req/5s)
-   ├─> Validate: Payload sanitization
-   ├─> Check: Event allowlist
+   ├─> ✅ P0 Security:
+   │   ├─> Rate limit check (10 req/5s per player)
+   │   ├─> Anti-replay (message ID tracking)
+   │   ├─> Payload sanitization
+   │   └─> Event allowlist validation
    └─> Emit: EventBus:Emit(PLAYER_REQUEST_TO_ARENA, player, data)
    │
-   │  🎯 State Management
+   │  🎯 State Management (P0: Lock Protection)
    ▼
 5. Server: PlayerStateService
    ├─> Listen: EventBus:On(PLAYER_REQUEST_TO_ARENA)
-   ├─> Validate: CanTransition(player, "Arena")?
+   ├─> ✅ P0 Validations:
+   │   ├─> Check cooldown (2s server-side)
+   │   ├─> Check transition lock (prevent race condition)
+   │   └─> Validate state transition (Lobby → Arena allowed?)
+   ├─> Acquire transition lock (atomic)
    ├─> Update: SetState(player, "Arena")
-   ├─> Track: Transition history
+   │   ├─> Validate transition rules
+   │   ├─> Set cooldown (2s)
+   │   └─> Update analytics
+   ├─> Release transition lock
    └─> Emit: EventBus:Emit(PLAYER_STATE_CHANGED_INTERNAL)
    │
-   │  🏟️ Arena Management
+   │  🏟️ Arena Management (P0: Spawn Validation)
    ▼
 6. Server: ArenaService
-   ├─> Listen: EventBus:On(PLAYER_REQUEST_TO_ARENA)
+   ├─> Listen: EventBus:On(PLAYER_STATE_CHANGED_INTERNAL)
+   ├─> ✅ Only if newState == "Arena"
+   ├─> ✅ P0 Validations:
+   │   ├─> Teleport cooldown (5s)
+   │   ├─> Combat check (can't teleport while in combat)
+   │   ├─> Character exists
+   │   └─> Player is alive
    ├─> Get Spawn: GetRandomArenaSpawn()
    │   ├─> Find: Empty spawn point
    │   ├─> Check: isAreaSafe()
    │   └─> Fallback: If all occupied
    ├─> Teleport: character.HumanoidRootPart.CFrame
+   ├─> Set teleport cooldown
    ├─> Track: Analytics (totalSpawns++)
    └─> Send: NetworkHandler:SendToClient(PLAYER_TELEPORTED_TO_ARENA)
    │
@@ -107,6 +131,34 @@
    ├─> Parse: {success = true, timestamp = ...}
    ├─> Emit: EventBus:Emit(PLAYER_TELEPORTED_TO_ARENA)
    └─> UI: Update button state, show notification
+```
+
+---
+
+## 🔐 Security Layers
+
+```
+Layer 1: UI Cooldown (1s)
+    └── LobbyGuiController.buttonCooldowns
+
+Layer 2: Per-Event Rate Limit
+    └── NetworkConfig.EventRateLimits["PlayerRequestToArena"]
+    └── 1 request per 5 seconds
+
+Layer 3: Global Rate Limit
+    └── NetworkConfig.GlobalRateLimit = 10 per 5s
+
+Layer 4: Transition Lock
+    └── PlayerStateService.transitionLocks[userId]
+
+Layer 5: Transition Cooldown (2s)
+    └── PlayerStateService.transitionCooldowns[userId]
+
+Layer 6: Teleport Cooldown (5s)
+    └── ArenaService.teleportCooldowns[userId]
+
+Layer 7: Combat Check (5s)
+    └── ArenaService.playersInCombat[userId]
 ```
 
 ---
@@ -222,31 +274,37 @@ local lobbyGui: ScreenGui? = nil
 local playButton: TextButton? = nil
 local cancelButton: TextButton? = nil
 
+-- ✅ P0: Cooldown tracking
 local buttonCooldowns = {} :: {[TextButton]: boolean}
 
 local function connectButton(button: TextButton, actionName: string, cooldownTime: number?)
     cooldownTime = cooldownTime or 1.0
     
     button.MouseButton1Click:Connect(function()
+        -- ✅ P0 FIX: Check cooldown BEFORE emitting event
         if buttonCooldowns[button] then
-            warn(`[LobbyGuiController] ⏱️ {actionName} on cooldown`)
-            return
+            warn(`[LobbyGuiController] ⏱️ {actionName} on cooldown (ignored)`)
+            return  -- Don't emit event!
         end
         
         print(`[LobbyGuiController] 🖱️ Button clicked: {actionName}`)
+        
+        -- ✅ P0: Set cooldown BEFORE emit
+        buttonCooldowns[button] = true
+        
+        -- Emit event AFTER cooldown check
         EventBus:Emit(Events.INPUT_ACTION, actionName)
         
         -- Visual feedback
         local originalColor = button.BackgroundColor3
+        local originalText = button.Text
         button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
         button.Text = "..."
-        
-        buttonCooldowns[button] = true
         
         task.delay(cooldownTime, function()
             buttonCooldowns[button] = false
             button.BackgroundColor3 = originalColor
-            button.Text = actionName == "PLAY" and "▶ Play" or "◀ Back to Lobby"
+            button.Text = originalText
         end)
     end)
     
@@ -280,14 +338,14 @@ function LobbyGuiController:Init()
 end
 
 function LobbyGuiController:Start()
-    -- Connect buttons to EventBus
-    connectButton(playButton, "PLAY", 1.0)
+    -- ✅ P0: Cooldown protections
+    connectButton(playButton, "PLAY", 1.0)  -- 1 second cooldown
     
     if cancelButton then
         connectButton(cancelButton, "CANCEL", 0.5)
     end
     
-    print("[LobbyGuiController] 🚀 Started - Buttons connected")
+    print("[LobbyGuiController] 🚀 Started - Buttons connected with cooldown protection")
 end
 
 return LobbyGuiController
@@ -334,26 +392,41 @@ function InputHandler:Start()
     EventBus:On(Events.INPUT_ACTION, function(actionName: string)
         -- ...existing handlers...
         
+        -- ✅ P0: Handle PLAY and CANCEL
         if actionName == "PLAY" then
             self:HandlePlay()
         elseif actionName == "CANCEL" then
             self:HandleCancel()
+        else
+            warn(`[InputHandler] ⚠️ Unhandled action: {actionName}`)
         end
     end)
     
-    print("[InputHandler] Started")
+    print("[InputHandler] ✅ Started")
 end
 
+-- ✅ P0: PLAY handler
 function InputHandler:HandlePlay()
     print("[InputHandler] ▶️ Play button pressed")
+    
+    -- Validate before sending
+    local player = Players.LocalPlayer
+    if not player.Character or player.Character.Humanoid.Health <= 0 then
+        warn("[InputHandler] Cannot join arena: Player is dead")
+        return
+    end
+    
+    -- Send to server
     NetworkController:Send(Events.PLAYER_REQUEST_TO_ARENA, {
         action = "join",
         timestamp = tick()
     })
 end
 
+-- ✅ P0: CANCEL handler
 function InputHandler:HandleCancel()
     print("[InputHandler] ⏸️ Cancel button pressed")
+    
     NetworkController:Send(Events.PLAYER_REQUEST_TO_LOBBY, {
         action = "cancel",
         timestamp = tick()
@@ -395,200 +468,65 @@ return {
 
 ## 🧪 Testing
 
-### Test Checklist:
+### Test Scenarios with P0 Validation:
 
-#### 1. **Visual Test**
+#### ✅ Scenario 1: Normal Click (Expected: Success)
+
+**Actions:**
 ```
-✅ ปุ่ม "Play" แสดงผลถูกต้อง
-✅ ปุ่ม hover ได้ (สีเปลี่ยน)
-✅ ปุ่ม click ได้ (cooldown ทำงาน)
+1. Player กดปุ่ม "Play"
+2. รอ 2 วินาที
+3. ตัวละครถูก teleport ไป Arena
 ```
 
-#### 2. **Client Console (F9)**
+**Expected Output:**
 ```
-Expected Output:
 [LobbyGuiController] 🖱️ Button clicked: PLAY
 [InputHandler] ▶️ Play button pressed
 [NetworkController] 📤 Sending: PLAYER_REQUEST_TO_ARENA
-```
-
-#### 3. **Server Console**
-```
-Expected Output:
-[NetworkHandler] 📨 Received: PLAYER_REQUEST_TO_ARENA from sukpatzqza
 [PlayerStateService] ✅ sukpatzqza joined Arena
-[ArenaService] ✅ Spawned sukpatzqza in Arena at 50, 103, 30
-```
-
-#### 4. **In-Game Test**
-```
-✅ กดปุ่ม → ตัวละครถูก teleport ไป Arena
-✅ Spawn point สุ่มได้ (ไม่ spawn ที่เดิมทุกครั้ง)
-✅ ไม่ spawn ซ้อนกับผู้เล่นอื่น
-✅ กลับ Lobby ได้ (ถ้ามีปุ่ม Cancel)
+[ArenaService] sukpatzqza state changed to Arena, spawning...
+[ArenaService] ✅ sukpatzqza spawned in Arena at -880, 24.5, 30
 ```
 
 ---
 
-## 🐛 Troubleshooting
+#### ✅ Scenario 2: Spam Click (Expected: Blocked by Cooldown)
 
-### Problem 1: Button Not Clicking
-
-**Symptoms:**
+**Actions:**
 ```
-- กดปุ่มแล้วไม่มี response
-- Console ไม่มี log
-```
-
-**Solutions:**
-```lua
--- Check 1: Button properties
-button.Active = true
-button.Interactable = true
-
--- Check 2: ZIndex
-lobbyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-button.ZIndex = 10  -- Higher than other UI
-
--- Check 3: Parent order
--- LobbyGui must be in PlayerGui, not StarterGui
+1. กด "Play" ครั้งที่ 1
+2. กด "Play" ครั้งที่ 2 ทันที (0.1s later)
+3. กด "Play" ครั้งที่ 3 ทันที (0.2s later)
 ```
 
----
-
-### Problem 2: "Arena boundary folder not found"
-
-**Symptoms:**
+**Expected Output:**
 ```
-[ArenaService] ❌ Arena boundary folder not found!
-```
+Click 1:
+[LobbyGuiController] 🖱️ Button clicked: PLAY
+[InputHandler] ▶️ Play button pressed
+[NetworkController] 📤 Sending...
 
-**Solutions:**
-```lua
--- Fix 1: Check folder name (case-sensitive)
--- Must be: "ArenaBoundary" (capital B)
+Click 2 (0.1s later):
+[LobbyGuiController] ⏱️ PLAY on cooldown (ignored)
+(ไม่ส่ง event! ✅)
 
--- Fix 2: Check hierarchy
-Workspace/
-└── ArenaBoundary/
-    └── ArenaSpawns/
-
--- Fix 3: Wait time
--- Increase timeout in ArenaService:
-local arenabound = Workspace:WaitForChild("ArenaBoundary", 20)  -- 20s
-```
-
----
-
-### Problem 3: Player Not Spawning
-
-**Symptoms:**
-```
-[ArenaService] ❌ No HumanoidRootPart for sukpatzqza
-```
-
-**Solutions:**
-```lua
--- Check character exists
-if not player.Character then
-    player:LoadCharacter()  -- Force respawn
-end
-
--- Check HumanoidRootPart
-local hrp = character:FindFirstChild("HumanoidRootPart")
-if not hrp then
-    warn("Character malformed!")
-end
-```
-
----
-
-## 📝 Best Practices
-
-### ✅ DO (ควรทำ)
-
-```lua
--- 1. ใช้ cooldown ป้องกัน spam
-connectButton(playButton, "PLAY", 1.0)  -- 1 วินาที
-
--- 2. Visual feedback
-button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)  -- Gray during cooldown
-
--- 3. Error handling
-if not success then
-    warn("Failed to join arena!")
-    -- Show notification to user
-end
-
--- 4. Analytics
-analytics.buttonClicks += 1
-analytics.lastClickTime = os.clock()
-```
-
-### ❌ DON'T (ไม่ควรทำ)
-
-```lua
--- 1. อย่าลืม cooldown
-button.MouseButton1Click:Connect(function()
-    EventBus:Emit(Events.INPUT_ACTION, "PLAY")  -- ❌ Spammable!
-end)
-
--- 2. อย่าใช้ string literal
-EventBus:Emit("PlayerRequestToArena", data)  -- ❌ Typo-prone
-EventBus:Emit(Events.PLAYER_REQUEST_TO_ARENA, data)  -- ✅ Type-safe
-
--- 3. อย่า teleport โดยตรง (bypass validation)
-player.Character.HumanoidRootPart.CFrame = arenaSpawn.CFrame  -- ❌
-ArenaService:SpawnPlayerInArena(player)  -- ✅ Use service
-```
-
----
-
-## 🎯 Summary
-
-### Complete Flow:
-
-```
-UI Button → EventBus → InputHandler → Network → Server Validation 
-→ State Change → Arena Spawn → Response → Client Update
-```
-
-### Key Components:
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| **UI** | StarterGui/LobbyGui | Player clicks button |
-| **Controller** | LobbyGuiController.luau | Button → EventBus |
-| **Handler** | InputHandler.luau | EventBus → Network |
-| **Network** | NetworkController.luau | Client-Server comm |
-| **Security** | NetworkHandler.luau | Validation |
-| **State** | PlayerStateService.luau | Lobby → Arena |
-| **Spawn** | ArenaService.luau | Teleport player |
-
-### Files Created/Modified:
-
-```
-✅ StarterGui/LobbyGui (UI)
-✅ LobbyGuiController.luau (New)
-✅ InputHandler.luau (Modified)
-✅ InputSettings.luau (Modified)
-✅ Events.luau (Modified)
-✅ ArenaService.luau (New)
-✅ PlayerStateService.luau (Existing)
+Click 3 (0.2s later):
+[LobbyGuiController] ⏱️ PLAY on cooldown (ignored)
+(ไม่ส่ง event! ✅)
 ```
 
 ---
 
 ## 📚 Related Documentation
 
-- [Architecture Overview](./deps.md)
-- [EventBus Guide](./EventBus-Guide.md)
-- [PlayerStateService Guide](./PlayerStateService-Guide.md)
-- [Network Security](./Network-Security.md)
+- [deps.md](./deps.md) - Architecture overview
+- [Risk-Assessment.md](./Risk-Assessment.md) - Security audit
+- [NetworkConfig-Guide.md](./NetworkConfig-Guide.md) - Rate limits
 
 ---
 
-**Version:** 1.0  
+**Version:** 2.0 - P0 Security Fixes Applied  
 **Last Updated:** 2024  
 **Status:** Production Ready ✅  
 **Author:** OneShortArena Team

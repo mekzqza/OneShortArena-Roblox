@@ -21,7 +21,7 @@ local Players = game:GetService("Players")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
-local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local NetworkHandler = require(ServerScriptService.Services.Core.NetworkHandler)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 
 export type ArenaService = {
@@ -29,6 +29,7 @@ export type ArenaService = {
     Start: (self: ArenaService) -> (),
     SpawnPlayerInArena: (self: ArenaService, player: Player) -> boolean,
     GetRandomArenaSpawn: (self: ArenaService) -> BasePart?,
+    CanPlayerJoinArena: (self: ArenaService, player: Player) -> (boolean, string?),
     GetAnalytics: (self: ArenaService) -> {[string]: any},
 }
 
@@ -49,10 +50,19 @@ local ARENA_CONFIG = {
     FallbackSpawn = CFrame.new(0, 100, 0),
 }
 
+-- P0 FIX: Server-side teleport cooldowns
+local teleportCooldowns: {[number]: number} = {}
+local TELEPORT_COOLDOWN = 5 -- 5 seconds between arena joins
+
+-- P0 FIX: Track players in combat
+local playersInCombat: {[number]: number} = {} -- userId -> lastCombatTime
+local COMBAT_TIMEOUT = 5 -- Can't teleport for 5s after taking damage
+
 local analytics = {
     totalSpawns = 0,
     failedSpawns = 0,
     respawns = 0,
+    blockedByValidation = 0,
     startTime = os.clock(),
 }
 
@@ -112,6 +122,20 @@ local function isAreaSafe(position: Vector3, radius: number): boolean
     return true
 end
 
+-- P0 FIX: Check if player is in combat
+local function isPlayerInCombat(userId: number): boolean
+    local lastCombat = playersInCombat[userId]
+    if not lastCombat then
+        return false
+    end
+    return (os.clock() - lastCombat) < COMBAT_TIMEOUT
+end
+
+-- P0 FIX: Set player combat state (call this when player takes damage)
+local function setPlayerInCombat(userId: number)
+    playersInCombat[userId] = os.clock()
+end
+
 -- PUBLIC METHODS
 
 function ArenaService:Init()
@@ -128,9 +152,9 @@ function ArenaService:Init()
         print(string.format("[ArenaService] Found %d arena spawn points", #spawnPoints))
     end
     
-    NetworkHandler:AllowClientEvent(Events.PLAYER_REQUEST_TO_ARENA)
-    
     print("[ArenaService] Initialized")
+    print("  - Teleport cooldown: " .. TELEPORT_COOLDOWN .. "s")
+    print("  - Combat protection: " .. COMBAT_TIMEOUT .. "s")
 end
 
 function ArenaService:Start()
@@ -138,28 +162,57 @@ function ArenaService:Start()
         return
     end
     
-    -- Listen for arena join requests
-    EventBus:On(Events.PLAYER_REQUEST_TO_ARENA, function(player: Player, data: any)
-        print(string.format("[ArenaService] %s requested to join Arena", player.Name))
+    -- ✅ ใหม่: ฟัง PLAYER_STATE_CHANGED_INTERNAL แทน
+    EventBus:On(Events.PLAYER_STATE_CHANGED_INTERNAL, function(player: Player, stateData: any)
+        -- เฉพาะเมื่อ state เปลี่ยนเป็น Arena เท่านั้น
+        if stateData.newState ~= "Arena" then
+            return
+        end
+        
+        print(string.format("[ArenaService] %s state changed to Arena, spawning...", player.Name))
+        
+        -- P0 FIX: Server-side validation ก่อน spawn
+        local canJoin, reason = self:CanPlayerJoinArena(player)
+        
+        if not canJoin then
+            warn(string.format("[ArenaService] %s spawn blocked: %s", player.Name, reason or "Unknown"))
+            analytics.blockedByValidation += 1
+            
+            NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_ARENA, {
+                success = false,
+                reason = reason,
+                timestamp = os.clock()
+            })
+            return
+        end
         
         local success = self:SpawnPlayerInArena(player)
         
         if success then
-            print(string.format("[ArenaService] %s joined Arena", player.Name))
+            -- P0 FIX: Set cooldown after successful teleport
+            teleportCooldowns[player.UserId] = os.clock()
+            
+            print(string.format("[ArenaService] ✅ %s spawned in Arena", player.Name))
             
             NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_ARENA, {
                 success = true,
                 timestamp = os.clock()
             })
         else
-            warn(string.format("[ArenaService] Failed to teleport %s to Arena", player.Name))
+            warn(string.format("[ArenaService] ❌ Failed to spawn %s in Arena", player.Name))
             
             NetworkHandler:SendToClient(player, Events.PLAYER_TELEPORTED_TO_ARENA, {
                 success = false,
-                reason = "No spawn points available",
+                reason = "Spawn failed",
                 timestamp = os.clock()
             })
         end
+    end)
+    
+    -- Cleanup on player leave
+    Players.PlayerRemoving:Connect(function(player: Player)
+        teleportCooldowns[player.UserId] = nil
+        playersInCombat[player.UserId] = nil
     end)
     
     -- Analytics
@@ -170,10 +223,50 @@ function ArenaService:Start()
             print("[ArenaService] Analytics:")
             print(string.format("  Total spawns: %d", stats.totalSpawns))
             print(string.format("  Failed spawns: %d", stats.failedSpawns))
+            print(string.format("  Blocked by validation: %d", stats.blockedByValidation))
         end
     end)
     
     print("[ArenaService] Started - Listening for arena requests")
+end
+
+-- P0 FIX: Server-side validation for arena join
+function ArenaService:CanPlayerJoinArena(player: Player): (boolean, string?)
+    local userId = player.UserId
+    local now = os.clock()
+    
+    -- Check 1: Teleport cooldown
+    local lastTeleport = teleportCooldowns[userId]
+    if lastTeleport and (now - lastTeleport) < TELEPORT_COOLDOWN then
+        local remaining = TELEPORT_COOLDOWN - (now - lastTeleport)
+        return false, string.format("Teleport cooldown (%.1fs remaining)", remaining)
+    end
+    
+    -- Check 2: Combat check
+    if isPlayerInCombat(userId) then
+        local remaining = COMBAT_TIMEOUT - (now - (playersInCombat[userId] or 0))
+        return false, string.format("Cannot teleport while in combat (%.1fs)", remaining)
+    end
+    
+    -- Check 3: Character exists
+    local character = player.Character
+    if not character then
+        return false, "No character"
+    end
+    
+    -- Check 4: Player is alive
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then
+        return false, "Player is dead"
+    end
+    
+    -- Check 5: Player is not already in arena (optional - depends on game logic)
+    -- local currentState = PlayerStateService:GetState(player)
+    -- if currentState == "Arena" then
+    --     return false, "Already in arena"
+    -- end
+    
+    return true
 end
 
 -- SPAWN METHODS
@@ -252,9 +345,15 @@ function ArenaService:GetAnalytics(): {[string]: any}
         totalSpawns = analytics.totalSpawns,
         failedSpawns = analytics.failedSpawns,
         respawns = analytics.respawns,
+        blockedByValidation = analytics.blockedByValidation,
         uptime = uptime,
         spawnsPerMinute = uptime > 0 and (analytics.totalSpawns / uptime * 60) or 0,
     }
+end
+
+-- P0 FIX: Expose combat state setter for other services
+function ArenaService:SetPlayerInCombat(player: Player)
+    setPlayerInCombat(player.UserId)
 end
 
 return ArenaService

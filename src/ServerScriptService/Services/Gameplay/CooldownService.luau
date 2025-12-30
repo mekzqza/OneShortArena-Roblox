@@ -15,7 +15,7 @@ local Players = game:GetService("Players")
 
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
-local NetworkHandler = require(ServerScriptService.Services.NetworkHandler)
+local NetworkHandler = require(ServerScriptService.Services.Core.NetworkHandler)
 
 export type CooldownService = {
     Init: (self: CooldownService) -> (),
