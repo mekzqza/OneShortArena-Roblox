@@ -33,39 +33,48 @@ local lobbyGui: ScreenGui? = nil
 local playButton: TextButton? = nil
 local cancelButton: TextButton? = nil
 
--- State
 local buttonCooldowns = {} :: {[TextButton]: boolean}
 
---[[
-    Helper Function: connectButton
-    เชื่อมปุ่มเข้ากับระบบ EventBus พร้อมทำ Visual Feedback
-]]
+-- ✅ NEW: Track if player is Downed
+local isPlayerDowned = false
+
 local function connectButton(button: TextButton, actionName: string, cooldownTime: number?)
 	cooldownTime = cooldownTime or 1.0
-
+	
 	button.MouseButton1Click:Connect(function()
-		-- 1. Check Cooldown
+		-- ✅ NEW: Check if Downed
+		if isPlayerDowned and actionName ~= "CANCEL" then
+			warn(`[LobbyGuiController] 🚫 {actionName} blocked: Player is Downed`)
+			
+			-- Visual feedback
+			local originalColor = button.BackgroundColor3
+			button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+			task.delay(0.3, function()
+				button.BackgroundColor3 = originalColor
+			end)
+			
+			return
+		end
+		
 		if buttonCooldowns[button] then
 			warn(`[LobbyGuiController] ⏱️ {actionName} on cooldown (ignored)`)
 			return
 		end
-
-		print(`[LobbyGuiController] 🖼️ Button clicked: {actionName}`)
-
-		-- 2. Activate Cooldown & Visuals
-		buttonCooldowns[button] = true
-		local originalText = button.Text
 		
-		-- Feedback: เปลี่ยนข้อความและสีชั่วคราว
-		button.Text = "..." 
-		-- (Optional: เปลี่ยนสีปุ่มตรงนี้ได้ถ้าต้องการ)
-
-		-- 3. Emit Event
+		print(`[LobbyGuiController] 🖼️ Button clicked: {actionName}`)
+		
+		buttonCooldowns[button] = true
+		
 		EventBus:Emit(Events.INPUT_ACTION, actionName)
-
-		-- 4. Reset after cooldown
+		
+		local originalColor = button.BackgroundColor3
+		local originalText = button.Text
+		button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+		button.Text = "..."
+		
 		task.delay(cooldownTime, function()
 			buttonCooldowns[button] = false
+			button.BackgroundColor3 = originalColor
 			button.Text = originalText
 		end)
 	end)
@@ -128,6 +137,37 @@ function LobbyGuiController:Start()
 		connectButton(cancelButton, "CANCEL", 0.5)
 		print("[LobbyGuiController] ✅ Connected CANCEL action")
 	end
+	
+	-- ✅ NEW: Listen for Downed state
+	EventBus:On(Events.PLAYER_DOWNED, function(data: any)
+		print("[LobbyGuiController] 🦵 Player is DOWNED - disabling Play button")
+		isPlayerDowned = true
+		
+		if playButton then
+			playButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+			playButton.Text = "❌ Downed"
+		end
+	end)
+	
+	EventBus:On(Events.PLAYER_REVIVED, function(data: any)
+		print("[LobbyGuiController] 💚 Player REVIVED - enabling Play button")
+		isPlayerDowned = false
+		
+		if playButton then
+			playButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+			playButton.Text = "▶ Play"
+		end
+	end)
+	
+	EventBus:On(Events.PLAYER_DIED, function(data: any)
+		print("[LobbyGuiController] 💀 Player DIED - disabling Play button")
+		isPlayerDowned = false
+		
+		if playButton then
+			playButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+			playButton.Text = "☠️ Died"
+		end
+	end)
 end
 
 return LobbyGuiController

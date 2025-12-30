@@ -196,13 +196,20 @@ end
 
 -- P0 FIX: แยก validation logic (ไม่เช็ค lock)
 local function validateTransition(userId: number, currentState: PlayerState, targetState: PlayerState): (boolean, string?)
-    -- Check transition rules
-    local allowedTargets = ALLOWED_TRANSITIONS[currentState]
-    if not allowedTargets or not allowedTargets[targetState] then
-        return false, string.format("Cannot transition from %s to %s", currentState, targetState)
-    end
-    
-    return true
+	-- ✅ NEW: ห้าม transition จาก Downed (ยกเว้นไป Died, Arena, Spectating)
+	if currentState == "Downed" then
+		if targetState ~= "Died" and targetState ~= "Arena" and targetState ~= "Spectating" then
+			return false, `Cannot transition from Downed to {targetState} (only Died/Arena/Spectating allowed)`
+		end
+	end
+	
+	-- Check transition rules
+	local allowedTargets = ALLOWED_TRANSITIONS[currentState]
+	if not allowedTargets or not allowedTargets[targetState] then
+		return false, string.format("Cannot transition from %s to %s", currentState, targetState)
+	end
+	
+	return true
 end
 
 -- ═══════════════════════════════════════════════════════════════
@@ -279,6 +286,21 @@ function PlayerStateService:Start()
 	
 	-- Request to join Arena
 	EventBus:On(Events.PLAYER_REQUEST_TO_ARENA, function(player: Player, data: any)
+		-- ✅ NEW: เช็คว่าไม่ได้อยู่ใน Downed state
+		local currentState = self:GetState(player)
+		
+		if currentState == "Downed" then
+			warn(`[PlayerStateService] ❌ {player.Name} is Downed, cannot join Arena`)
+			
+			NetworkHandler:SendToClient(player, Events.PLAYER_STATE_CHANGED, {
+				state = "Arena",
+				success = false,
+				reason = "You are Downed! Wait for revive or timeout.",
+				timestamp = os.clock()
+			})
+			return
+		end
+		
 		local canTransition, reason = self:CanTransition(player, "Arena")
 		
 		if canTransition then
