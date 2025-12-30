@@ -65,7 +65,7 @@ local DEATH_CONFIG = {
 }
 
 -- ═══════════════════════════════════════════════════════════════
--- STATE TRACKING
+-- STATE
 -- ═══════════════════════════════════════════════════════════════
 
 local playerDamageHistory: {[number]: {
@@ -75,7 +75,13 @@ local playerDamageHistory: {[number]: {
 	timestamp: number,
 }} = {}
 
+-- ✅ NEW: Track if death is being processed to prevent re-entry
 local deathProcessingLocks: {[number]: boolean} = {}
+
+-- ✅ NEW: Track processed deaths to prevent re-entrancy
+local processingDeaths: {[number]: boolean} = {}
+local deathConnections: {[number]: RBXScriptConnection} = {}
+
 local DEATH_PROCESSING_TIMEOUT = 5
 
 local analytics = {
@@ -92,18 +98,9 @@ local analytics = {
 
 local function acquireDeathLock(userId: number): boolean
 	if deathProcessingLocks[userId] then
-		analytics.blockedDuplicateDeaths += 1
 		return false
 	end
-	
 	deathProcessingLocks[userId] = true
-	
-	task.delay(DEATH_PROCESSING_TIMEOUT, function()
-		if deathProcessingLocks[userId] then
-			deathProcessingLocks[userId] = nil
-		end
-	end)
-	
 	return true
 end
 
@@ -174,16 +171,50 @@ local function shouldProcessDeath(player: Player): boolean
 	return currentState == "Arena"
 end
 
+-- Lazy load DownedService
+local DownedService: any = nil
+
+local function getDownedService()
+	if not DownedService then
+		local success, service = pcall(function()
+			return require(ServerScriptService.Services.Gameplay.DownedService)
+		end)
+		if success then
+			DownedService = service
+		end
+	end
+	return DownedService
+end
+
 local function handleDeath(player: Player, character: Model, humanoid: Humanoid)
 	local userId = player.UserId
 	
-	-- P0: Acquire lock
-	if not acquireDeathLock(userId) then
-		warn(`[DeathService] ⚠️ {player.Name} death already processing`)
+	-- ✅ NEW: Check if already processing (prevent re-entrancy)
+	if processingDeaths[userId] then
 		return
 	end
 	
+	-- ✅ NEW: Mark as processing
+	processingDeaths[userId] = true
+	
+	-- ✅ NEW: Disconnect HealthChanged to prevent recursion
+	if deathConnections[userId] then
+		deathConnections[userId]:Disconnect()
+		deathConnections[userId] = nil
+	end
+	
 	local success = pcall(function()
+		-- ✅ Check if player is already Downed
+		local DownedService: any = nil
+		local hasDownedService = pcall(function()
+			DownedService = require(ServerScriptService.Services.Gameplay.DownedService)
+		end)
+		
+		if hasDownedService and DownedService and DownedService:IsPlayerDowned(player) then
+			print(`[DeathService] ⏭️ {player.Name} is already Downed, ignoring death event`)
+			return
+		end
+		
 		local deathCause = analyzeDeath(character, humanoid)
 		local killer, weapon = getKillerInfo(player)
 		
@@ -201,7 +232,6 @@ local function handleDeath(player: Player, character: Model, humanoid: Humanoid)
 			lastDamageAmount = playerDamageHistory[userId] and playerDamageHistory[userId].damage,
 		}
 		
-		-- Update analytics
 		analytics.totalDeaths += 1
 		analytics.deathsByCause[deathCause] = (analytics.deathsByCause[deathCause] or 0) + 1
 		
@@ -212,7 +242,7 @@ local function handleDeath(player: Player, character: Model, humanoid: Humanoid)
 			killer and (" by " .. killer.Name) or ""
 		))
 		
-		-- ✅ EMIT EVENT ONLY - Let other services handle the rest
+		-- Emit event
 		EventBus:Emit(Events.PLAYER_DIED, player, {
 			cause = context.cause,
 			killer = context.killer,
@@ -233,8 +263,8 @@ local function handleDeath(player: Player, character: Model, humanoid: Humanoid)
 		})
 	end)
 	
-	-- P0: Always release lock
-	releaseDeathLock(userId)
+	-- ✅ ALWAYS clear processing flag
+	processingDeaths[userId] = nil
 	
 	if not success then
 		warn(`[DeathService] ❌ Error processing death`)
@@ -268,46 +298,39 @@ function DeathService:Start()
 		return
 	end
 	
-	-- ═══════════════════════════════════════════════════════════
-	-- PLAYER LIFECYCLE
-	-- ═══════════════════════════════════════════════════════════
-	
+	-- Connect to CharacterAdded
 	Players.PlayerAdded:Connect(function(player: Player)
 		player.CharacterAdded:Connect(function(character: Model)
-			local humanoid = character:WaitForChild("Humanoid", 5)
+			local humanoid = character:WaitForChild("Humanoid", 5) :: Humanoid?
 			
-			if not humanoid or not humanoid:IsA("Humanoid") then
+			if not humanoid then
+				warn(`[DeathService] No Humanoid found for {player.Name}`)
 				return
 			end
 			
-			-- Server-authoritative death detection
-			humanoid.Died:Connect(function()
-				if not shouldProcessDeath(player) then
-					analytics.ignoredNonArenaDeaths += 1
-					return
-				end
-				
+			-- ✅ Store connection for later disconnect
+			deathConnections[player.UserId] = humanoid.Died:Connect(function()
 				handleDeath(player, character, humanoid)
 			end)
 			
-			-- Track health changes
-			humanoid.HealthChanged:Connect(function(health)
-				if health < humanoid.MaxHealth and health > 0 then
-					local lastHealth = humanoid:GetAttribute("LastHealth") or humanoid.MaxHealth
-					local damage = lastHealth - health
-					humanoid:SetAttribute("LastHealth", health)
-					EventBus:Emit(Events.PLAYER_DAMAGED, player, damage)
-				end
-			end)
-			
-			humanoid:SetAttribute("LastHealth", humanoid.Health)
+			print(`[DeathService] 👂 Listening for {player.Name}'s death`)
 		end)
 	end)
 	
+	-- ✅ Cleanup on player leave
 	Players.PlayerRemoving:Connect(function(player: Player)
 		local userId = player.UserId
+		
+		-- Disconnect death connection
+		if deathConnections[userId] then
+			deathConnections[userId]:Disconnect()
+			deathConnections[userId] = nil
+		end
+		
+		-- Clear processing flag
+		processingDeaths[userId] = nil
+		
 		playerDamageHistory[userId] = nil
-		deathProcessingLocks[userId] = nil
 	end)
 	
 	-- ═══════════════════════════════════════════════════════════

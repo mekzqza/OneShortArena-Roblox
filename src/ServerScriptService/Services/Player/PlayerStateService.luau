@@ -27,7 +27,7 @@ local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 -- TYPE DEFINITIONS
 -- ═══════════════════════════════════════════════════════════════
 
-export type PlayerState = "Lobby" | "Arena" | "Died" | "Spectating"
+export type PlayerState = "Lobby" | "Arena" | "Downed" | "Died" | "Spectating"
 
 export type StateTransition = {
 	from: PlayerState,
@@ -65,6 +65,7 @@ local guard = IdempotentGuard.new("PlayerStateService", true)
 local VALID_STATES: {[PlayerState]: true} = {
 	Lobby = true,
 	Arena = true,
+	Downed = true,  -- ✅ NEW
 	Died = true,
 	Spectating = true,
 }
@@ -72,21 +73,27 @@ local VALID_STATES: {[PlayerState]: true} = {
 -- State transition rules (from -> to)
 local ALLOWED_TRANSITIONS: {[PlayerState]: {[PlayerState]: true}} = {
 	Lobby = {
-		Arena = true,      -- Can join arena from lobby
-		Spectating = true, -- Can spectate from lobby
+		Arena = true,
+		Spectating = true,
 	},
 	Arena = {
-		Died = true,       -- Can die in arena
-		Lobby = true,      -- Can return to lobby
-		Spectating = true, -- Can switch to spectating
+		Downed = true,     -- ✅ NEW: แพ้แล้วเข้า Downed
+		Died = true,       -- ตายตรงๆ (ตก void, etc.)
+		Lobby = true,
+		Spectating = true,
+	},
+	Downed = {             -- ✅ NEW: Downed state transitions
+		Died = true,       -- timeout หรือถูก finish
+		Arena = true,      -- ถูก revive กลับมาสู้ต่อ
+		Spectating = true, -- เลือก spectate (ยอมแพ้)
 	},
 	Died = {
-		Lobby = true,      -- Can respawn to lobby
-		Spectating = true, -- Can spectate after death
+		Lobby = true,
+		Spectating = true,
 	},
 	Spectating = {
-		Lobby = true,      -- Can return to lobby
-		Arena = true,      -- Can join arena from spectating
+		Lobby = true,
+		Arena = true,
 	},
 }
 
@@ -371,15 +378,26 @@ function PlayerStateService:Start()
 		end
 	end)
 	
-	-- ✅ Listen for respawn request from DeathService
+	-- ✅ NEW: Listen for respawn request
 	EventBus:On(Events.PLAYER_RESPAWN_REQUESTED, function(player: Player, respawnData: any)
 		local location = respawnData.location or "Lobby"
 		local targetState = location == "Arena" and "Arena" or "Lobby"
 		
-		local success = self:SetState(player, targetState, "Respawn after death")
+		print(`[PlayerStateService] 🔄 Respawn requested for {player.Name} to {targetState}`)
 		
-		if success then
-			print(string.format("[PlayerStateService] ✅ %s respawning to %s", player.Name, targetState))
+		-- ✅ Force transition from Died to Lobby (bypass normal rules)
+		local currentState = self:GetState(player)
+		
+		if currentState == "Died" then
+			local success = self:SetState(player, targetState, `Respawn: {respawnData.reason or "Normal"}`)
+			
+			if success then
+				print(`[PlayerStateService] ✅ {player.Name} respawned to {targetState}`)
+			else
+				warn(`[PlayerStateService] ❌ Failed to respawn {player.Name}`)
+			end
+		else
+			warn(`[PlayerStateService] ⚠️ {player.Name} not in Died state (current: {currentState})`)
 		end
 	end)
 	
