@@ -44,12 +44,14 @@ local NetworkHandler = require(Core.NetworkHandler)
 -- Gameplay Services
 print("[Init] Loading Gameplay services...")
 local ArenaService = require(Gameplay.ArenaService)
+local CombatService = require(Gameplay.CombatService)    -- ✅ NEW
 local CooldownService = require(Gameplay.CooldownService)
 local DeathService = require(Gameplay.DeathService)
-local DownedService = require(Gameplay.DownedService)  -- ✅ NEW
+local DownedService = require(Gameplay.DownedService)
 local GameService = require(Gameplay.GameService)
 local LobbyService = require(Gameplay.LobbyService)
 local MatchService = require(Gameplay.MatchService)
+local RespawnService = require(Gameplay.RespawnService)  -- ✅ NEW
 
 -- Player Services
 print("[Init] Loading Player services...")
@@ -81,8 +83,10 @@ PlayerStateService:Init()
 print("[Init] 3️⃣ Gameplay Layer...")
 LobbyService:Init()
 ArenaService:Init()
+CombatService:Init()   -- ✅ NEW (before DeathService)
 DeathService:Init()
-DownedService:Init()  -- ✅ NEW (after DeathService)
+DownedService:Init()
+RespawnService:Init()  -- ✅ NEW (after DownedService)
 MatchService:Init()
 CooldownService:Init()
 GameService:Init()
@@ -106,8 +110,10 @@ PlayerStateService:Start()
 
 LobbyService:Start()
 ArenaService:Start()
+CombatService:Start()   -- ✅ NEW
 DeathService:Start()
-DownedService:Start()  -- ✅ NEW
+DownedService:Start()
+RespawnService:Start()  -- ✅ NEW
 MatchService:Start()
 CooldownService:Start()
 GameService:Start()
@@ -142,12 +148,14 @@ if game:GetService("RunService"):IsStudio() then
 		
 		-- Gameplay
 		ArenaService = ArenaService,
+		CombatService = CombatService,     -- ✅ NEW
 		CooldownService = CooldownService,
 		DeathService = DeathService,
-		DownedService = DownedService,  -- ✅ NEW
+		DownedService = DownedService,
 		GameService = GameService,
 		LobbyService = LobbyService,
 		MatchService = MatchService,
+		RespawnService = RespawnService,   -- ✅ NEW
 		
 		-- Test
 		TestService = TestService,

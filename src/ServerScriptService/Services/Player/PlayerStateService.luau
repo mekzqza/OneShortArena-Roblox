@@ -378,15 +378,26 @@ function PlayerStateService:Start()
 		end
 	end)
 	
-	-- ✅ Listen for respawn request from DeathService
+	-- ✅ NEW: Listen for respawn request
 	EventBus:On(Events.PLAYER_RESPAWN_REQUESTED, function(player: Player, respawnData: any)
 		local location = respawnData.location or "Lobby"
 		local targetState = location == "Arena" and "Arena" or "Lobby"
 		
-		local success = self:SetState(player, targetState, "Respawn after death")
+		print(`[PlayerStateService] 🔄 Respawn requested for {player.Name} to {targetState}`)
 		
-		if success then
-			print(string.format("[PlayerStateService] ✅ %s respawning to %s", player.Name, targetState))
+		-- ✅ Force transition from Died to Lobby (bypass normal rules)
+		local currentState = self:GetState(player)
+		
+		if currentState == "Died" then
+			local success = self:SetState(player, targetState, `Respawn: {respawnData.reason or "Normal"}`)
+			
+			if success then
+				print(`[PlayerStateService] ✅ {player.Name} respawned to {targetState}`)
+			else
+				warn(`[PlayerStateService] ❌ Failed to respawn {player.Name}`)
+			end
+		else
+			warn(`[PlayerStateService] ⚠️ {player.Name} not in Died state (current: {currentState})`)
 		end
 	end)
 	

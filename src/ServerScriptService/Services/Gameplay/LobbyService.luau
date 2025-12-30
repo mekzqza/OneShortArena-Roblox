@@ -157,28 +157,47 @@ function LobbyService:Init()
 end
 
 function LobbyService:Start()
-    if not guard:MarkStarted() then
-        return
-    end
-    
-    -- ═══════════════════════════════════════════════════════════
-	-- PLAYER LIFECYCLE
-	-- ═══════════════════════════════════════════════════════════
+	if not guard:MarkStarted() then
+		return
+	end
 	
-	-- Spawn player when they join
-	Players.PlayerAdded:Connect(function(player: Player)
-		-- Wait for character
-		player.CharacterAdded:Connect(function(character)
-			task.wait(0.1) -- Small delay for character to load
-			self:SpawnPlayerInLobby(player)
-		end)
+	-- Listen for state changes
+	EventBus:On(Events.PLAYER_STATE_CHANGED_INTERNAL, function(player: Player, stateData: any)
+		-- Only spawn when state is Lobby
+		if stateData.newState ~= "Lobby" then
+			return
+		end
 		
-		-- Spawn if character already exists
-		if player.Character then
-			self:SpawnPlayerInLobby(player)
+		-- ✅ NEW: Check if player is Downed (should not spawn!)
+		local character = player.Character
+		if character and character:GetAttribute("IsDowned") then
+			warn(`[LobbyService] ⚠️ {player.Name} is Downed, not spawning to Lobby`)
+			return
+		end
+		
+		-- ✅ NEW: Check previous state - only spawn if coming from valid state
+		local validPreviousStates = {
+			["Arena"] = true,
+			["Died"] = true,
+			["Spectating"] = true,
+		}
+		
+		if stateData.oldState and not validPreviousStates[stateData.oldState] then
+			print(`[LobbyService] ⏭️ {player.Name} state: {stateData.oldState} → Lobby (not spawning)`)
+			return
+		end
+		
+		print(`[LobbyService] {player.Name} state changed to Lobby, spawning...`)
+		
+		local success = self:SpawnPlayerInLobby(player)
+		
+		if success then
+			print(`[LobbyService] ✅ Spawned {player.Name} in Lobby`)
+		else
+			warn(`[LobbyService] ❌ Failed to spawn {player.Name}`)
 		end
 	end)
-
+	
 	-- ═══════════════════════════════════════════════════════════
 	-- EVENT LISTENERS
 	-- ═══════════════════════════════════════════════════════════

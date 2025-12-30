@@ -152,6 +152,7 @@ Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
 Events.PLAYER_DIED = "PlayerDied"                           -- DeathService → PlayerStateService
 Events.PLAYER_DEATH_ANNOUNCED = "PlayerDeathAnnounced"      -- Server → All clients
 Events.PLAYER_RESPAWN_REQUESTED = "PlayerRespawnRequested"  -- DeathService → PlayerStateService
+Events.PLAYER_RESPAWNED = "PlayerRespawned"                 -- ✅ NEW
 Events.PLAYER_DAMAGED = "PlayerDamaged"                     -- Humanoid.HealthChanged
 Events.PLAYER_ATTACKED = "PlayerAttacked"                   -- Combat system → DeathService
 Events.PLAYER_KILL_STREAK = "PlayerKillStreak"              -- Kill streak milestone
@@ -165,6 +166,12 @@ Events.MATCH_ENDED = "MatchEnded"
 Events.MATCH_CANCELLED = "MatchCancelled"
 Events.MATCH_PLAYER_JOINED = "MatchPlayerJoined"
 Events.MATCH_PLAYER_LEFT = "MatchPlayerLeft"
+
+-- ============================================================================
+-- COMBAT EVENTS
+-- ============================================================================
+Events.PLAYER_FATAL_HIT = "PlayerFatalHit"           -- ✅ NEW
+Events.PLAYER_DAMAGE_APPLIED = "PlayerDamageApplied" -- ✅ NEW
 
 -- ============================================================================
 -- DOWNED SYSTEM EVENTS (NEW)
