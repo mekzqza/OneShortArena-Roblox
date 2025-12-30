@@ -148,6 +148,14 @@ Events.TEST_PONG = "TestPong"
 
 Events.INPUT_ENABLED_CHANGED = "InputEnabledChanged"
 
+-- Death Events
+Events.PLAYER_DIED = "PlayerDied"                           -- DeathService → PlayerStateService
+Events.PLAYER_DEATH_ANNOUNCED = "PlayerDeathAnnounced"      -- Server → All clients
+Events.PLAYER_RESPAWN_REQUESTED = "PlayerRespawnRequested"  -- DeathService → PlayerStateService
+Events.PLAYER_DAMAGED = "PlayerDamaged"                     -- Humanoid.HealthChanged
+Events.PLAYER_ATTACKED = "PlayerAttacked"                   -- Combat system → DeathService
+Events.PLAYER_KILL_STREAK = "PlayerKillStreak"              -- Kill streak milestone
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด

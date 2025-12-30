@@ -355,6 +355,34 @@ function PlayerStateService:Start()
 		end
 	end)
 	
+	-- ✅ Listen for death event from DeathService
+	EventBus:On(Events.PLAYER_DIED, function(player: Player, deathData: any)
+		local success = self:SetState(player, "Died", `Death: {deathData.cause}`)
+		
+		if success then
+			print(string.format("[PlayerStateService] ✅ %s marked as Died", player.Name))
+			
+			NetworkHandler:SendToClient(player, Events.PLAYER_STATE_CHANGED, {
+				state = "Died",
+				success = true,
+				deathData = deathData,
+				timestamp = os.clock()
+			})
+		end
+	end)
+	
+	-- ✅ Listen for respawn request from DeathService
+	EventBus:On(Events.PLAYER_RESPAWN_REQUESTED, function(player: Player, respawnData: any)
+		local location = respawnData.location or "Lobby"
+		local targetState = location == "Arena" and "Arena" or "Lobby"
+		
+		local success = self:SetState(player, targetState, "Respawn after death")
+		
+		if success then
+			print(string.format("[PlayerStateService] ✅ %s respawning to %s", player.Name, targetState))
+		end
+	end)
+	
 	-- ═══════════════════════════════════════════════════════════
 	-- ANALYTICS REPORTING
 	-- ═══════════════════════════════════════════════════════════
