@@ -136,7 +136,6 @@ if game:GetService("RunService"):IsStudio() then
 		
 		-- Player
 		PlayerStateService = PlayerStateService,
-		ProfileService = ProfileService,
 		
 		-- Gameplay
 		ArenaService = ArenaService,
