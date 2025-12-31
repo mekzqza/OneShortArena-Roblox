@@ -4,7 +4,7 @@
 
 [![Roblox](https://img.shields.io/badge/Roblox-Ready-00A2FF?style=for-the-badge&logo=roblox)](https://www.roblox.com)
 [![Luau](https://img.shields.io/badge/Luau-Strict-00A2FF?style=for-the-badge)](https://luau-lang.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-v3.0-success?style=for-the-badge)](./docs/deps.md)
+[![Architecture](https://img.shields.io/badge/Architecture-v3.1-success?style=for-the-badge)](./docs/deps.md)
 [![Security](https://img.shields.io/badge/Security-P0_Fixed-success?style=for-the-badge)](./docs/Risk-Assessment.md)
 
 ---
@@ -13,9 +13,11 @@
 
 | Component | Version | Status |
 |-----------|---------|--------|
-| **Core System** | 3.0 | ✅ Production Ready |
+| **Core System** | 3.1 | ✅ Production Ready |
+| **Combat System** | 1.0 | ✅ Production Ready |
+| **Downed System** | 2.0 | ✅ Production Ready |
+| **Respawn System** | 1.0 | ✅ Production Ready |
 | **Security** | P0 Fixed | ✅ Hardened |
-| **NetworkConfig** | 1.0 | ✅ Centralized |
 | **Documentation** | Complete | ✅ Full Coverage |
 
 ---
@@ -24,16 +26,18 @@
 
 ### ✨ Core Gameplay
 - 🏟️ **Lobby & Arena System** - Seamless player transitions
-- ⚔️ **Combat System** - Fast-paced arena battles
+- ⚔️ **Combat System** - Damage detection & fatal hit handling
+- 🦵 **Downed System** - Revive window before death
+- 🔄 **Respawn System** - Configurable respawn delays
 - 👥 **Multiplayer** - Support for multiple players
 - 🎮 **Cross-Platform** - PC, Mobile, Console support
 
 ### 🔐 Security (P0 Fixed)
 - ✅ **Multi-Layer Rate Limiting** - Global + Per-event
 - ✅ **Race Condition Protection** - Atomic state transitions
+- ✅ **Input Blocking** - Block inputs while Downed
 - ✅ **Anti-Exploit** - Client authority removed
 - ✅ **Memory Leak Prevention** - Automatic cleanup
-- ✅ **Payload Validation** - Size, depth, type checks
 
 ### 🏗️ Architecture
 - 📦 **Modular Services** - Separation of concerns
@@ -46,37 +50,75 @@
 
 ## 📊 Architecture Overview
 
-![Dependency Chart](docs/deps.svg)
-
-### System Layers
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SYSTEM ARCHITECTURE                       │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    SYSTEM ARCHITECTURE v3.1                      │
+└─────────────────────────────────────────────────────────────────┘
 
 📱 Client Layer (StarterPlayerScripts)
-├── InputController      - Hardware input detection
-├── InputHandler         - Game logic processing
-├── NetworkController    - Network transport (Retry/ACK)
-└── LobbyGuiController   - UI button handling
-
-🌐 Network Layer (RemoteEvent)
-├── NetworkBridge        - Client ↔ Server communication
-└── EventBus             - Event distribution
+├── Core/
+│   └── NetworkController    - Network transport
+├── Inputs/
+│   ├── InputController      - Hardware input detection
+│   └── InputHandler         - Game logic + Downed blocking
+├── Gameplay/
+│   └── PlayerStateController - State sync
+├── UI/
+│   └── LobbyGuiController   - UI buttons + Downed visual
+└── Dev/
+    └── TestHandler          - Debug tools
 
 🖥️ Server Layer (ServerScriptService)
-├── NetworkHandler       - Security & validation (Rate limits)
-├── PlayerStateService   - State management (Locks)
-├── ArenaService         - Arena spawning
-├── LobbyService         - Lobby spawning
-└── GameService          - Game logic
-
-⚙️ Config Layer (ServerStorage)
-└── NetworkConfig        - Centralized configuration
+├── Core/
+│   └── NetworkHandler       - Security & validation
+├── Player/
+│   └── PlayerStateService   - State management (Locks)
+└── Gameplay/
+    ├── ArenaService         - Arena spawning
+    ├── CombatService        - Damage & fatal hit detection
+    ├── CooldownService      - Cooldown management
+    ├── DeathService         - Death detection & classification
+    ├── DownedService        - Downed state lifecycle
+    ├── GameService          - Game logic
+    ├── LobbyService         - Lobby spawning
+    ├── MatchService         - Match management
+    └── RespawnService       - Respawn scheduling
 ```
 
 [📚 Full Architecture Docs](./docs/deps.md)
+
+---
+
+## 🎮 Combat → Downed → Respawn Flow
+
+```
+  ผู้เล่นโดนโจมตี
+       │
+       ▼
+┌──────────────┐
+│ CombatService │  ← 1. ตรวจจับ Damage
+└──────────────┘  ← 2. เช็ค Fatal Hit (HP <= 0)
+       │
+       │ HP <= 0?
+       ▼
+┌──────────────┐
+│ DownedService │  ← 3. เข้าสถานะ Downed
+│   🦵          │  ← 4. นับถอยหลัง 15s
+└──────────────┘  ← 5. Block inputs
+       │
+       │ Timeout / Finished / Revived?
+       ▼
+┌──────────────┐
+│RespawnService │  ← 6. Schedule Respawn (3-5s)
+└──────────────┘  ← 7. Emit PLAYER_RESPAWN_REQUESTED
+       │
+       ▼
+┌──────────────┐
+│ LobbyService  │  ← 8. Spawn ผู้เล่นที่ Lobby
+└──────────────┘
+```
+
+[📚 Full Combat Guide](./docs/Combat-Downed-Respawn-Guide.md)
 
 ---
 
@@ -95,15 +137,32 @@
 git clone https://github.com/yourusername/OneShortArena-Roblox.git
 cd OneShortArena-Roblox
 
-# 2. Install dependencies (if using npm)
-npm install
+# 2. Setup secret config (REQUIRED!)
+cd src/ServerStorage/Secrets
+cp PocketBaseSecret.template.luau PocketBaseSecret.luau
 
-# 3. Build project
+# 3. แก้ไข PocketBaseSecret.luau ให้ตรงกับ Database ของคุณ
+# ⚠️ DO NOT COMMIT THIS FILE!
+
+# 4. Build project
 rojo build -o "OneShortArena.rbxlx"
 
-# 4. Open in Roblox Studio
+# 5. Open in Roblox Studio
 # File > Open > OneShortArena.rbxlx
 ```
+
+### 🔐 Secret Configuration
+
+ก่อนใช้งาน PocketBase Service, คุณต้อง:
+
+1. สร้างโฟลเดอร์ `ServerStorage/Secrets/` (ไม่ถูก commit)
+2. Copy `PocketBaseSecret.template.luau` → `PocketBaseSecret.luau`
+3. แก้ไขข้อมูล:
+   - `URL` - PocketBase API URL
+   - `ADMIN_EMAIL` - Admin email
+   - `ADMIN_PASS` - Admin password
+
+⚠️ **IMPORTANT:** ไฟล์ `PocketBaseSecret.luau` จะ**ไม่ถูก commit** ตาม `.gitignore`
 
 ### Development Workflow
 
@@ -126,228 +185,106 @@ OneShortArena-Roblox/
 │   │   ├── Shared/                    # Shared constants
 │   │   │   ├── Events.luau
 │   │   │   └── InputSettings.luau
-│   │   └── SystemsShared/
-│   │       └── EventBus.luau          # Event system
+│   │   ├── SystemsShared/
+│   │   │   └── EventBus.luau
+│   │   └── Utils/
+│   │       └── IdempotentGuard.luau
 │   │
 │   ├── ServerStorage/
 │   │   └── Configs/
-│   │       └── NetworkConfig.luau     # Rate limits config
+│   │       └── NetworkConfig.luau
 │   │
 │   ├── ServerScriptService/
-│   │   ├── Init.server.luau           # Server bootstrap
-│   │   ├── Services/                  # Game services
-│   │   │   ├── NetworkHandler.luau
-│   │   │   ├── PlayerStateService.luau
-│   │   │   ├── ArenaService.luau
-│   │   │   └── LobbyService.luau
-│   │   └── Utils/                     # Server utilities
+│   │   ├── Init.server.luau
+│   │   ├── Services/
+│   │   │   ├── Core/
+│   │   │   │   └── NetworkHandler.luau
+│   │   │   ├── Player/
+│   │   │   │   └── PlayerStateService.luau
+│   │   │   └── Gameplay/
+│   │   │       ├── ArenaService.luau
+│   │   │       ├── CombatService.luau      # NEW
+│   │   │       ├── CooldownService.luau
+│   │   │       ├── DeathService.luau
+│   │   │       ├── DownedService.luau      # NEW
+│   │   │       ├── GameService.luau
+│   │   │       ├── LobbyService.luau
+│   │   │       ├── MatchService.luau
+│   │   │       └── RespawnService.luau     # NEW
+│   │   └── Utils/
 │   │       ├── IdempotentGuard.luau
 │   │       └── ExecutionGuard.luau
 │   │
 │   └── StarterPlayer/
 │       └── StarterPlayerScripts/
-│           ├── Init.client.luau       # Client bootstrap
-│           └── Controllers/           # Client controllers
+│           ├── Init.client.luau
+│           ├── Core/
+│           │   └── NetworkController.luau
+│           ├── Inputs/
+│           │   ├── InputController.luau
+│           │   └── InputHandler.luau       # + Downed blocking
+│           ├── Gameplay/
+│           │   └── PlayerStateController.luau
+│           ├── UI/
+│           │   └── LobbyGuiController.luau # + Downed visual
+│           └── Dev/
+│               └── TestHandler.luau
 │
-├── 📁 docs/                           # Documentation
-│   ├── deps.md                        # Architecture
-│   ├── Lobby-to-Arena-Guide.md        # Teleport system
-│   ├── Risk-Assessment.md             # Security audit
-│   └── NetworkConfig-Guide.md         # Rate limits
-│
-├── 📁 Packages/                       # External packages
-│   └── Signal.lua                     # Signal library
-│
-└── default.project.json               # Rojo config
+└── 📁 docs/
+    ├── deps.md
+    ├── Combat-Downed-Respawn-Guide.md      # NEW
+    ├── Lobby-to-Arena-Guide.md
+    ├── Risk-Assessment.md
+    └── NetworkConfig-Guide.md
 ```
 
 ---
 
-## 🎮 Key Systems
+## 🔒 Security - 7 Layer Protection
 
-### 1. Lobby to Arena Teleport
-
-**Multi-layer security system for player transitions:**
-
-```lua
--- Client: LobbyGuiController
-playButton.MouseButton1Click:Connect(function()
-    if cooldown then return end  -- Layer 1: UI Cooldown (1s)
-    EventBus:Emit(Events.INPUT_ACTION, "PLAY")
-end)
-
--- Server: NetworkHandler
--- Layer 2: Per-event rate limit (1/5s)
--- Layer 3: Global rate limit (10/5s)
-
--- Server: PlayerStateService
--- Layer 4: Transition lock (atomic)
--- Layer 5: Transition cooldown (2s)
-
--- Server: ArenaService
--- Layer 6: Teleport cooldown (5s)
--- Layer 7: Combat check (5s after damage)
 ```
-
-[📚 Full Teleport Guide](./docs/Lobby-to-Arena-Guide.md)
-
----
-
-### 2. Network Security
-
-**Rate limiting configuration (NetworkConfig.luau):**
-
-```lua
-EventRateLimits = {
-    -- Strict (Teleport)
-    PlayerRequestToArena = {rate = 1, window = 5},
-    
-    -- Moderate (Combat)
-    PlayerAttack = {rate = 10, window = 5},
-    
-    -- Lenient (Movement)
-    PlayerMove = {rate = 30, window = 5},
-}
-```
-
-**Security features:**
-- ✅ Per-event rate limits (32+ events configured)
-- ✅ Anti-replay protection (message ID tracking)
-- ✅ Payload validation (size, depth, type)
-- ✅ Automatic cleanup on player leave
-
-[📚 NetworkConfig Guide](./docs/NetworkConfig-Guide.md)
-
----
-
-### 3. State Management
-
-**Thread-safe player state transitions:**
-
-```lua
--- PlayerStateService with P0 fixes
-function SetState(player, newState)
-    if not acquireTransitionLock(userId) then
-        return false  -- Prevent race condition
-    end
-    
-    local success = pcall(function()
-        -- Transition logic (lock protected)
-    end)
-    
-    releaseTransitionLock(userId)  -- ALWAYS release
-    return success
-end
-```
-
-**States:** `Lobby` → `Arena` → `Died` → `Spectating`
-
----
-
-## 🔧 Configuration
-
-### Network Rate Limits
-
-Edit `ServerStorage/Configs/NetworkConfig.luau`:
-
-```lua
-EventRateLimits = {
-    ["YourCustomEvent"] = {rate = 5, window = 5},
-}
-```
-
-### Adding New Events
-
-```lua
--- 1. Add to Events.luau
-CUSTOM_EVENT = "CustomEvent",
-
--- 2. Configure rate limit
-EventRateLimits["CustomEvent"] = {rate = 10, window = 5},
-
--- 3. Allow in NetworkHandler
-NetworkHandler:AllowClientEvent(Events.CUSTOM_EVENT)
+┌─────────────────────────────────────────────────────────────────┐
+│  🛡️ 7 LAYERS OF PROTECTION                                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Layer 1: 🖼️ UI Cooldown (1s)                                   │
+│  Layer 2: 📡 Per-Event Rate Limit (1/5s)                        │
+│  Layer 3: 🔢 Global Rate Limit (10/5s)                          │
+│  Layer 4: 🔐 Transition Lock (atomic)                           │
+│  Layer 5: ⏱️ Transition Cooldown (2s)                           │
+│  Layer 6: 🚀 Teleport Cooldown (5s)                             │
+│  Layer 7: ⚔️ Combat Check (5s)                                  │
+│                                                                 │
+│  + 🦵 Downed Input Blocking (blocks Play/Attack while Downed)   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧪 Testing
-
-### Test Scenarios
-
-| Scenario | Expected Result |
-|----------|-----------------|
-| Normal teleport | ✅ Success in <2s |
-| Spam click (5x) | ✅ Blocked by cooldown |
-| Race condition | ✅ Lock prevents duplicate |
-| High latency | ✅ Retry system works |
-| Player leaves | ✅ Memory cleaned up |
-
-### Test Commands (F9 Console)
+## 🧪 Debug Commands (F9 Console)
 
 ```lua
--- Check EventBus health
-EventBus:PrintSummary()
-
 -- Check player state
-PlayerStateService:GetState(player)
+_G.Services.PlayerStateService:GetState(player)
 
--- Check rate limits
-NetworkHandler:GetPlayerEventStats(player)
+-- Check if downed
+_G.Services.DownedService:IsPlayerDowned(player)
 
--- Check analytics
-PlayerStateService:GetAnalytics()
+-- Get downed countdown
+_G.Services.DownedService:GetRemainingTime(player)
+
+-- Check combat status
+_G.Services.CombatService:IsPlayerInCombat(player)
+
+-- Cancel respawn
+_G.Services.RespawnService:CancelRespawn(player)
+
+-- Get analytics
+_G.Services.DownedService:GetAnalytics()
+_G.Services.CombatService:GetAnalytics()
+_G.Services.RespawnService:GetAnalytics()
 ```
-
----
-
-## 📊 Analytics
-
-Built-in analytics tracking:
-
-```lua
--- Server analytics
-NetworkHandler:GetAnalytics()
--- {
---   totalReceived = 1250,
---   blockedByEventRateLimit = 15,
---   blockedByGlobalRateLimit = 3
--- }
-
-PlayerStateService:GetAnalytics()
--- {
---   totalTransitions = 85,
---   blockedByLock = 2,
---   blockedByCooldown = 12
--- }
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Problem: "Transition blocked by lock"
-```
-Cause: Race condition (fixed in v3.0)
-Solution: Lock always released via pcall
-```
-
-#### Problem: "Rate limit exceeded"
-```
-Cause: Client spam or exploit attempt
-Solution: Working as intended (security feature)
-Check: NetworkConfig.luau event limits
-```
-
-#### Problem: "Player not spawning"
-```
-Cause: Missing spawn points
-Solution: Create Workspace/ArenaBoundary/ArenaSpawns
-```
-
-[📚 Full Troubleshooting Guide](./docs/Lobby-to-Arena-Guide.md#troubleshooting)
 
 ---
 
@@ -356,166 +293,47 @@ Solution: Create Workspace/ArenaBoundary/ArenaSpawns
 | Document | Description |
 |----------|-------------|
 | [deps.md](./docs/deps.md) | Architecture & dependencies |
-| [Lobby-to-Arena-Guide.md](./docs/Lobby-to-Arena-Guide.md) | Teleport system guide |
-| [Risk-Assessment.md](./docs/Risk-Assessment.md) | Security audit & fixes |
-| [NetworkConfig-Guide.md](./docs/NetworkConfig-Guide.md) | Rate limiting config |
+| [Combat-Downed-Respawn-Guide.md](./docs/Combat-Downed-Respawn-Guide.md) | **NEW** Combat system |
+| [Lobby-to-Arena-Guide.md](./docs/Lobby-to-Arena-Guide.md) | Teleport system |
+| [Risk-Assessment.md](./docs/Risk-Assessment.md) | Security audit |
+| [NetworkConfig-Guide.md](./docs/NetworkConfig-Guide.md) | Rate limiting |
 
 ---
 
-## 🔒 Security
+## 🔒 P0 Security Issues - ALL FIXED ✅
 
-### P0 Issues - ALL FIXED ✅
-
-| Issue | Status | Fix |
-|-------|--------|-----|
-| Race Condition | ✅ Fixed | Transition locks + pcall |
-| Teleport Exploit | ✅ Fixed | Multi-layer cooldowns |
-| Memory Leak | ✅ Fixed | PlayerRemoving cleanup |
-| Rate Limit Bypass | ✅ Fixed | Per-event rate limits |
-
-**Security Rating: A-**
-
-[📚 Full Security Report](./docs/Risk-Assessment.md)
-
----
-
-## 🛠️ Development
-
-### Code Style
-
-```lua
---!strict  -- All files use strict mode
-
--- Type annotations
-export type MyService = {
-    Init: (self: MyService) -> (),
-    Start: (self: MyService) -> (),
-}
-
--- Idempotent guards
-local guard = IdempotentGuard.new("ServiceName", true)
-
-function Service:Init()
-    if not guard:MarkInitialized() then return end
-    -- Init logic
-end
-```
-
-### Best Practices
-
-✅ **DO:**
-- Use centralized Events.luau
-- Apply rate limits to all client events
-- Cleanup on PlayerRemoving
-- Use IdempotentGuard for services
-- Document public APIs
-
-❌ **DON'T:**
-- Trust client authority
-- Use global locks (per-player only)
-- Hardcode configuration values
-- Bypass security layers
+| Issue | Service | Status |
+|-------|---------|--------|
+| Race Condition | PlayerStateService | ✅ Transition locks |
+| Teleport Exploit | ArenaService | ✅ Multi-layer cooldowns |
+| Memory Leak | All Services | ✅ PlayerRemoving cleanup |
+| Damage Spam | CombatService | ✅ Processing locks |
+| Double Downed | DownedService | ✅ Atomic locks |
+| Input During Downed | InputHandler | ✅ Input blocking |
 
 ---
 
 ## 📝 Changelog
 
-### Version 3.0 (Current)
-- ✅ P0 security fixes (all critical issues resolved)
+### Version 3.1 (Current)
+- ✅ **CombatService** - Damage & fatal hit detection
+- ✅ **DownedService** - Revive window system
+- ✅ **RespawnService** - Configurable respawn delays
+- ✅ **Input Blocking** - Block inputs while Downed
+- ✅ **Visual Feedback** - Downed button states
+
+### Version 3.0
+- ✅ P0 security fixes
 - ✅ NetworkConfig centralization
-- ✅ Per-event rate limiting (32+ events)
-- ✅ Race condition protection
-- ✅ Memory leak prevention
-- ✅ Complete documentation
+- ✅ Per-event rate limiting
 
 ### Version 2.0
 - Event-driven architecture
 - PlayerStateService
 - ArenaService & LobbyService
 
-### Version 1.0
-- Initial release
-- Basic lobby system
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
-
-### Code Guidelines
-- Use `--!strict` mode
-- Add type annotations
-- Follow existing architecture
-- Update documentation
-- Add tests for new features
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Authors
-
-**OneShortArena Team**
-- Architecture Design
-- Security Implementation
-- Documentation
-
----
-
-## 🙏 Acknowledgments
-
-- [Rojo](https://rojo.space/) - Roblox project management
-- [Signal Library](https://github.com/sleitnick/RbxSignal) - Event system
-- Roblox Community - Best practices
-
----
-
-## 📞 Support
-
-- **Issues:** [GitHub Issues](https://github.com/yourusername/OneShortArena-Roblox/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/OneShortArena-Roblox/discussions)
-- **Documentation:** [/docs](./docs)
-
----
-
-## 🚀 Deployment
-
-### Production Checklist
-
-- [ ] All P0 security issues verified fixed
-- [ ] NetworkConfig reviewed and tuned
-- [ ] Analytics monitoring setup
-- [ ] Rate limits tested under load
-- [ ] Documentation up to date
-- [ ] Backup & rollback plan ready
-
-### Build for Production
-
-```bash
-# Build optimized version
-rojo build -o "OneShortArena-Production.rbxlx"
-
-# Verify security settings
-# Check: NetworkConfig.LogLevel = "Warn"
-# Check: All rate limits configured
-# Check: All services using IdempotentGuard
-```
-
 ---
 
 **Built with ❤️ using Roblox Studio & Modern Architecture**
 
-[![Rojo](https://img.shields.io/badge/Built_with-Rojo-00A2FF?style=flat-square)](https://rojo.space)
-[![Luau](https://img.shields.io/badge/Language-Luau-00A2FF?style=flat-square)](https://luau-lang.org/)
 [![Production](https://img.shields.io/badge/Status-Production_Ready-success?style=flat-square)](./docs/Risk-Assessment.md)
