@@ -1,110 +1,85 @@
 {
-  "name": "OneShortArena_Roblox",
+  "name": "OneShortArena",
   "tree": {
     "$className": "DataModel",
 
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "Init.server": {
+        "$path": "src/ServerScriptService/Init.server.luau"
+      },
+
+      "Services": {
+        "$className": "Folder",
+
+        "Core": {
+          "$path": "src/ServerScriptService/Services/Core"
+        },
+
+        "Gameplay": {
+          "$path": "src/ServerScriptService/Services/Gameplay"
+        },
+
+        "Player": {
+          "$path": "src/ServerScriptService/Services/Player"
+        },
+
+        "Data": {
+          "$path": "src/ServerScriptService/Services/Data"
+        },
+
+        "Cloud": {
+          "$path": "src/ServerScriptService/Services/Cloud"
+        },
+
+        "TestService": {
+          "$path": "src/ServerScriptService/Services/TestService.luau"
+        }
+      },
+
+      "Utils": {
+        "$path": "src/ServerScriptService/Utils"
+      },
+
+      "Libs": {
+        "$path": "src/ServerScriptService/Libs"
+      }
+    },
+
+    "ServerStorage": {
+      "$className": "ServerStorage",
+
+      "Configs": {
+        "$path": "src/ServerStorage/Configs"
+      },
+
+      "Secrets": {
+        "$path": "src/ServerStorage/Secrets"
+      }
+    },
+
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "Assets": {
-        "$path": "src/ReplicatedStorage/Assets"
-      },
-      "Configs": {
-        "$path": "src/ReplicatedStorage/Configs"
-      },
+
       "Shared": {
         "$path": "src/ReplicatedStorage/Shared"
       },
-      "UI": {
-        "$path": "src/ReplicatedStorage/UI"
-      },
+
       "SystemsShared": {
         "$path": "src/ReplicatedStorage/SystemsShared"
       },
 
       "Utils": {
         "$path": "src/ReplicatedStorage/Utils"
-      },
-
-      "Packages": {
-        "$path": "Packages"
-      }
-    },
-
-    "ServerScriptService": {
-      "$className": "ServerScriptService",
-      "Services": {
-        "$path": "src/ServerScriptService/Services"
-      },
-      "Utils": {
-        "$path": "src/ServerScriptService/Utils"
-      },
-      "Init": {
-        "$path": "src/ServerScriptService/Init.server.luau"
-      }
-    },
-
-    "ServerStorage": {
-      "$className": "ServerStorage",
-      "Configs": {
-        "$path": "src/ServerStorage/Configs"
       }
     },
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
+
       "StarterPlayerScripts": {
-        "$className": "StarterPlayerScripts",
-
-        "Core": {
-          "$path": "src/StarterPlayer/StarterPlayerScripts/Core"
-        },
-        "Dev": {
-          "$path": "src/StarterPlayer/StarterPlayerScripts/Dev"
-        },
-        "Gameplay": {
-          "$path": "src/StarterPlayer/StarterPlayerScripts/Gameplay"
-        },
-        "Inputs": {
-          "$path": "src/StarterPlayer/StarterPlayerScripts/Inputs"
-        },
-        "UI":{
-          "$path": "src/StarterPlayer/StarterPlayerScripts/UI"
-        },
-        "Init": {
-          "$path": "src/StarterPlayer/StarterPlayerScripts/Init.client.luau"
-        }
-      }
-    },
-
-    "Workspace": {
-      "$properties": {
-        "FilteringEnabled": true
-      },
-      "Baseplate": {
-        "$className": "Part",
-        "$properties": {
-          "Anchored": true,
-          "Color": [0.388, 0.372, 0.388],
-          "Locked": true,
-          "Position": [0, -10, 0],
-          "Size": [512, 20, 512]
-        }
-      }
-    },
-
-    "Lighting": {
-      "$properties": {
-        "Ambient": [0, 0, 0],
-        "Brightness": 2,
-        "GlobalShadows": true,
-        "Outlines": false,
-        "Technology": "Voxel"
-      }
-    },
-
-    "SoundService": {
-      "$properties": {
-        "RespectFilteringEnabled": true
+        "$path": "src/StarterPlayer/StarterPlayerScripts"
       }
     }
   }

@@ -25,6 +25,8 @@ local Utils = ServerScriptService:WaitForChild("Utils")
 local Core = Services:WaitForChild("Core")
 local Gameplay = Services:WaitForChild("Gameplay")
 local Player = Services:WaitForChild("Player")
+local Data = Services:WaitForChild("Data")
+local Cloud = Services:WaitForChild("Cloud")
 
 -- ✅ Preload NetworkConfig
 local Configs = ServerStorage:WaitForChild("Configs")
@@ -34,7 +36,7 @@ print("[Init] 📡 Loaded NetworkConfig")
 NetworkConfig.PrintSummary()
 
 -- ═══════════════════════════════════════════════════════════════
--- LOAD SERVICES (NEW STRUCTURE)
+-- LOAD SERVICES
 -- ═══════════════════════════════════════════════════════════════
 
 -- Core Services
@@ -57,11 +59,22 @@ local RespawnService = require(Gameplay.RespawnService)  -- ✅ NEW
 print("[Init] Loading Player services...")
 local PlayerStateService = require(Player.PlayerStateService)
 
+-- Data Services (NEW)
+print("[Init] Loading Data services...")
+local PlayerDataService = require(Data.PlayerDataService)
+
+-- Cloud Services (NEW)
+print("[Init] Loading Cloud services...")
+local PocketBaseService = require(Cloud.PocketBaseService)
+
 local TestService = require(Services.TestService)
 
 -- Utils
 print("[Init] Loading Utils...")
 local IdempotentGuard = require(Utils.IdempotentGuard)
+local ServiceLocator = require(Utils.ServiceLocator)
+local DataMapper = require(Utils.DataMapper)
+local IdempotencyKey = require(Utils.IdempotencyKey)
 
 -- ═══════════════════════════════════════════════════════════════
 -- INITIALIZE SERVICES (DEPENDENCY ORDER)
@@ -74,26 +87,54 @@ print("════════════════════════�
 print("[Init] 1️⃣ Core Layer...")
 NetworkHandler:Init()
 
--- 2. Player Services (depend on Core)
-print("[Init] 2️⃣ Player Layer...")
+-- 2. Cloud Services (depend on Core, before Data)
+print("[Init] 2️⃣ Cloud Layer...")
+PocketBaseService:Init()
+
+-- 3. Data Services (depend on Cloud)
+print("[Init] 3️⃣ Data Layer...")
+PlayerDataService:Init()
+
+-- 4. Player Services (depend on Data)
+print("[Init] 4️⃣ Player Layer...")
 PlayerStateService:Init()
 
 
--- 3. Gameplay Services (depend on Player)
-print("[Init] 3️⃣ Gameplay Layer...")
+-- 5. Gameplay Services (depend on Player)
+print("[Init] 5️⃣ Gameplay Layer...")
 LobbyService:Init()
 ArenaService:Init()
-CombatService:Init()   -- ✅ NEW (before DeathService)
+CombatService:Init()
 DeathService:Init()
 DownedService:Init()
-RespawnService:Init()  -- ✅ NEW (after DownedService)
+RespawnService:Init()
 MatchService:Init()
 CooldownService:Init()
 GameService:Init()
 
--- 4. Test/Debug Services (optional, last)
-print("[Init] 4️⃣ Test Layer...")
+-- 6. Test/Debug Services (optional, last)
+print("[Init] 6️⃣ Test Layer...")
 TestService:Init()
+
+-- ═══════════════════════════════════════════════════════════════
+-- REGISTER SERVICES IN LOCATOR (after Init, before Start)
+-- ═══════════════════════════════════════════════════════════════
+
+print("\n[Init] 📋 Registering services in ServiceLocator...")
+
+ServiceLocator:Register("NetworkHandler", NetworkHandler)
+ServiceLocator:Register("PocketBaseService", PocketBaseService)
+ServiceLocator:Register("PlayerDataService", PlayerDataService)
+ServiceLocator:Register("PlayerStateService", PlayerStateService)
+ServiceLocator:Register("LobbyService", LobbyService)
+ServiceLocator:Register("ArenaService", ArenaService)
+ServiceLocator:Register("CombatService", CombatService)
+ServiceLocator:Register("DeathService", DeathService)
+ServiceLocator:Register("DownedService", DownedService)
+ServiceLocator:Register("RespawnService", RespawnService)
+ServiceLocator:Register("MatchService", MatchService)
+ServiceLocator:Register("CooldownService", CooldownService)
+ServiceLocator:Register("GameService", GameService)
 
 -- ═══════════════════════════════════════════════════════════════
 -- START SERVICES (RUNTIME PHASE)
@@ -105,6 +146,8 @@ print("════════════════════════�
 -- Start in same order as Init
 NetworkHandler:Start()
 
+PocketBaseService:Start()
+PlayerDataService:Start()
 PlayerStateService:Start()
 
 
@@ -132,16 +175,22 @@ print("✅ All services initialized and started successfully.")
 print(string.format("⏱️ Total time: %.3fs", os.clock() - (_G.__SERVER_INIT_TIME or 0)))
 print("═════════════════════════════════════════════════════════\n")
 
--- ✅ Print IdempotentGuard summary (if available)
+-- ✅ Print summaries
 if IdempotentGuard and IdempotentGuard.printSummary then
 	IdempotentGuard.printSummary()
 end
+
+ServiceLocator:PrintRegistry()
+DataMapper.PrintSchemas()
 
 -- Expose for debugging (only in Studio)
 if game:GetService("RunService"):IsStudio() then
 	_G.Services = {
 		-- Core
 		NetworkHandler = NetworkHandler,
+		
+		-- Data
+		PlayerDataService = PlayerDataService,  -- ✅ NEW
 		
 		-- Player
 		PlayerStateService = PlayerStateService,
@@ -157,9 +206,17 @@ if game:GetService("RunService"):IsStudio() then
 		MatchService = MatchService,
 		RespawnService = RespawnService,   -- ✅ NEW
 		
+		-- Cloud
+		PocketBaseService = PocketBaseService,  -- ✅ NEW
+		
 		-- Test
 		TestService = TestService,
 	}
+	
+	-- ✅ Add new utilities
+	_G.ServiceLocator = ServiceLocator
+	_G.DataMapper = DataMapper
+	_G.IdempotencyKey = IdempotencyKey
 	
 	if IdempotentGuard then
 		_G.IdempotentGuard = IdempotentGuard

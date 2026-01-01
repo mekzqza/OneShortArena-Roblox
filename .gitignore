@@ -22,8 +22,11 @@ _Index/
 
 # Sensitive Files (DO NOT COMMIT!)
 src/ServerStorage/Secrets/
+src/ServerStorage/Secrets/*.luau
+!src/ServerStorage/Secrets/*.template.luau
 *.secrets.luau
 *Secret*.luau
+!*Secret*.template.luau
 *.env
 .env
 
