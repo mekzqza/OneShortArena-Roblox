@@ -1,4 +1,4 @@
-﻿# 🏗️ OneShortArena - สถาปัตยกรรมระบบ
+﻿# 🏗️ OneShortArena - สถาปัตยกรรมระบบ v3.2
 
 ## 🎯 เข้าใจง่ายใน 1 นาที
 
@@ -10,7 +10,7 @@
 ║   👦 ผู้เล่น กดปุ่ม "Play"                                     ║
 ║      │                                                        ║
 ║      ▼                                                        ║
-║   📱 มือถือ/คอม ส่งข้อความไป Server                           ║
+║   📱 Client ส่งข้อความไป Server                               ║
 ║      │                                                        ║
 ║      ▼                                                        ║
 ║   🔒 Server ตรวจสอบ "ส่งบ่อยไปมั้ย? โกงมั้ย?"                 ║
@@ -19,7 +19,7 @@
 ║   ✅ OK! ย้ายผู้เล่นไป Arena!                                  ║
 ║      │                                                        ║
 ║      ▼                                                        ║
-║   ⚔️ สู้กัน! ตาย! วนใหม่!                                     ║
+║   ⚔️ สู้กัน! → 🦵 Downed! → 💀 ตาย! → 🔄 Respawn!             ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
@@ -30,18 +30,21 @@
 
 | ส่วน | เวอร์ชัน | สถานะ |
 |------|---------|-------|
-| **สถาปัตยกรรม** | 3.1 | ✅ พร้อมใช้งานจริง |
+| **สถาปัตยกรรม** | 3.2 | ✅ พร้อมใช้งานจริง |
+| **Data System** | 1.0 | ✅ Production ✨NEW |
+| **CombatService** | 1.0 | ✅ Production |
+| **DownedService** | 2.0 | ✅ Production |
+| **RespawnService** | 1.0 | ✅ Production |
+| **Utilities** | 1.0 | ✅ Production ✨NEW |
 | **ความปลอดภัย** | P0 Fixed | ✅ แก้ไขแล้ว |
-| **DeathService** | 2.1 | ✅ ตรวจจับการตาย |
-| **MatchService** | 1.0 | ✅ จัดการแมตช์ |
 
 ---
 
-## 🖼️ ภาพรวมระบบ (แบบง่ายๆ)
+## 🖼️ ภาพรวมระบบ
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     🎮 OneShortArena                             │
+│                     🎮 OneShortArena v3.1                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────────┐        ┌──────────────────┐              │
@@ -55,376 +58,297 @@
 │  ─────────────               ────────────────                   │
 │  • กดปุ่ม                    • ตรวจสอบโกง                       │
 │  • แสดงผล                    • ย้ายผู้เล่น                       │
-│  • ส่งคำสั่ง                  • นับแต้ม                         │
-│                              • จัดการแมตช์                      │
+│  • ส่งคำสั่ง                  • จัดการ Combat                    │
+│  • Block input (Downed)      • จัดการ Downed                    │
+│                              • จัดการ Respawn                   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🏠 โครงสร้างไฟล์ (บ้านของโค้ด)
+## 🏠 โครงสร้างไฟล์
 
 ```
 📂 OneShortArena-Roblox/
 │
-├── 📂 src/ (โค้ดหลัก)
+├── 📂 src/
 │   │
-│   ├── 📂 Client (ฝั่งผู้เล่น) 📱
-│   │   ├── 🎮 InputController    → "รับปุ่มที่กด"
-│   │   ├── 🧠 InputHandler       → "ตัดสินใจว่าจะทำอะไร"
-│   │   ├── 📡 NetworkController  → "ส่งข้อความไป Server"
-│   │   └── 🖼️ LobbyGuiController → "ปุ่ม Play/Cancel"
+│   ├── 📂 Client (StarterPlayerScripts) 📱
+│   │   │
+│   │   ├── 📂 Core/
+│   │   │   └── 📡 NetworkController     → "ส่งข้อความไป Server"
+│   │   │
+│   │   ├── 📂 Inputs/
+│   │   │   ├── 🎮 InputController       → "รับปุ่มที่กด"
+│   │   │   └── 🧠 InputHandler          → "ตัดสินใจ + Block Downed"
+│   │   │
+│   │   ├── 📂 Gameplay/
+│   │   │   └── 📍 PlayerStateController → "Sync state กับ Server"
+│   │   │
+│   │   ├── 📂 UI/
+│   │   │   └── 🖼️ LobbyGuiController    → "ปุ่ม Play + Downed visual"
+│   │   │
+│   │   └── 📂 Dev/
+│   │       └── 🧪 TestHandler           → "Debug tools"
 │   │
-│   ├── 📂 Server (ฝั่ง Server) 🖥️
-│   │   ├── 🔒 NetworkHandler     → "ตรวจสอบโกง"
-│   │   ├── 📍 PlayerStateService → "ผู้เล่นอยู่ไหน?"
-│   │   ├── 🏟️ ArenaService       → "ย้ายไป Arena"
-│   │   ├── 🏠 LobbyService       → "ย้ายไป Lobby"
-│   │   ├── 💀 DeathService       → "ตรวจจับการตาย"
-│   │   ├── 🎯 MatchService       → "จัดการแมตช์"
-│   │   └── 🎮 GameService        → "ควบคุมเกม"
+│   ├── 📂 Server (ServerScriptService) 🖥️
+│   │   │
+│   │   ├── 📂 Core/
+│   │   │   └── 🔒 NetworkHandler        → "ตรวจสอบโกง"
+│   │   │
+│   │   ├── 📂 Data/                                                  ✨NEW
+│   │   │   └── 🗄️ PlayerDataService    → "จัดการข้อมูลผู้เล่น (Primary)"
+│   │   │
+│   │   ├── 📂 Cloud/                                                 ✨NEW
+│   │   │   └── ☁️ PocketBaseService    → "Sync ข้อมูลไป VPS (Secondary)"
+│   │   │
+│   │   ├── 📂 Player/
+│   │   │   └── 📍 PlayerStateService    → "ผู้เล่นอยู่ไหน?"
+│   │   │
+│   │   └── 📂 Gameplay/
+│   │       ├── 🏟️ ArenaService          → "ย้ายไป Arena"
+│   │       ├── ⚔️ CombatService         → "ตรวจจับ Damage"    ✨NEW
+│   │       ├── ⏱️ CooldownService       → "จัดการ Cooldown"
+│   │       ├── 💀 DeathService          → "ตรวจจับการตาย"
+│   │       ├── 🦵 DownedService         → "จัดการ Downed"     ✨NEW
+│   │       ├── 🎮 GameService           → "ควบคุมเกม"
+│   │       ├── 🏠 LobbyService          → "ย้ายไป Lobby"
+│   │       ├── 🎯 MatchService          → "จัดการแมตช์"
+│   │       └── 🔄 RespawnService        → "จัดการ Respawn"    ✨NEW
 │   │
-│   └── 📂 Shared (ใช้ร่วมกัน) 🤝
-│       ├── 📋 Events.luau        → "รายชื่อเหตุการณ์"
-│       ├── ⚙️ NetworkConfig      → "ตั้งค่าความปลอดภัย"
-│       └── 📡 EventBus           → "ส่งข่าวสาร"
+│   └── 📂 Shared (ReplicatedStorage) 🤝
+│       ├── 📋 Events.luau               → "รายชื่อเหตุการณ์"
+│       └── 📡 EventBus.luau             → "ส่งข่าวสาร"
 │
-└── 📂 docs/ (เอกสาร) 📚
-    ├── deps.md                   → "คุณกำลังอ่านอยู่!"
+└── 📂 docs/ 📚
+    ├── deps.md                          → "คุณกำลังอ่านอยู่!"
+    ├── Combat-Downed-Respawn-Guide.md   → "ระบบ Combat"       ✨NEW
     └── ...
 ```
 
 ---
 
-## 🎬 การทำงานทีละขั้น (เหมือนดูหนัง)
-
-### 🎬 ฉาก 1: ผู้เล่นกดปุ่ม "Play"
+## 🎬 Combat → Downed → Respawn Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  📱 CLIENT                                                       │
+│  ⚔️ COMBAT → DOWNED → RESPAWN FLOW                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  👆 ผู้เล่นกดปุ่ม "Play"                                         │
-│      │                                                          │
-│      ▼                                                          │
-│  🖼️ LobbyGuiController                                          │
-│      │ "มีคนกดปุ่ม!"                                            │
-│      │ ✅ เช็ค: กดบ่อยไปมั้ย? (cooldown 1 วินาที)              │
-│      ▼                                                          │
-│  🧠 InputHandler                                                 │
-│      │ "ส่งคำขอไป Server!"                                      │
-│      ▼                                                          │
-│  📡 NetworkController                                           │
-│      │ "ส่งข้อความ: PLAYER_REQUEST_TO_ARENA"                    │
-│      ▼                                                          │
-│  ═══════════════════════════════════════════════                │
-│             🌐 ส่งผ่าน Internet                                 │
-│  ═══════════════════════════════════════════════                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 🎬 ฉาก 2: Server ตรวจสอบ
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🖥️ SERVER                                                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ═══════════════════════════════════════════════                │
-│             🌐 รับข้อความจาก Internet                           │
-│  ═══════════════════════════════════════════════                │
-│      │                                                          │
-│      ▼                                                          │
-│  🔒 NetworkHandler (ยาม)                                         │
-│      │ "ตรวจสอบ!"                                               │
-│      │                                                          │
-│      ├─ ❓ ส่งบ่อยไปมั้ย? (Rate Limit)                         │
-│      │    └─ ✅ ไม่บ่อย → ผ่าน!                                 │
-│      │    └─ ❌ บ่อยเกิน → บล็อก!                               │
-│      │                                                          │
-│      ├─ ❓ ส่งซ้ำมั้ย? (Anti-Replay)                            │
-│      │    └─ ✅ ไม่ซ้ำ → ผ่าน!                                  │
-│      │                                                          │
-│      └─ ❓ Event นี้อนุญาตมั้ย? (Allowlist)                     │
-│           └─ ✅ อนุญาต → ผ่าน!                                  │
-│      │                                                          │
-│      ▼                                                          │
-│  📢 EventBus: "บอกทุกคน! มีคนขอไป Arena!"                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 🎬 ฉาก 3: เปลี่ยน State และย้ายตัว
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🖥️ SERVER (ต่อ)                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  📢 EventBus: "PLAYER_REQUEST_TO_ARENA"                          │
-│      │                                                          │
-│      ├────────────────────┐                                     │
-│      ▼                    ▼                                     │
-│  📍 PlayerStateService   🏟️ ArenaService                         │
-│      │                    │                                     │
-│      │ "เปลี่ยน State     │ "รอ State เปลี่ยนก่อน..."           │
-│      │  Lobby → Arena"    │                                     │
-│      │                    │                                     │
-│      │ ✅ ตรวจสอบ:        │                                     │
-│      │ • ไม่ล็อกอยู่?     │                                     │
-│      │ • cooldown ผ่าน?   │                                     │
-│      │                    │                                     │
-│      ▼                    │                                     │
-│  📢 "State เปลี่ยนแล้ว!" ─►│                                     │
-│                           ▼                                     │
-│                    🏟️ ArenaService                              │
-│                       │                                         │
-│                       │ "ย้ายตัวผู้เล่น!"                       │
-│                       │ • หา Spawn Point                        │
-│                       │ • Teleport ไป Arena                     │
-│                       ▼                                         │
-│                    ✅ เสร็จ!                                    │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 🎬 ฉาก 4: สู้กัน! ตาย!
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🖥️ SERVER - การตาย                                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ⚔️ ผู้เล่น A โจมตี ผู้เล่น B                                    │
-│      │                                                          │
-│      ▼                                                          │
-│  💀 DeathService                                                │
-│      │                                                          │
-│      │ "ผู้เล่น B ตายแล้ว!"                                     │
-│      │                                                          │
-│      │ 🔍 วิเคราะห์:                                            │
-│      │ • ตายเพราะ: Combat ⚔️                                    │
-│      │ • ฆ่าโดย: ผู้เล่น A                                      │
-│      │ • อาวุธ: Sword                                           │
-│      │                                                          │
-│      ▼                                                          │
-│  📢 EventBus: "PLAYER_DIED"                                      │
-│      │                                                          │
-│      ├────────────────────┐                                     │
-│      ▼                    ▼                                     │
-│  🎯 MatchService        📍 PlayerStateService                    │
-│      │                    │                                     │
-│      │ "นับแต้ม!"        │ "State = Died"                       │
-│      │ • kills++          │ "รอ respawn..."                     │
-│      │ • deaths++         │                                     │
-│      │ • killStreak++     │                                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🧩 Services คืออะไร? (แบบง่ายๆ)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🏢 SERVICES = พนักงานแต่ละแผนก                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  🔒 NetworkHandler                                              │
-│     └─ "ยามหน้าประตู - ตรวจคนเข้าออก"                           │
-│                                                                 │
-│  📍 PlayerStateService                                          │
-│     └─ "แผนกบัตรประชาชน - บอกว่าคนนี้อยู่ไหน"                  │
-│                                                                 │
-│  🏟️ ArenaService                                                │
-│     └─ "พนักงานนำทาง Arena - พาคนไป Arena"                      │
-│                                                                 │
+│  1. ผู้เล่นโดนโจมตี                                              │
+│     │                                                          │
+│     ▼                                                          │
+│  ⚔️ CombatService                                               │
+│     │ • รับ PLAYER_DAMAGED                                     │
+│     │ • คำนวณ HP                                                │
+│     │ • เช็ค HP <= 0? (Fatal Hit)                              │
+│     │                                                          │
+│     ▼                                                          │
+│  📢 Emit: PLAYER_FATAL_HIT                                      │
+│     │                                                          │
+│     ▼                                                          │
+│  🦵 DownedService                                               │
+│     │ • State = "Downed"                                       │
+│     │ • HP = 1%                                                │
+│     │ • Ragdoll (PlatformStand)                                │
+│     │ • เริ่มนับถอยหลัง 15 วินาที                               │
+│     │ • Block inputs (Play, Attack)                            │
+│     │                                                          │
+│     ├─► Revived? → กลับ Arena! (HP = 30-50%)                   │
+│     │                                                          │
+│     └─► Timeout/Finished?                                       │
+│         │                                                      │
+│         ▼                                                      │
+│  📢 Emit: PLAYER_DOWNED_TIMEOUT / PLAYER_FINISHED               │
+│     │                                                          │
+│     ▼                                                          │
+│  🔄 RespawnService                                              │
+│     │ • รอ 3-5 วินาที                                          │
+│     │                                                          │
+│     ▼                                                          │
+│  📢 Emit: PLAYER_RESPAWN_REQUESTED                              │
+│     │                                                          │
+│     ▼                                                          │
 │  🏠 LobbyService                                                │
-│     └─ "พนักงานนำทาง Lobby - พาคนไป Lobby"                     │
-│                                                                 │
-│  💀 DeathService                                                │
-│     └─ "หมอชันสูตร - บอกว่าใครตาย ตายเพราะอะไร"                │
-│                                                                 │
-│  🎯 MatchService                                                │
-│     └─ "กรรมการ - นับแต้ม ดูแลการแข่ง"                          │
-│                                                                 │
-│  🎮 GameService                                                 │
-│     └─ "ผู้จัดการใหญ่ - ดูแลเกมทั้งหมด"                         │
+│     │ • Spawn ผู้เล่นที่ Lobby                                  │
+│     │ • State = "Lobby"                                        │
+│     │ • Enable inputs                                          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔒 ความปลอดภัย (7 ชั้น)
+## 🧩 Services ทั้งหมด
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  🛡️ 7 ชั้นป้องกัน (เหมือนปราสาท!)                                │
+│  🏢 SERVER SERVICES                                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ชั้น 1: 🖼️ UI Cooldown                                         │
-│          └─ "กดปุ่มได้ทุก 1 วินาที"                              │
+│  📂 Core/                                                       │
+│  ─────────                                                      │
+│  🔒 NetworkHandler        → "ยามหน้าประตู - ตรวจคนเข้าออก"      │
 │                                                                 │
-│  ชั้น 2: 📡 Per-Event Rate Limit                                 │
-│          └─ "Event นี้ส่งได้ 1 ครั้ง/5 วินาที"                  │
+│  📂 Data/                                                  ✨NEW │
+│  ──────────                                                     │
+│  🗄️ PlayerDataService    → "จัดการข้อมูลผู้เล่น (Primary)"      │
 │                                                                 │
-│  ชั้น 3: 🔢 Global Rate Limit                                    │
-│          └─ "ส่งได้แค่ 10 อย่าง/5 วินาที"                       │
+│  📂 Cloud/                                                 ✨NEW │
+│  ───────────                                                    │
+│  ☁️ PocketBaseService    → "Sync ข้อมูลไป VPS (Secondary)"      │
 │                                                                 │
-│  ชั้น 4: 🔐 Transition Lock                                      │
-│          └─ "กำลังย้าย ห้ามย้ายซ้ำ!"                            │
+│  📂 Player/                                                     │
+│  ──────────                                                     │
+│  📍 PlayerStateService    → "บอกว่าผู้เล่นอยู่ไหน"              │
 │                                                                 │
-│  ชั้น 5: ⏱️ Transition Cooldown                                  │
-│          └─ "ย้ายได้ทุก 2 วินาที"                               │
+│  📂 Gameplay/                                                   │
+│  ─────────────                                                  │
+│  🏟️ ArenaService          → "พาผู้เล่นไป Arena"                 │
+│  ⚔️ CombatService         → "ตรวจจับ Damage, Fatal Hit"         │
+│  ⏱️ CooldownService       → "จัดการ Cooldown"                   │
+│  💀 DeathService          → "ตรวจจับการตาย"                     │
+│  🦵 DownedService         → "จัดการ Downed state"               │
+│  🎮 GameService           → "ควบคุมเกมทั้งหมด"                  │
+│  🏠 LobbyService          → "พาผู้เล่นไป Lobby"                 │
+│  🎯 MatchService          → "นับแต้ม, จัดการแมตช์"              │
+│  🔄 RespawnService        → "จัดการ Respawn delay"              │
 │                                                                 │
-│  ชั้น 6: 🚀 Teleport Cooldown                                    │
-│          └─ "Teleport ได้ทุก 5 วินาที"                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🛠️ UTILITIES                                              ✨NEW │
+├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ชั้น 7: ⚔️ Combat Check                                         │
-│          └─ "กำลังสู้ ห้ามหนี!"                                 │
+│  🔗 ServiceLocator        → "แก้ Circular dependency"           │
+│  🗺️ DataMapper            → "แปลงข้อมูล Roblox ↔ PocketBase"   │
+│  🔑 IdempotencyKey        → "ป้องกัน duplicate operations"      │
+│  🛡️ ExecutionGuard        → "RunOnce + Lock management"         │
+│  ✅ IdempotentGuard       → "ป้องกัน double init/start"         │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 ลำดับการเริ่มต้น (Boot Order)
-
-### Server เริ่มก่อน:
+## 📡 Events ที่ใช้
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  🖥️ SERVER BOOT (เปิด Server)                                   │
+│  📋 รายการ Events                                               │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1️⃣  📡 NetworkConfig      → "โหลดตั้งค่า"                       │
-│  2️⃣  🔒 NetworkHandler     → "เปิดประตู"                         │
-│  3️⃣  🏠 LobbyService       → "เตรียม Lobby"                      │
-│  4️⃣  🏟️ ArenaService       → "เตรียม Arena"                      │
-│  5️⃣  📍 PlayerStateService → "เตรียมระบบ State"                  │
-│  6️⃣  💀 DeathService       → "เตรียมตรวจจับการตาย"               │
-│  7️⃣  🎯 MatchService       → "เตรียมระบบแมตช์"                   │
-│  8️⃣  🎮 GameService        → "เตรียมเกม"                         │
+│  🎮 Player Events:                                              │
+│  ─────────────────                                              │
+│  • PLAYER_REQUEST_TO_ARENA   → "ขอไป Arena"                     │
+│  • PLAYER_REQUEST_TO_LOBBY   → "ขอกลับ Lobby"                   │
+│  • PLAYER_STATE_CHANGED      → "State เปลี่ยนแล้ว"              │
+│  • PLAYER_DIED               → "ตายแล้ว"                        │
+│  • PLAYER_DAMAGED            → "โดนตี"                          │
+│                                                                 │
+│  ⚔️ Combat Events:                                         ✨NEW │
+│  ─────────────────                                              │
+│  • PLAYER_FATAL_HIT          → "HP <= 0 (Lethal)"              │
+│  • PLAYER_DAMAGE_APPLIED     → "Non-lethal damage"             │
+│                                                                 │
+│  🦵 Downed Events:                                         ✨NEW │
+│  ─────────────────                                              │
+│  • PLAYER_DOWNED             → "เข้า Downed state"             │
+│  • PLAYER_DOWNED_COUNTDOWN   → "Countdown tick"                │
+│  • PLAYER_REVIVED            → "ถูก Revive"                    │
+│  • PLAYER_FINISHED           → "ถูก Finish"                    │
+│  • PLAYER_DOWNED_TIMEOUT     → "หมดเวลา Downed"                │
+│                                                                 │
+│  🔄 Respawn Events:                                        ✨NEW │
+│  ──────────────────                                             │
+│  • PLAYER_RESPAWN_REQUESTED  → "ขอ Respawn"                    │
+│  • PLAYER_RESPAWNED          → "Respawn แล้ว"                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔒 ความปลอดภัย (7+1 ชั้น)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🛡️ 7+1 ชั้นป้องกัน                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ชั้น 1: 🖼️ UI Cooldown (1s)                                    │
+│  ชั้น 2: 📡 Per-Event Rate Limit (1-10/5s)                      │
+│  ชั้น 3: 🔢 Global Rate Limit (10/5s)                           │
+│  ชั้น 4: 🔐 Transition Lock (atomic)                            │
+│  ชั้น 5: ⏱️ Transition Cooldown (2s)                            │
+│  ชั้น 6: 🚀 Teleport Cooldown (5s)                              │
+│  ชั้น 7: ⚔️ Combat Check (5s)                                   │
+│                                                                 │
+│  ✨NEW                                                          │
+│  ชั้น 8: 🦵 Downed Input Blocking                               │
+│          └─ Block Play/Attack ขณะ Downed                       │
+│          └─ Visual feedback (ปุ่มเทา)                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📊 Boot Order
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🖥️ SERVER BOOT                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1️⃣  📡 NetworkConfig         → "โหลดตั้งค่า"                    │
+│  2️⃣  🔒 NetworkHandler        → "เปิดประตู"                      │
+│  3️⃣  ☁️ PocketBaseService     → "เชื่อมต่อ VPS"            ✨NEW │
+│  4️⃣  🗄️ PlayerDataService     → "เตรียมระบบ Data"          ✨NEW │
+│  5️⃣  📍 PlayerStateService    → "เตรียมระบบ State"               │
+│  6️⃣  🏠 LobbyService          → "เตรียม Lobby"                   │
+│  7️⃣  🏟️ ArenaService          → "เตรียม Arena"                   │
+│  8️⃣  ⚔️ CombatService         → "เตรียมระบบ Combat"              │
+│  9️⃣  💀 DeathService          → "เตรียมตรวจจับการตาย"            │
+│  🔟 🦵 DownedService         → "เตรียมระบบ Downed"              │
+│  1️⃣1️⃣ 🔄 RespawnService        → "เตรียมระบบ Respawn"             │
+│  1️⃣2️⃣ 🎯 MatchService          → "เตรียมระบบแมตช์"                │
+│  1️⃣3️⃣ 🎮 GameService           → "เตรียมเกม"                     │
 │                                                                 │
 │  ✅ Server พร้อม!                                                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Client เริ่มทีหลัง:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  📱 CLIENT BOOT (ผู้เล่นเข้าเกม)                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1️⃣  🎮 InputController     → "เตรียมรับปุ่มกด"                  │
-│  2️⃣  🧠 InputHandler        → "เตรียมประมวลผล"                   │
-│  3️⃣  📡 NetworkController   → "เชื่อมต่อ Server"                 │
-│  4️⃣  🖼️ LobbyGuiController  → "แสดงปุ่ม Play"                    │
-│                                                                 │
-│  ✅ Client พร้อม!                                                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 ---
 
-## 🎯 DeathService vs MatchService
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  💀 DeathService                 🎯 MatchService                 │
-├────────────────────────────────┬────────────────────────────────┤
-│                                │                                │
-│  หน้าที่:                       │  หน้าที่:                      │
-│  ─────────                     │  ─────────                     │
-│  • ตรวจจับการตาย                │  • สร้างแมตช์                   │
-│  • บอกว่าตายเพราะอะไร           │  • นับ kills/deaths             │
-│  • บอกว่าใครฆ่า                 │  • track kill streaks          │
-│                                │  • กำหนด respawn delay          │
-│                                │  • สรุปผลแมตช์                  │
-│  ทำแค่:                         │                                │
-│  ─────                         │  ทำทุกอย่างเกี่ยวกับแมตช์:      │
-│  Detect → Classify → Emit      │  ─────────────────────────     │
-│  ตรวจจับ → จำแนก → ส่งสัญญาณ   │  Create → Track → End          │
-│                                │                                │
-│  ❌ ไม่นับแต้ม                  │  ✅ นับแต้ม                     │
-│  ❌ ไม่จัดการ respawn           │  ✅ จัดการ respawn delay       │
-│  ❌ ไม่รู้เรื่องแมตช์            │  ✅ รู้ทุกอย่างเรื่องแมตช์      │
-│                                │                                │
-└────────────────────────────────┴────────────────────────────────┘
-```
-
----
-
-## 📡 EventBus คืออะไร?
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  📡 EventBus = วิทยุสื่อสาร                                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ไม่มี EventBus:                  มี EventBus:                   │
-│  ─────────────────               ─────────────                   │
-│                                                                 │
-│  A ─────► B                      A ─┐                           │
-│  A ─────► C                         ├──► 📡 EventBus           │
-│  A ─────► D                         │        │                  │
-│  B ─────► C                      B ─┘        ├──► C             │
-│  B ─────► D                                  ├──► D             │
-│                                              └──► E             │
-│  ยุ่งเหยิงมาก!                    เรียบง่าย!                    │
-│                                                                 │
-│  💡 ทุกคนพูดผ่านวิทยุ ไม่ต้องรู้จักกัน                          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📋 Events ที่ใช้
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  📋 รายการ Events (เหตุการณ์)                                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  🎮 Player Events:                                              │
-│  ─────────────────                                              │
-│  • PLAYER_REQUEST_TO_ARENA  → "ขอไป Arena"                      │
-│  • PLAYER_REQUEST_TO_LOBBY  → "ขอกลับ Lobby"                    │
-│  • PLAYER_STATE_CHANGED     → "State เปลี่ยนแล้ว"               │
-│  • PLAYER_DIED              → "ตายแล้ว"                         │
-│  • PLAYER_DAMAGED           → "โดนตี"                           │
-│                                                                 │
-│  🎯 Match Events:                                               │
-│  ─────────────────                                              │
-│  • MATCH_REGISTERED         → "สร้างแมตช์แล้ว"                  │
-│  • MATCH_STARTED            → "แมตช์เริ่มแล้ว"                  │
-│  • MATCH_ENDED              → "แมตช์จบแล้ว"                     │
-│  • MATCH_PLAYER_JOINED      → "มีคนเข้าแมตช์"                   │
-│  • MATCH_PLAYER_LEFT        → "มีคนออกจากแมตช์"                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎓 สรุป (1 ประโยค)
+## 🎓 สรุป
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
-│  🎮 OneShortArena =                                              │
+│  🎮 OneShortArena v3.2 =                                         │
 │                                                                 │
-│  "เกมที่ผู้เล่นกดปุ่ม → Server ตรวจสอบ → ย้ายไป Arena →        │
-│   สู้กัน → ตาย → นับแต้ม → วนใหม่!"                            │
+│  "ผู้เล่นกดปุ่ม → Server ตรวจสอบ → ย้ายไป Arena →              │
+│   สู้กัน → Downed (15 วิ) → ตาย → Respawn (3-5 วิ) → วนใหม่!"  │
+│                                                                 │
+│  ✨ NEW in v3.2:                                                │
+│  • PlayerDataService - ProfileService + PocketBase hybrid      │
+│  • PocketBaseService - VPS sync พร้อม retry logic             │
+│  • ServiceLocator    - แก้ circular dependencies               │
+│  • DataMapper        - แปลงข้อมูล Roblox ↔ PocketBase          │
+│  • IdempotencyKey    - ป้องกัน duplicate operations            │
+│  • ExecutionGuard    - RunOnce + Lock management               │
+│  • Dictionary OwnedItems - O(1) lookup (500x เร็วขึ้น!)        │
+│                                                                 │
+│  Previous (v3.1):                                              │
+│  • CombatService  - ตรวจจับ Damage & Fatal Hit                 │
+│  • DownedService  - Revive window ก่อนตาย                      │
+│  • RespawnService - Configurable respawn delay                 │
+│  • Input Blocking - Block inputs ขณะ Downed                    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -435,15 +359,15 @@
 
 | เอกสาร | เกี่ยวกับ |
 |--------|----------|
+| [Data-System-Guide](./Data-System-Guide.md) | ระบบ Data ✨NEW |
+| [Combat-Downed-Respawn-Guide](./Combat-Downed-Respawn-Guide.md) | ระบบ Combat |
 | [Lobby-to-Arena-Guide](./Lobby-to-Arena-Guide.md) | วิธีย้ายไป Arena |
 | [NetworkConfig-Guide](./NetworkConfig-Guide.md) | ตั้งค่าความปลอดภัย |
-| [DeathService-Guide](./DeathService-Guide.md) | ระบบตรวจจับการตาย |
-| [MatchService-Guide](./MatchService-Guide.md) | ระบบจัดการแมตช์ |
 | [Risk-Assessment](./Risk-Assessment.md) | ความปลอดภัย |
 
 ---
 
-**Version:** 3.1 - Production Ready  
+**Version:** 3.2 - Production Ready  
 **อัปเดตล่าสุด:** 2024  
 **สถานะ:** ✅ พร้อมใช้งานจริง  
 **ทีมพัฒนา:** OneShortArena Team

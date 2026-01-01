@@ -11,3 +11,37 @@ sourcemap.json
 # Wally Packages
 Packages/
 _Index/
+
+# Roblox
+*.rbxlx.lock
+*.rbxl.lock
+
+# Rojo
+*.rbxl
+*.rbxlx
+
+# Sensitive Files (DO NOT COMMIT!)
+src/ServerStorage/Secrets/
+src/ServerStorage/Secrets/*.luau
+!src/ServerStorage/Secrets/*.template.luau
+*.secrets.luau
+*Secret*.luau
+!*Secret*.template.luau
+*.env
+.env
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build
+build/
+dist/

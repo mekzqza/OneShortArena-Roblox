@@ -190,6 +190,15 @@ Events.TEAMMATE_REQUEST_REVIVE = "TeammateRequestRevive" -- Teammate revive requ
 Events.PLAYER_DOWNED_INTERNAL = "PlayerDownedInternal"   -- Internal downed notification
 Events.PLAYER_DOWNED_TIMEOUT = "PlayerDownedTimeout"     -- Downed timer expired
 
+-- ============================================================================
+-- PLAYER DATA EVENTS (NEW)
+-- ============================================================================
+Events.PLAYER_DATA_LOADED = "PlayerDataLoaded"
+Events.PLAYER_DATA_CHANGED = "PlayerDataChanged"
+Events.PLAYER_ITEM_ADDED = "PlayerItemAdded"
+Events.PLAYER_ITEM_REMOVED = "PlayerItemRemoved"
+Events.PLAYER_ITEM_EQUIPPED = "PlayerItemEquipped"
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด
