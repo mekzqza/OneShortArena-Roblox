@@ -79,7 +79,31 @@
       "$className": "StarterPlayer",
 
       "StarterPlayerScripts": {
-        "$path": "src/StarterPlayer/StarterPlayerScripts"
+        "$className": "StarterPlayerScripts",
+
+        "Core": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Core"
+        },
+
+        "Dev": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Dev"
+        },
+
+        "Gameplay": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Gameplay"
+        },
+
+        "Inputs": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Inputs"
+        },
+
+        "UI": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/UI"
+        },
+
+        "Init": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Init.client.luau"
+        }
       }
     }
   }

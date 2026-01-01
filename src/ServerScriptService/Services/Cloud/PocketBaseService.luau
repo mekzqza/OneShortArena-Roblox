@@ -165,14 +165,16 @@ local function authenticate(): boolean
 	
 	print("[PocketBaseService] 🔐 Authenticating...")
 	
-	-- ✅ FIX: Try multiple auth endpoints (PocketBase v0.8+ vs older)
+	-- ✅ เรียงตาม priority (ลองใหม่ก่อน)
 	local authEndpoints = {
-		"/api/admins/auth-with-password",      -- PocketBase v0.8+
-		"/api/collections/users/auth-with-password", -- Alternative
-		"/api/collections/_superusers/auth-with-password", -- PocketBase v0.23+
+		"/api/collections/_superusers/auth-with-password", -- ✅ PocketBase v0.23+ (ลองอันนี้ก่อน!)
+		"/api/admins/auth-with-password",                   -- PocketBase v0.8-v0.22
+		"/api/collections/users/auth-with-password",        -- Alternative
 	}
 	
 	for _, endpoint in ipairs(authEndpoints) do
+		print(`[PocketBaseService] 🔍 Trying endpoint: {endpoint}`)
+		
 		local success, response = pcall(function()
 			return HttpService:RequestAsync({
 				Url = config.URL .. endpoint,
@@ -192,16 +194,22 @@ local function authenticate(): boolean
 			isOnline = true
 			
 			print(`[PocketBaseService] ✅ Authenticated via {endpoint}`)
+			print(`[PocketBaseService] 🔑 Token: {authToken:sub(1, 20)}...`)
 			return true
 		elseif success then
-			print(`[PocketBaseService] ⚠️ Endpoint {endpoint} returned {response.StatusCode}`)
+			warn(`[PocketBaseService] ⚠️ Endpoint {endpoint} returned {response.StatusCode}`)
+			if response.Body then
+				warn(`[PocketBaseService] 📄 Response: {response.Body}`)
+			end
+		else
+			warn(`[PocketBaseService] ❌ Request failed: {response}`)
 		end
 	end
 	
 	analytics.authFailures += 1
 	isOnline = false
 	
-	warn("[PocketBaseService] ❌ All auth endpoints failed")
+	error("[PocketBaseService] ❌ All auth endpoints failed! Check VPS logs.")
 	return false
 end
 

@@ -26,6 +26,17 @@ print("🔌 Server Init: Starting Services...")
 print(`⏱️  Boot started at: {os.date("%X", os.time())}`)
 
 -- ═══════════════════════════════════════════════════════════════
+-- ✅ TIMEOUTS - ต้องอยู่ที่นี่! ก่อน HELPER FUNCTIONS
+-- ═══════════════════════════════════════════════════════════════
+
+local TIMEOUTS = {
+	ServiceInit = 15,     -- Max 15s per service Init
+	ServiceStart = 15,    -- Max 15s per service Start
+	LayerInit = 45,       -- Max 45s per layer Init
+	LayerStart = 45,      -- Max 45s per layer Start
+}
+
+-- ═══════════════════════════════════════════════════════════════
 -- GET FOLDERS
 -- ═══════════════════════════════════════════════════════════════
 
@@ -99,7 +110,7 @@ local IdempotencyKey = require(Utils.IdempotencyKey)
     @return Promise<boolean>
 ]]
 local function initService(service: any, name: string, timeout: number?): any
-	timeout = timeout or TIMEOUTS.ServiceInit  -- ✅ NOW THIS WORKS!
+	timeout = timeout or TIMEOUTS.ServiceInit  -- ✅ ตอนนี้ TIMEOUTS มีค่าแล้ว!
 	
 	return Promise.new(function(resolve, reject)
 		local success, err = pcall(function()
@@ -133,7 +144,7 @@ end
     @return Promise<boolean>
 ]]
 local function startService(service: any, name: string, timeout: number?): any
-	timeout = timeout or TIMEOUTS.ServiceStart  -- ✅ NOW THIS WORKS!
+	timeout = timeout or TIMEOUTS.ServiceStart  -- ✅ ตอนนี้ TIMEOUTS มีค่าแล้ว!
 	
 	return Promise.new(function(resolve, reject)
 		local success, err = pcall(function()
@@ -427,11 +438,3 @@ Promise.resolve()
 			print("[Init] 🔍 Debug mode: _G.Services exposed")
 		end
 	end)
-
--- ✅ MOVE TIMEOUTS HERE - ก่อนใช้งาน!
-local TIMEOUTS = {
-	ServiceInit = 15,     -- Max 15s per service Init
-	ServiceStart = 15,    -- Max 15s per service Start
-	LayerInit = 45,       -- Max 45s per layer Init
-	LayerStart = 45,      -- Max 45s per layer Start
-}
