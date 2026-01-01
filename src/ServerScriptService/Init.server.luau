@@ -2,6 +2,14 @@
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ═══════════════════════════════════════════════════════════════
+-- LOAD PROMISE LIBRARY
+-- ═══════════════════════════════════════════════════════════════
+
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Promise = require(Packages.Promise)
 
 -- ═══════════════════════════════════════════════════════════════
 -- IDEMPOTENT GUARD
@@ -12,7 +20,10 @@ if _G.__SERVER_INITIALIZED then
 	return
 end
 
+local bootStartTime = os.clock()
+
 print("🔌 Server Init: Starting Services...")
+print(`⏱️  Boot started at: {os.date("%X", os.time())}`)
 
 -- ═══════════════════════════════════════════════════════════════
 -- GET FOLDERS
@@ -77,150 +88,350 @@ local DataMapper = require(Utils.DataMapper)
 local IdempotencyKey = require(Utils.IdempotencyKey)
 
 -- ═══════════════════════════════════════════════════════════════
--- INITIALIZE SERVICES (DEPENDENCY ORDER)
+-- HELPER FUNCTIONS (NOW TIMEOUTS IS AVAILABLE!)
+-- ═══════════════════════════════════════════════════════════════
+
+--[[]
+    Initialize a single service with error handling + timeout
+    @param service table - Service instance
+    @param name string - Service name for logging
+    @param timeout number? - Timeout in seconds
+    @return Promise<boolean>
+]]
+local function initService(service: any, name: string, timeout: number?): any
+	timeout = timeout or TIMEOUTS.ServiceInit  -- ✅ NOW THIS WORKS!
+	
+	return Promise.new(function(resolve, reject)
+		local success, err = pcall(function()
+			if service and type(service.Init) == "function" then
+				service:Init()
+			end
+		end)
+		
+		if success then
+			print(`[Init] ✅ {name} initialized`)
+			resolve(true)
+		else
+			reject(`{name} failed: {err}`)
+		end
+	end)
+		:timeout(timeout)
+		:catch(function(err)
+			if Promise.Error.isKind(err, Promise.Error.Kind.TimedOut) then
+				error(`[Init] ⏱️ TIMEOUT: {name} Init exceeded {timeout}s`)
+			else
+				error(`[Init] ❌ ERROR: {name} Init failed: {err}`)
+			end
+		end)
+end
+
+--[[]
+    Start a single service with error handling + timeout
+    @param service table - Service instance
+    @param name string - Service name for logging
+    @param timeout number? - Timeout in seconds
+    @return Promise<boolean>
+]]
+local function startService(service: any, name: string, timeout: number?): any
+	timeout = timeout or TIMEOUTS.ServiceStart  -- ✅ NOW THIS WORKS!
+	
+	return Promise.new(function(resolve, reject)
+		local success, err = pcall(function()
+			if service and type(service.Start) == "function" then
+				service:Start()
+			end
+		end)
+		
+		if success then
+			print(`[Init] ✅ {name} started`)
+			resolve(true)
+		else
+			reject(`{name} failed: {err}`)
+		end
+	end)
+		:timeout(timeout)
+		:catch(function(err)
+			if Promise.Error.isKind(err, Promise.Error.Kind.TimedOut) then
+				error(`[Init] ⏱️ TIMEOUT: {name} Start exceeded {timeout}s`)
+			else
+				error(`[Init] ❌ ERROR: {name} Start failed: {err}`)
+			end
+		end)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- INITIALIZE SERVICES (WITH TIMEOUTS)
 -- ═══════════════════════════════════════════════════════════════
 
 print("\n[Init] 🔧 Initializing services...")
 print("═════════════════════════════════════════════════════════")
 
--- 1. Core Services (no dependencies)
-print("[Init] 1️⃣ Core Layer...")
-NetworkHandler:Init()
+local layerTimes: {[string]: number} = {}
 
--- 2. Cloud Services (depend on Core, before Data)
-print("[Init] 2️⃣ Cloud Layer...")
-PocketBaseService:Init()
-
--- 3. Data Services (depend on Cloud)
-print("[Init] 3️⃣ Data Layer...")
-PlayerDataService:Init()
-
--- 4. Player Services (depend on Data)
-print("[Init] 4️⃣ Player Layer...")
-PlayerStateService:Init()
-
-
--- 5. Gameplay Services (depend on Player)
-print("[Init] 5️⃣ Gameplay Layer...")
-LobbyService:Init()
-ArenaService:Init()
-CombatService:Init()
-DeathService:Init()
-DownedService:Init()
-RespawnService:Init()
-MatchService:Init()
-CooldownService:Init()
-GameService:Init()
-
--- 6. Test/Debug Services (optional, last)
-print("[Init] 6️⃣ Test Layer...")
-TestService:Init()
-
--- ═══════════════════════════════════════════════════════════════
--- REGISTER SERVICES IN LOCATOR (after Init, before Start)
--- ═══════════════════════════════════════════════════════════════
-
-print("\n[Init] 📋 Registering services in ServiceLocator...")
-
-ServiceLocator:Register("NetworkHandler", NetworkHandler)
-ServiceLocator:Register("PocketBaseService", PocketBaseService)
-ServiceLocator:Register("PlayerDataService", PlayerDataService)
-ServiceLocator:Register("PlayerStateService", PlayerStateService)
-ServiceLocator:Register("LobbyService", LobbyService)
-ServiceLocator:Register("ArenaService", ArenaService)
-ServiceLocator:Register("CombatService", CombatService)
-ServiceLocator:Register("DeathService", DeathService)
-ServiceLocator:Register("DownedService", DownedService)
-ServiceLocator:Register("RespawnService", RespawnService)
-ServiceLocator:Register("MatchService", MatchService)
-ServiceLocator:Register("CooldownService", CooldownService)
-ServiceLocator:Register("GameService", GameService)
-
--- ═══════════════════════════════════════════════════════════════
--- START SERVICES (RUNTIME PHASE)
--- ═══════════════════════════════════════════════════════════════
-
-print("\n[Init] ▶️ Starting services...")
-print("═════════════════════════════════════════════════════════")
-
--- Start in same order as Init
-NetworkHandler:Start()
-
-PocketBaseService:Start()
-PlayerDataService:Start()
-PlayerStateService:Start()
-
-
-LobbyService:Start()
-ArenaService:Start()
-CombatService:Start()   -- ✅ NEW
-DeathService:Start()
-DownedService:Start()
-RespawnService:Start()  -- ✅ NEW
-MatchService:Start()
-CooldownService:Start()
-GameService:Start()
-
-TestService:Start()
-
--- ═══════════════════════════════════════════════════════════════
--- FINALIZE
--- ═══════════════════════════════════════════════════════════════
-
-_G.__SERVER_INITIALIZED = true
-_G.__SERVER_INIT_TIME = os.clock()
-
-print("\n═════════════════════════════════════════════════════════")
-print("✅ All services initialized and started successfully.")
-print(string.format("⏱️ Total time: %.3fs", os.clock() - (_G.__SERVER_INIT_TIME or 0)))
-print("═════════════════════════════════════════════════════════\n")
-
--- ✅ Print summaries
-if IdempotentGuard and IdempotentGuard.printSummary then
-	IdempotentGuard.printSummary()
-end
-
-ServiceLocator:PrintRegistry()
-DataMapper.PrintSchemas()
-
--- Expose for debugging (only in Studio)
-if game:GetService("RunService"):IsStudio() then
-	_G.Services = {
-		-- Core
-		NetworkHandler = NetworkHandler,
+Promise.resolve()
+	-- 1️⃣ Core Layer
+	:andThen(function()
+		print("[Init] 1️⃣ Core Layer...")
+		local startTime = os.clock()
 		
-		-- Data
-		PlayerDataService = PlayerDataService,  -- ✅ NEW
-		
-		-- Player
-		PlayerStateService = PlayerStateService,
-		
-		-- Gameplay
-		ArenaService = ArenaService,
-		CombatService = CombatService,     -- ✅ NEW
-		CooldownService = CooldownService,
-		DeathService = DeathService,
-		DownedService = DownedService,
-		GameService = GameService,
-		LobbyService = LobbyService,
-		MatchService = MatchService,
-		RespawnService = RespawnService,   -- ✅ NEW
-		
-		-- Cloud
-		PocketBaseService = PocketBaseService,  -- ✅ NEW
-		
-		-- Test
-		TestService = TestService,
-	}
+		return initService(NetworkHandler, "NetworkHandler")
+			:andThen(function()
+				layerTimes["Core"] = os.clock() - startTime
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+	end)
 	
-	-- ✅ Add new utilities
-	_G.ServiceLocator = ServiceLocator
-	_G.DataMapper = DataMapper
-	_G.IdempotencyKey = IdempotencyKey
+	-- 2️⃣ Cloud Layer
+	:andThen(function()
+		print("[Init] 2️⃣ Cloud Layer...")
+		local startTime = os.clock()
+		
+		return initService(PocketBaseService, "PocketBaseService")
+			:andThen(function()
+				layerTimes["Cloud"] = os.clock() - startTime
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+	end)
 	
-	if IdempotentGuard then
-		_G.IdempotentGuard = IdempotentGuard
-	end
+	-- 3️⃣ Data Layer
+	:andThen(function()
+		print("[Init] 3️⃣ Data Layer...")
+		local startTime = os.clock()
+		
+		return initService(PlayerDataService, "PlayerDataService")
+			:andThen(function()
+				layerTimes["Data"] = os.clock() - startTime
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+	end)
 	
-	print("[Init] 🔍 Debug mode: _G.Services exposed")
-end
+	-- 4️⃣ Player Layer
+	:andThen(function()
+		print("[Init] 4️⃣ Player Layer...")
+		local startTime = os.clock()
+		
+		return initService(PlayerStateService, "PlayerStateService")
+			:andThen(function()
+				layerTimes["Player"] = os.clock() - startTime
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+	end)
+	
+	-- 5️⃣ Gameplay Layer (PARALLEL)
+	:andThen(function()
+		print("[Init] 5️⃣ Gameplay Layer (Parallel)...")
+		local startTime = os.clock()
+		
+		return Promise.all({
+			initService(LobbyService, "LobbyService"),
+			initService(ArenaService, "ArenaService"),
+			initService(CombatService, "CombatService"),
+			initService(DeathService, "DeathService"),
+			initService(DownedService, "DownedService"),
+			initService(RespawnService, "RespawnService"),
+			initService(MatchService, "MatchService"),
+			initService(CooldownService, "CooldownService"),
+			initService(GameService, "GameService"),
+		})
+			:andThen(function()
+				layerTimes["Gameplay"] = os.clock() - startTime
+				print(`[Init] ⚡ Gameplay Layer completed in {string.format("%.3f", layerTimes["Gameplay"])}s (Parallel)`)
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+	end)
+	
+	-- 6️⃣ Test Layer (optional)
+	:andThen(function()
+		print("[Init] 6️⃣ Test Layer...")
+		local startTime = os.clock()
+		
+		return initService(TestService, "TestService")
+			:andThen(function()
+				layerTimes["Test"] = os.clock() - startTime
+			end)
+			:timeout(TIMEOUTS.LayerInit)
+			:catch(function(err)
+				warn(`[Init] ⚠️ Test Layer failed: {err}`)
+				return Promise.resolve()
+			end)
+	end)
+	
+	-- ═══════════════════════════════════════════════════════════
+	-- REGISTER SERVICES IN LOCATOR
+	-- ═══════════════════════════════════════════════════════════
+	
+	:andThen(function()
+		print("\n[Init] 📋 Registering services in ServiceLocator...")
+		
+		ServiceLocator:Register("NetworkHandler", NetworkHandler)
+		ServiceLocator:Register("PocketBaseService", PocketBaseService)
+		ServiceLocator:Register("PlayerDataService", PlayerDataService)
+		ServiceLocator:Register("PlayerStateService", PlayerStateService)
+		ServiceLocator:Register("LobbyService", LobbyService)
+		ServiceLocator:Register("ArenaService", ArenaService)
+		ServiceLocator:Register("CombatService", CombatService)
+		ServiceLocator:Register("DeathService", DeathService)
+		ServiceLocator:Register("DownedService", DownedService)
+		ServiceLocator:Register("RespawnService", RespawnService)
+		ServiceLocator:Register("MatchService", MatchService)
+		ServiceLocator:Register("CooldownService", CooldownService)
+		ServiceLocator:Register("GameService", GameService)
+		
+		print("[Init] ✅ All services registered")
+	end)
+	
+	-- ═══════════════════════════════════════════════════════════
+	-- START SERVICES (WITH TIMEOUTS)
+	-- ═══════════════════════════════════════════════════════════
+	
+	:andThen(function()
+		print("\n[Init] ▶️ Starting services...")
+		print("═════════════════════════════════════════════════════════")
+		return Promise.resolve()
+	end)
+	
+	:andThen(function()
+		return Promise.all({
+			startService(NetworkHandler, "NetworkHandler"),
+		}):timeout(TIMEOUTS.LayerStart)
+	end)
+	
+	:andThen(function()
+		return Promise.all({
+			startService(PocketBaseService, "PocketBaseService"),
+			startService(PlayerDataService, "PlayerDataService"),
+		}):timeout(TIMEOUTS.LayerStart)
+	end)
+	
+	:andThen(function()
+		return startService(PlayerStateService, "PlayerStateService")
+			:timeout(TIMEOUTS.LayerStart)
+	end)
+	
+	:andThen(function()
+		return Promise.all({
+			startService(LobbyService, "LobbyService"),
+			startService(ArenaService, "ArenaService"),
+			startService(CombatService, "CombatService"),
+			startService(DeathService, "DeathService"),
+			startService(DownedService, "DownedService"),
+			startService(RespawnService, "RespawnService"),
+			startService(MatchService, "MatchService"),
+			startService(CooldownService, "CooldownService"),
+			startService(GameService, "GameService"),
+		}):timeout(TIMEOUTS.LayerStart)
+	end)
+	
+	:andThen(function()
+		return startService(TestService, "TestService")
+			:timeout(TIMEOUTS.LayerStart)
+			:catch(function(err)
+				warn(`[Init] ⚠️ TestService start failed: {err}`)
+				return Promise.resolve()
+			end)
+	end)
+	
+	-- ═══════════════════════════════════════════════════════════
+	-- FINALIZE
+	-- ═══════════════════════════════════════════════════════════
+	
+	:andThen(function()
+		_G.__SERVER_INITIALIZED = true
+		_G.__SERVER_INIT_TIME = bootStartTime
+		
+		local bootTime = os.clock() - bootStartTime
+		
+		print("\n═════════════════════════════════════════════════════════")
+		print("✅ All services initialized and started successfully.")
+		print(string.format("⏱️ Total boot time: %.3fs", bootTime))
+		print("═════════════════════════════════════════════════════════")
+		
+		-- Print layer breakdown
+		print("\n📊 Layer Timing Breakdown:")
+		print("─────────────────────────────────────────────────────────")
+		for layer, time in pairs(layerTimes) do
+			local percentage = (time / bootTime) * 100
+			print(string.format("  %s: %.3fs (%.1f%%)", layer, time, percentage))
+		end
+		print("─────────────────────────────────────────────────────────\n")
+		
+		-- Print summaries
+		if IdempotentGuard and IdempotentGuard.printSummary then
+			IdempotentGuard.printSummary()
+		end
+		
+		ServiceLocator:PrintRegistry()
+		DataMapper.PrintSchemas()
+	end)
+	
+	-- ═══════════════════════════════════════════════════════════
+	-- ERROR HANDLING
+	-- ═══════════════════════════════════════════════════════════
+	
+	:catch(function(err)
+		error(`[Init] ❌ CRITICAL ERROR during boot: {err}`)
+		
+		-- Optionally: Attempt graceful shutdown
+		-- for _, player in ipairs(Players:GetPlayers()) do
+		-- 	player:Kick("Server failed to start. Please rejoin.")
+		-- end
+	end)
+	
+	-- ═══════════════════════════════════════════════════════════
+	-- FINALLY (always runs)
+	-- ═══════════════════════════════════════════════════════════
+	
+	:finally(function()
+		print(`\n⏱️  Boot completed at: {os.date("%X", os.time())}`)
+		
+		-- Expose for debugging (only in Studio)
+		if game:GetService("RunService"):IsStudio() then
+			_G.Services = {
+				-- Core
+				NetworkHandler = NetworkHandler,
+				
+				-- Data
+				PlayerDataService = PlayerDataService,
+				
+				-- Player
+				PlayerStateService = PlayerStateService,
+				
+				-- Gameplay
+				ArenaService = ArenaService,
+				CombatService = CombatService,
+				CooldownService = CooldownService,
+				DeathService = DeathService,
+				DownedService = DownedService,
+				GameService = GameService,
+				LobbyService = LobbyService,
+				MatchService = MatchService,
+				RespawnService = RespawnService,
+				
+				-- Cloud
+				PocketBaseService = PocketBaseService,
+				
+				-- Test
+				TestService = TestService,
+			}
+			
+			-- ✅ Add new utilities
+			_G.ServiceLocator = ServiceLocator
+			_G.DataMapper = DataMapper
+			_G.IdempotencyKey = IdempotencyKey
+			_G.Promise = Promise
+			
+			if IdempotentGuard then
+				_G.IdempotentGuard = IdempotentGuard
+			end
+			
+			print("[Init] 🔍 Debug mode: _G.Services exposed")
+		end
+	end)
+
+-- ✅ MOVE TIMEOUTS HERE - ก่อนใช้งาน!
+local TIMEOUTS = {
+	ServiceInit = 15,     -- Max 15s per service Init
+	ServiceStart = 15,    -- Max 15s per service Start
+	LayerInit = 45,       -- Max 45s per layer Init
+	LayerStart = 45,      -- Max 45s per layer Start
+}

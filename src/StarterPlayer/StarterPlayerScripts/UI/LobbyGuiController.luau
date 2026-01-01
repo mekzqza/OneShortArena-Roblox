@@ -38,6 +38,12 @@ local buttonCooldowns = {} :: {[TextButton]: boolean}
 -- ✅ NEW: Track if player is Downed
 local isPlayerDowned = false
 
+-- ✅ NEW: Dependencies storage
+local Dependencies: {
+	NetworkController: any?,
+	PlayerStateController: any?,
+} = {}
+
 local function connectButton(button: TextButton, actionName: string, cooldownTime: number?)
 	cooldownTime = cooldownTime or 1.0
 	
@@ -80,6 +86,18 @@ local function connectButton(button: TextButton, actionName: string, cooldownTim
 	end)
 end
 
+-- ✅ NEW: SetDependencies (called by Init.client before Init)
+function LobbyGuiController:SetDependencies(locator: any)
+	-- Safe dependency resolution
+	Dependencies.NetworkController = locator:Get("NetworkController")
+	Dependencies.PlayerStateController = locator:Get("PlayerStateController")
+	
+	-- Validate critical dependencies
+	if not Dependencies.NetworkController then
+		warn("[LobbyGuiController] ⚠️ NetworkController not found!")
+	end
+end
+
 function LobbyGuiController:Init()
 	print("[LobbyGuiController] 🔍 Initializing...")
 
@@ -114,6 +132,11 @@ function LobbyGuiController:Init()
 		print("[LobbyGuiController] ✅ Found CancelButton")
 	else
 		print("[LobbyGuiController] ℹ️ CancelButton not found (Optional)")
+	end
+
+	-- Now you can use dependencies safely
+	if Dependencies.NetworkController then
+		print("[LobbyGuiController] ✅ NetworkController available")
 	end
 
 	print("[LobbyGuiController] 🎨 Initialized successfully!")
@@ -168,6 +191,11 @@ function LobbyGuiController:Start()
 			playButton.Text = "☠️ Died"
 		end
 	end)
+	
+	-- Use dependencies in Start
+	if Dependencies.PlayerStateController then
+		-- Do something
+	end
 end
 
 return LobbyGuiController
