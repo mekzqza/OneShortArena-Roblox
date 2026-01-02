@@ -32,10 +32,12 @@ if Libs then
 		else
 			warn("[PlayerDataService] ⚠️ Failed to load ProfileService:", result)
 		end
-	end
+	else
+		warn("[PlayerDataService] ⚠️ ProfileService module not found in Libs")	
+	end	
 end
 
--- Lazy load PocketBaseService
+ -- Lazy load PocketBaseService
 local PocketBaseService: any = nil
 
 local function getPocketBaseService()
@@ -45,6 +47,10 @@ local function getPocketBaseService()
 		end)
 		if success then
 			PocketBaseService = service
+			print("[PlayerDataService] ✅ Loaded PocketBaseService")
+		else
+			warn("[PlayerDataService] ⚠️ Failed to load PocketBaseService:", service)
+			return nil
 		end
 	end
 	return PocketBaseService
@@ -148,7 +154,6 @@ local analytics = {
 	migrations = 0,
 	startTime = os.clock(),
 }
-
 -- ═══════════════════════════════════════════════════════════════
 -- PRIVATE FUNCTIONS
 -- ═══════════════════════════════════════════════════════════════
