@@ -198,3 +198,113 @@
 
 **Version:** 3.2 - Production Ready  
 **Status:** ✅ พร้อมใช้งานจริง
+
+---
+
+### 2️⃣ อัปเดต deps.md
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🏢 SERVER SERVICES                                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  📂 Core/                                                       │
+│  ─────────                                                      │
+│  🔒 NetworkHandler        → "ยามหน้าประตู - ตรวจคนเข้าออก"      │
+│  🐛 CmdrService           → "Command Console (F2)"         ✨NEW │
+│                                                                 │
+│  📂 Data/                                                       │
+│  ─────────                                                      │
+│  🗄️ PlayerDataService     → "จัดการข้อมูลผู้เล่น"                │
+│                                                                 │
+│  📂 Cloud/                                                      │
+│  ─────────                                                      │
+│  ☁️ PocketBaseService     → "Sync ข้อมูลไป VPS"                 │
+│                                                                 │
+│  📂 Player/                                                     │
+│  ─────────                                                      │
+│  📍 PlayerStateService    → "บอกว่าผู้เล่นอยู่ไหน"              │
+│                                                                 │
+│  📂 Gameplay/                                                   │
+│  ─────────                                                      │
+│  🏟️ ArenaService         → "พาผู้เล่นไป Arena"                  │
+│  ⚔️ CombatService         → "ตรวจจับ Damage, Fatal Hit"        │
+│  🦵 DownedService         → "จัดการ Downed state"              │
+│  🔄 RespawnService        → "จัดการ Respawn delay"             │
+│  🏠 LobbyService         → "พาผู้เล่นไป Lobby"                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  📱 CLIENT CONTROLLERS                                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  📂 Core/                                                       │
+│  ─────────                                                      │
+│  📡 NetworkController     → "Network transport"                 │
+│  🐛 CmdrController        → "Cmdr client (F2)"             ✨NEW │
+│                                                                 │
+│  📂 Inputs/                                                     │
+│  ─────────                                                      │
+│  🎮 InputController       → "จัดการ Input ของผู้เล่น"            │
+│  🧠 InputHandler          → "ประมวลผล Input"                   │
+│                                                                 │
+│  📂 Gameplay/                                                   │
+│  ─────────                                                      │
+│  📍 PlayerStateController  → "จัดการสถานะผู้เล่น"              │
+│                                                                 │
+│  📂 UI/                                                         │
+│  ─────────                                                      │
+│  🖼️ LobbyGuiController    → "จัดการ Lobby UI"                 │
+│                                                                 │
+│  📂 Dev/                                                        │
+│  ─────────                                                      │
+│  🧪 TestHandler           → "เครื่องมือทดสอบ"                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🖥️ SERVER BOOT                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1️⃣  📡 NetworkConfig         → "โหลดตั้งค่า"                    │
+│  2️⃣  🔒 NetworkHandler        → "เปิดประตู"                      │
+│  2️⃣  🐛 CmdrService           → "Initialize Cmdr"          ✨NEW │
+│  3️⃣  ☁️ PocketBaseService     → "เชื่อมต่อ VPS"                  │
+│  4️⃣  🗄️ PlayerDataService     → "โหลดข้อมูลผู้เล่น"              │
+│  5️⃣  📍 PlayerStateService    → "ตั้งค่าสถานะผู้เล่น"            │
+│  6️⃣  🏟️ ArenaService         → "เตรียมสนามรบ"                  │
+│  7️⃣  ⚔️ CombatService         → "เตรียมการต่อสู้"                │
+│  8️⃣  🦵 DownedService         → "เตรียมการ Downed"              │
+│  9️⃣  🔄 RespawnService        → "เตรียมการ Respawn"             │
+│  🔟  🏠 LobbyService         → "เตรียม Lobby"                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Client:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  📱 CLIENT BOOT                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1️⃣ Core Layer                                                  │
+│     ├─ NetworkController                                       │
+│     └─ CmdrController        → "F2 activation"           ✨NEW │
+│  2️⃣ Inputs Layer                                                │
+│     ├─ InputController                                         │
+│     └─ InputHandler                                            │
+│  3️⃣ Gameplay Layer                                             │
+│     └─ PlayerStateController                                   │
+│  4️⃣ UI Layer                                                   │
+│     └─ LobbyGuiController                                     │
+│  5️⃣ Dev Layer                                                  │
+│     └─ TestHandler                                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
