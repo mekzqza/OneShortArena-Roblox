@@ -57,6 +57,12 @@
 - ✅ **Memory Leak Prevention** - Automatic cleanup
 - ✅ **Idempotency** - Prevent duplicate operations ✨NEW
 
+### 🛠️ Development Tools ✨NEW
+- 🐛 **Cmdr Console** - Production-grade command console
+- 🔍 **F2 Debug Menu** - Admin commands & diagnostics
+- 📊 **Built-in Analytics** - Service/Controller performance tracking
+- 🧪 **Test Utilities** - Debug helpers in _G namespace
+
 ### 🏗️ Architecture
 - 📦 **Modular Services** - Separation of concerns
 - 🔄 **Event-Driven** - EventBus pattern
@@ -218,11 +224,17 @@ OneShortArena-Roblox/
 │   │
 │   ├── ServerScriptService/
 │   │   ├── Init.server.luau
-│   │   ├── Libs/                      # External libraries
-│   │   │   └── ProfileService.luau
+│   │   ├── cmdr/                          # ✨ NEW - Cmdr package (manual install)
+│   │   │   ├── Cmdr.lua                   # Server module
+│   │   │   ├── CmdrClient.lua             # Client module (auto-cloned to RS)
+│   │   │   ├── Hooks/                     # Admin permission hooks
+│   │   │   │   └── ModuleScript           # Admin check
+│   │   │   ├── Shared/
+│   │   │   └── ...
 │   │   ├── Services/
 │   │   │   ├── Core/
-│   │   │   │   └── NetworkHandler.luau
+│   │   │   │   ├── NetworkHandler.luau
+│   │   │   │   └── CmdrService.luau       # ✨ NEW - Cmdr server wrapper
 │   │   │   ├── Data/                  # ✨ NEW
 │   │   │   │   └── PlayerDataService.luau
 │   │   │   ├── Cloud/                 # ✨ NEW

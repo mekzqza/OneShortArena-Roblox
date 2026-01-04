@@ -6,14 +6,15 @@ local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local Events = require(ReplicatedStorage.Shared.Events)
 
 
-local AssetUI = ReplicatedStorage:WaitForChild("UI")
+local AssetUI = ReplicatedStorage:WaitForChild("Assets")
+local UiFolder = AssetUI:FindFirstChild("UI")
 local player = players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local UIController = {}
-UIController.LoadedScreens = {}
+local UiLoader = {}
+UiLoader.LoadedScreens = {}
 
-function UIController:LoadScreen(screenName: string)
+function UiLoader:LoadScreen(screenName: string)
     if screenName == nil or screenName == "" then
         warn("Screen name is required")
         return nil
@@ -24,7 +25,7 @@ function UIController:LoadScreen(screenName: string)
         return
     end
 
-    local originalScreen = AssetUI:FindFirstChild(screenName)
+    local originalScreen = UiFolder:FindFirstChild(screenName)
     if not originalScreen then
         warn("Screen "..screenName.." does not exist in AssetUI.")
         return
@@ -45,15 +46,15 @@ function UIController:LoadScreen(screenName: string)
     return newScreen
 end
 
-function UIController:Init()
+function UiLoader:Init()
     
     -- ตัวอย่างการโหลดหน้าจอ UI
-    local hud = self:LoadScreen("HUD")
+    local SkillBarGui = self:LoadScreen("SkillBarGui")
 
-    if hud then
-        print("HUD screen loaded successfully.")
+    if SkillBarGui then
+        print("SkillBarGui screen loaded successfully.")
     else
-        warn("Failed to load HUD screen.")
+        warn("Failed to load SkillBarGui screen.")
     end
 
     EventBus:On(Events.TOGGLE_UI, function(uiName: string, isVisible: boolean)
@@ -66,13 +67,13 @@ function UIController:Init()
         end
     end)
 
-    print("UIController initialized.")
+    print("UiLoader initialized.")
 
 
 end
 
-function UIController:Start()
+function UiLoader:Start()
     -- No-op for now
 end
 
-return UIController
+return UiLoader

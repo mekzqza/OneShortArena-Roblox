@@ -1,346 +1,38 @@
-# 🏟️ OneShortArena - Roblox Game
+# 🗄️ Data System Guide - Complete Reference
 
-> **Production-grade multiplayer arena game built with modern Roblox architecture**
+## 📋 Overview
 
-[![Roblox](https://img.shields.io/badge/Roblox-Ready-00A2FF?style=for-the-badge&logo=roblox)](https://www.roblox.com)
-[![Luau](https://img.shields.io/badge/Luau-Strict-00A2FF?style=for-the-badge)](https://luau-lang.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-v3.1-success?style=for-the-badge)](./docs/deps.md)
-[![Security](https://img.shields.io/badge/Security-P0_Fixed-success?style=for-the-badge)](./docs/Risk-Assessment.md)
-
----
-
-## 📊 Project Status
-
-| Component | Version | Status |
-|-----------|---------|--------|
-| **Core System** | 3.1 | ✅ Production Ready |
-| **Combat System** | 1.0 | ✅ Production Ready |
-| **Downed System** | 2.0 | ✅ Production Ready |
-| **Respawn System** | 1.0 | ✅ Production Ready |
-| **Security** | P0 Fixed | ✅ Hardened |
-| **Documentation** | Complete | ✅ Full Coverage |
-
----
-
-## 🎯 Features
-
-### ✨ Core Gameplay
-- 🏟️ **Lobby & Arena System** - Seamless player transitions
-- ⚔️ **Combat System** - Damage detection & fatal hit handling
-- 🦵 **Downed System** - Revive window before death
-- 🔄 **Respawn System** - Configurable respawn delays
-- 👥 **Multiplayer** - Support for multiple players
-- 🎮 **Cross-Platform** - PC, Mobile, Console support
-
-### 🔐 Security (P0 Fixed)
-- ✅ **Multi-Layer Rate Limiting** - Global + Per-event
-- ✅ **Race Condition Protection** - Atomic state transitions
-- ✅ **Input Blocking** - Block inputs while Downed
-- ✅ **Anti-Exploit** - Client authority removed
-- ✅ **Memory Leak Prevention** - Automatic cleanup
-
-### 🏗️ Architecture
-- 📦 **Modular Services** - Separation of concerns
-- 🔄 **Event-Driven** - EventBus pattern
-- 🛡️ **Idempotent Guards** - Prevent double init/start
-- 📡 **Centralized Config** - NetworkConfig.luau
-- 📊 **Analytics** - Built-in tracking
-
----
-
-## 📊 Architecture Overview
+คู่มือนี้อธิบายระบบจัดเก็บข้อมูลแบบ **Hybrid Architecture** ที่ใช้ทั้ง ProfileService (Roblox DataStore) และ PocketBase (VPS)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    SYSTEM ARCHITECTURE v3.1                      │
-└─────────────────────────────────────────────────────────────────┘
-
-📱 Client Layer (StarterPlayerScripts)
-├── Core/
-│   └── NetworkController    - Network transport
-├── Inputs/
-│   ├── InputController      - Hardware input detection
-│   └── InputHandler         - Game logic + Downed blocking
-├── Gameplay/
-│   └── PlayerStateController - State sync
-├── UI/
-│   └── LobbyGuiController   - UI buttons + Downed visual
-└── Dev/
-    └── TestHandler          - Debug tools
-
-🖥️ Server Layer (ServerScriptService)
-├── Core/
-│   └── NetworkHandler       - Security & validation
-├── Player/
-│   └── PlayerStateService   - State management (Locks)
-└── Gameplay/
-    ├── ArenaService         - Arena spawning
-    ├── CombatService        - Damage & fatal hit detection
-    ├── CooldownService      - Cooldown management
-    ├── DeathService         - Death detection & classification
-    ├── DownedService        - Downed state lifecycle
-    ├── GameService          - Game logic
-    ├── LobbyService         - Lobby spawning
-    ├── MatchService         - Match management
-    └── RespawnService       - Respawn scheduling
-```
-
-[📚 Full Architecture Docs](./docs/deps.md)
-
----
-
-## 🎮 Combat → Downed → Respawn Flow
-
-```
-  ผู้เล่นโดนโจมตี
-       │
-       ▼
-┌──────────────┐
-│ CombatService │  ← 1. ตรวจจับ Damage
-└──────────────┘  ← 2. เช็ค Fatal Hit (HP <= 0)
-       │
-       │ HP <= 0?
-       ▼
-┌──────────────┐
-│ DownedService │  ← 3. เข้าสถานะ Downed
-│   🦵          │  ← 4. นับถอยหลัง 15s
-└──────────────┘  ← 5. Block inputs
-       │
-       │ Timeout / Finished / Revived?
-       ▼
-┌──────────────┐
-│RespawnService │  ← 6. Schedule Respawn (3-5s)
-└──────────────┘  ← 7. Emit PLAYER_RESPAWN_REQUESTED
-       │
-       ▼
-┌──────────────┐
-│ LobbyService  │  ← 8. Spawn ผู้เล่นที่ Lobby
-└──────────────┘
-```
-
-[📚 Full Combat Guide](./docs/Combat-Downed-Respawn-Guide.md)
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Rojo](https://github.com/rojo-rbx/rojo) 7.6.1+
-- [Roblox Studio](https://www.roblox.com/create)
-- Git (for version control)
-
-### Installation
-
-```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/OneShortArena-Roblox.git
-cd OneShortArena-Roblox
-
-# 2. Setup secret config (REQUIRED!)
-cd src/ServerStorage/Secrets
-cp PocketBaseSecret.template.luau PocketBaseSecret.luau
-
-# 3. แก้ไข PocketBaseSecret.luau ให้ตรงกับ Database ของคุณ
-# ⚠️ DO NOT COMMIT THIS FILE!
-
-# 4. Build project
-rojo build -o "OneShortArena.rbxlx"
-
-# 5. Open in Roblox Studio
-# File > Open > OneShortArena.rbxlx
-```
-
-### 🔐 Secret Configuration
-
-ก่อนใช้งาน PocketBase Service, คุณต้อง:
-
-1. สร้างโฟลเดอร์ `ServerStorage/Secrets/` (ไม่ถูก commit)
-2. Copy `PocketBaseSecret.template.luau` → `PocketBaseSecret.luau`
-3. แก้ไขข้อมูล:
-   - `URL` - PocketBase API URL
-   - `ADMIN_EMAIL` - Admin email
-   - `ADMIN_PASS` - Admin password
-
-⚠️ **IMPORTANT:** ไฟล์ `PocketBaseSecret.luau` จะ**ไม่ถูก commit** ตาม `.gitignore`
-
-### Development Workflow
-
-```bash
-# Start Rojo live sync
-rojo serve
-
-# In Roblox Studio:
-# Plugins > Rojo > Connect
-```
-
----
-
-## 📁 Project Structure
-
-```
-OneShortArena-Roblox/
-├── 📁 src/
-│   ├── ReplicatedStorage/
-│   │   ├── Shared/                    # Shared constants
-│   │   │   ├── Events.luau
-│   │   │   └── InputSettings.luau
-│   │   ├── SystemsShared/
-│   │   │   └── EventBus.luau
-│   │   └── Utils/
-│   │       └── IdempotentGuard.luau
-│   │
-│   ├── ServerStorage/
-│   │   └── Configs/
-│   │       └── NetworkConfig.luau
-│   │
-│   ├── ServerScriptService/
-│   │   ├── Init.server.luau
-│   │   ├── Services/
-│   │   │   ├── Core/
-│   │   │   │   └── NetworkHandler.luau
-│   │   │   ├── Player/
-│   │   │   │   └── PlayerStateService.luau
-│   │   │   └── Gameplay/
-│   │   │       ├── ArenaService.luau
-│   │   │       ├── CombatService.luau      # NEW
-│   │   │       ├── CooldownService.luau
-│   │   │       ├── DeathService.luau
-│   │   │       ├── DownedService.luau      # NEW
-│   │   │       ├── GameService.luau
-│   │   │       ├── LobbyService.luau
-│   │   │       ├── MatchService.luau
-│   │   │       └── RespawnService.luau     # NEW
-│   │   └── Utils/
-│   │       ├── IdempotentGuard.luau
-│   │       └── ExecutionGuard.luau
-│   │
-│   └── StarterPlayer/
-│       └── StarterPlayerScripts/
-│           ├── Init.client.luau
-│           ├── Core/
-│           │   └── NetworkController.luau
-│           ├── Inputs/
-│           │   ├── InputController.luau
-│           │   └── InputHandler.luau       # + Downed blocking
-│           ├── Gameplay/
-│           │   └── PlayerStateController.luau
-│           ├── UI/
-│           │   └── LobbyGuiController.luau # + Downed visual
-│           └── Dev/
-│               └── TestHandler.luau
-│
-└── 📁 docs/
-    ├── deps.md
-    ├── Combat-Downed-Respawn-Guide.md      # NEW
-    ├── Lobby-to-Arena-Guide.md
-    ├── Risk-Assessment.md
-    └── NetworkConfig-Guide.md
-```
-
----
-
-## 🔒 Security - 7 Layer Protection
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🛡️ 7 LAYERS OF PROTECTION                                      │
+│  📊 HYBRID DATA ARCHITECTURE                                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Layer 1: 🖼️ UI Cooldown (1s)                                   │
-│  Layer 2: 📡 Per-Event Rate Limit (1/5s)                        │
-│  Layer 3: 🔢 Global Rate Limit (10/5s)                          │
-│  Layer 4: 🔐 Transition Lock (atomic)                           │
-│  Layer 5: ⏱️ Transition Cooldown (2s)                           │
-│  Layer 6: 🚀 Teleport Cooldown (5s)                             │
-│  Layer 7: ⚔️ Combat Check (5s)                                  │
-│                                                                 │
-│  + 🦵 Downed Input Blocking (blocks Play/Attack while Downed)   │
+│  🎮 Game Logic                                                  │
+│       │                                                         │
+│       ▼                                                         │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │           PlayerDataService (Primary API)            │       │
+│  │  ┌─────────────────┐     ┌─────────────────┐        │       │
+│  │  │ ProfileService  │     │ PocketBase      │        │       │
+│  │  │  (DataStore)    │ ←──►│  Service        │        │       │
+│  │  │   PRIMARY       │     │  SECONDARY      │        │       │
+│  │  └─────────────────┘     └─────────────────┘        │       │
+│  └─────────────────────────────────────────────────────┘       │
+│                              │                                  │
+│                              │ HTTPS + DataMapper               │
+│                              ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │         🌐 VPS (https://roblox-api.sukpat.dev)       │       │
+│  └─────────────────────────────────────────────────────┘       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧪 Debug Commands (F9 Console)
-
-```lua
--- Check player state
-_G.Services.PlayerStateService:GetState(player)
-
--- Check if downed
-_G.Services.DownedService:IsPlayerDowned(player)
-
--- Get downed countdown
-_G.Services.DownedService:GetRemainingTime(player)
-
--- Check combat status
-_G.Services.CombatService:IsPlayerInCombat(player)
-
--- Cancel respawn
-_G.Services.RespawnService:CancelRespawn(player)
-
--- Get analytics
-_G.Services.DownedService:GetAnalytics()
-_G.Services.CombatService:GetAnalytics()
-_G.Services.RespawnService:GetAnalytics()
-```
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [deps.md](./docs/deps.md) | Architecture & dependencies |
-| [Combat-Downed-Respawn-Guide.md](./docs/Combat-Downed-Respawn-Guide.md) | **NEW** Combat system |
-| [Lobby-to-Arena-Guide.md](./docs/Lobby-to-Arena-Guide.md) | Teleport system |
-| [Risk-Assessment.md](./docs/Risk-Assessment.md) | Security audit |
-| [NetworkConfig-Guide.md](./docs/NetworkConfig-Guide.md) | Rate limiting |
-
----
-
-## 🔒 P0 Security Issues - ALL FIXED ✅
-
-| Issue | Service | Status |
-|-------|---------|--------|
-| Race Condition | PlayerStateService | ✅ Transition locks |
-| Teleport Exploit | ArenaService | ✅ Multi-layer cooldowns |
-| Memory Leak | All Services | ✅ PlayerRemoving cleanup |
-| Damage Spam | CombatService | ✅ Processing locks |
-| Double Downed | DownedService | ✅ Atomic locks |
-| Input During Downed | InputHandler | ✅ Input blocking |
-
----
-
-## 📝 Changelog
-
-### Version 3.1 (Current)
-- ✅ **CombatService** - Damage & fatal hit detection
-- ✅ **DownedService** - Revive window system
-- ✅ **RespawnService** - Configurable respawn delays
-- ✅ **Input Blocking** - Block inputs while Downed
-- ✅ **Visual Feedback** - Downed button states
-
-### Version 3.0
-- ✅ P0 security fixes
-- ✅ NetworkConfig centralization
-- ✅ Per-event rate limiting
-
-### Version 2.0
-- Event-driven architecture
-- PlayerStateService
-- ArenaService & LobbyService
-
----
-
-**Built with ❤️ using Roblox Studio & Modern Architecture**
-
-[![Production](https://img.shields.io/badge/Status-Production_Ready-success?style=flat-square)](./docs/Risk-Assessment.md)
-
----
-
-# 📊 Data Schema
+## 📊 Data Schema
 
 ### PlayerData Structure
 
@@ -363,7 +55,7 @@ export type PlayerData = {
     Wins: number,               -- 0 - 999,999,999
     Losses: number,             -- 0 - 999,999,999
     
-    -- Inventory (✅ Dictionary-based for O(1) lookup!)
+    -- Inventory (Dictionary-based for O(1) lookup!)
     OwnedItems: {[string]: boolean},    -- { ["Sword_001"] = true, ... }
     EquippedItems: {[string]: string?}, -- slot -> itemId
     
@@ -376,9 +68,11 @@ export type PlayerData = {
 }
 ```
 
-### 🚀 Performance Notes
+---
 
-**OwnedItems - Dictionary vs Array:**
+## 🚀 Performance Notes
+
+### OwnedItems - Dictionary vs Array
 
 | Operation | Array (Before) | Dictionary (After) | Improvement |
 |-----------|----------------|-------------------|-------------|
@@ -389,29 +83,249 @@ export type PlayerData = {
 
 **Trade-off:** GetAll กลายเป็น O(n) แต่ HasItem/Add/Remove เร็วขึ้นมาก!
 
-### 📖 วิธีใช้งาน (API Reference)
+---
 
-#### Inventory API (Updated)
+## 📖 API Reference
+
+### Basic Data Operations
 
 ```lua
--- เช็คว่ามี item หรือไม่ (O(1) - instant!)
+local PlayerDataService = _G.Services.PlayerDataService
+
+-- Get single value
+local coins = PlayerDataService:Get(player, "Coins")
+
+-- Get nested value (dot notation)
+local volume = PlayerDataService:Get(player, "Settings.MusicVolume")
+
+-- Get all data
+local data = PlayerDataService:GetAll(player)
+
+-- Set value
+PlayerDataService:Set(player, "Coins", 1000)
+
+-- Increment value
+local success, newValue = PlayerDataService:Increment(player, "Coins", 100)
+
+-- Check if data loaded
+if PlayerDataService:IsDataLoaded(player) then
+    -- Safe to use data
+end
+
+-- Wait for data (with timeout)
+local loaded = PlayerDataService:WaitForData(player, 10) -- 10 seconds
+```
+
+### Inventory API
+
+```lua
+-- Check if player owns item (O(1) - instant!)
 if PlayerDataService:HasItem(player, "Sword_001") then
     print("Player owns this sword")
 end
 
--- เพิ่ม item (O(1))
+-- Add item (O(1))
 local success = PlayerDataService:AddItem(player, "Shield_002")
 
--- ลบ item (O(1))
+-- Remove item (O(1))
 PlayerDataService:RemoveItem(player, "Sword_001")
 
--- ✅ NEW: ดึงรายการ item ทั้งหมด (O(n))
+-- Get all owned items (O(n))
 local items = PlayerDataService:GetOwnedItems(player)
 for _, itemId in ipairs(items) do
     print(itemId)
 end
 
--- ✅ NEW: นับจำนวน item (O(n))
+-- Get item count (O(n))
 local count = PlayerDataService:GetItemCount(player)
 print(`Player has {count} items`)
 ```
+
+### Analytics
+
+```lua
+-- Get service analytics
+local analytics = PlayerDataService:GetAnalytics()
+print("Total Loads:", analytics.totalLoads)
+print("Total Reads:", analytics.totalReads)
+print("Total Writes:", analytics.totalWrites)
+print("Migrations:", analytics.migrations)
+```
+
+---
+
+## ☁️ PocketBase Integration
+
+### Configuration
+
+สร้างไฟล์ `ServerStorage/Secrets/PocketBaseSecret.luau`:
+
+```lua
+return {
+    URL = "https://roblox-api.sukpat.dev",
+    COLLECTION = "player_stats",
+    ADMIN_EMAIL = "your-email@example.com",
+    ADMIN_PASS = "your-password",
+}
+```
+
+⚠️ **ไฟล์นี้จะไม่ถูก commit** (อยู่ใน .gitignore)
+
+### Sync Behavior
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🔄 SYNC TRIGGERS                                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1️⃣ On Data Change (Debounced 5s)                               │
+│     └─ Critical keys: Coins, Gems, Level, Wins                 │
+│                                                                 │
+│  2️⃣ On Player Leave                                             │
+│     └─ Final sync before disconnect                            │
+│                                                                 │
+│  3️⃣ Manual Sync                                                 │
+│     └─ PocketBaseService:SyncPlayer(userId, data)              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Manual Sync
+
+```lua
+local PocketBaseService = _G.Services.PocketBaseService
+
+-- Check if online
+if PocketBaseService:IsOnline() then
+    -- Manual sync
+    local data = PlayerDataService:GetAll(player)
+    PocketBaseService:SyncPlayer(player.UserId, data)
+end
+
+-- Get sync status
+local status = PocketBaseService:GetSyncStatus(player.UserId)
+-- "Pending" | "Syncing" | "Success" | "Failed" | "Offline"
+
+-- Process offline queue
+PocketBaseService:ProcessQueue()
+
+-- Get analytics
+local analytics = PocketBaseService:GetAnalytics()
+```
+
+---
+
+## 🔧 Utilities
+
+### DataMapper
+
+แปลงข้อมูลระหว่าง Roblox และ PocketBase:
+
+```lua
+local DataMapper = require(ServerScriptService.Utils.DataMapper)
+
+-- Roblox → PocketBase
+local remoteData = DataMapper.ToRemote("PlayerData", robloxData, userId)
+
+-- PocketBase → Roblox
+local robloxData = DataMapper.FromRemote("PlayerData", remoteData)
+
+-- Validate data
+local valid, errors = DataMapper.Validate("PlayerData", data)
+
+-- Print schemas
+DataMapper.PrintSchemas()
+```
+
+### IdempotencyKey
+
+ป้องกัน duplicate operations:
+
+```lua
+local IdempotencyKey = require(ServerScriptService.Utils.IdempotencyKey)
+
+-- Generate unique key
+local key = IdempotencyKey.Generate("sync", player.UserId)
+
+-- Execute with idempotency
+local success, result = IdempotencyKey:Execute(key, "PlayerSync", function()
+    return syncData()
+end, 300) -- 5 min TTL
+
+-- Check status
+local status = IdempotencyKey:GetStatus(key)
+```
+
+---
+
+## 🐛 Debug Commands
+
+```lua
+-- F9 Console (Server)
+
+-- Get player data
+local player = game.Players:GetPlayers()[1]
+local data = _G.Services.PlayerDataService:GetAll(player)
+print(data)
+
+-- Set data
+_G.Services.PlayerDataService:Set(player, "Coins", 1000)
+
+-- Check PocketBase status
+print(_G.Services.PocketBaseService:IsOnline())
+print(_G.Services.PocketBaseService:GetAnalytics())
+
+-- Manual sync
+local data = _G.Services.PlayerDataService:GetAll(player)
+_G.Services.PocketBaseService:SyncPlayer(player.UserId, data)
+
+-- Print utilities
+_G.ServiceLocator:PrintRegistry()
+_G.DataMapper.PrintSchemas()
+_G.IdempotencyKey:PrintSummary()
+```
+
+---
+
+## 📊 Events
+
+| Event | Trigger | Data |
+|-------|---------|------|
+| `PLAYER_DATA_LOADED` | Profile loaded | `{data, timestamp}` |
+| `PLAYER_DATA_CHANGED` | Any data change | `{key, newValue}` |
+| `PLAYER_ITEM_ADDED` | Item added | `{itemId}` |
+| `PLAYER_ITEM_REMOVED` | Item removed | `{itemId}` |
+
+### Listen to Events
+
+```lua
+EventBus:On(Events.PLAYER_DATA_CHANGED, function(player, eventData)
+    print(`{player.Name}'s {eventData.key} changed to {eventData.newValue}`)
+end)
+```
+
+---
+
+## ✅ Best Practices
+
+```
+✅ DO:
+• Use PlayerDataService API (not direct profile access)
+• Check IsDataLoaded() before accessing data
+• Use Increment() for numeric updates
+• Use dictionary-based HasItem() for inventory checks
+• Handle nil values gracefully
+
+❌ DON'T:
+• Access profile.Data directly
+• Modify data without validation
+• Sync to PocketBase too frequently
+• Store sensitive data in plain text
+• Ignore migration requirements
+```
+
+---
+
+**Version:** 1.0  
+**Last Updated:** 2024  
+**Status:** ✅ Production Ready

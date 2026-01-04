@@ -64,6 +64,7 @@ NetworkConfig.PrintSummary()
 -- Core Services
 print("[Init] Loading Core services...")
 local NetworkHandler = require(Core.NetworkHandler)
+local CmdrService = require(Core.CmdrService)  -- ✅ เพิ่มบรรทัดนี้
 
 -- Gameplay Services
 print("[Init] Loading Gameplay services...")
@@ -180,18 +181,45 @@ print("════════════════════════�
 local layerTimes: {[string]: number} = {}
 
 Promise.resolve()
+	--
+	-- ═══════════════════════════════════════════════════════════
+	-- REGISTER SERVICES IN LOCATOR
+	-- ═══════════════════════════════════════════════════════════
+	
+	:andThen(function()
+		print("\n[Init] 📋 Registering services in ServiceLocator...")
+		
+		ServiceLocator:Register("NetworkHandler", NetworkHandler)
+		ServiceLocator:Register("CmdrService", CmdrService)  -- ✅ เพิ่มบรรทัดนี้
+		ServiceLocator:Register("PocketBaseService", PocketBaseService)
+		ServiceLocator:Register("PlayerDataService", PlayerDataService)
+		ServiceLocator:Register("PlayerStateService", PlayerStateService)
+		ServiceLocator:Register("LobbyService", LobbyService)
+		ServiceLocator:Register("ArenaService", ArenaService)
+		ServiceLocator:Register("CombatService", CombatService)
+		ServiceLocator:Register("DeathService", DeathService)
+		ServiceLocator:Register("DownedService", DownedService)
+		ServiceLocator:Register("RespawnService", RespawnService)
+		ServiceLocator:Register("MatchService", MatchService)
+		ServiceLocator:Register("CooldownService", CooldownService)
+		ServiceLocator:Register("GameService", GameService)
+		
+		print("[Init] ✅ All services registered")
+	end)
 	-- 1️⃣ Core Layer
 	:andThen(function()
 		print("[Init] 1️⃣ Core Layer...")
 		local startTime = os.clock()
 		
-		return initService(NetworkHandler, "NetworkHandler")
+		return Promise.all({
+			initService(NetworkHandler, "NetworkHandler"),
+			initService(CmdrService, "CmdrService"),  -- ✅ เพิ่มบรรทัดนี้
+		})
 			:andThen(function()
 				layerTimes["Core"] = os.clock() - startTime
 			end)
 			:timeout(TIMEOUTS.LayerInit)
-	end)
-	
+	end)	
 	-- 2️⃣ Cloud Layer
 	:andThen(function()
 		print("[Init] 2️⃣ Cloud Layer...")
@@ -268,30 +296,6 @@ Promise.resolve()
 	end)
 	
 	-- ═══════════════════════════════════════════════════════════
-	-- REGISTER SERVICES IN LOCATOR
-	-- ═══════════════════════════════════════════════════════════
-	
-	:andThen(function()
-		print("\n[Init] 📋 Registering services in ServiceLocator...")
-		
-		ServiceLocator:Register("NetworkHandler", NetworkHandler)
-		ServiceLocator:Register("PocketBaseService", PocketBaseService)
-		ServiceLocator:Register("PlayerDataService", PlayerDataService)
-		ServiceLocator:Register("PlayerStateService", PlayerStateService)
-		ServiceLocator:Register("LobbyService", LobbyService)
-		ServiceLocator:Register("ArenaService", ArenaService)
-		ServiceLocator:Register("CombatService", CombatService)
-		ServiceLocator:Register("DeathService", DeathService)
-		ServiceLocator:Register("DownedService", DownedService)
-		ServiceLocator:Register("RespawnService", RespawnService)
-		ServiceLocator:Register("MatchService", MatchService)
-		ServiceLocator:Register("CooldownService", CooldownService)
-		ServiceLocator:Register("GameService", GameService)
-		
-		print("[Init] ✅ All services registered")
-	end)
-	
-	-- ═══════════════════════════════════════════════════════════
 	-- START SERVICES (WITH TIMEOUTS)
 	-- ═══════════════════════════════════════════════════════════
 	
@@ -304,6 +308,7 @@ Promise.resolve()
 	:andThen(function()
 		return Promise.all({
 			startService(NetworkHandler, "NetworkHandler"),
+			startService(CmdrService, "CmdrService"),  -- ✅ เพิ่มบรรทัดนี้
 		}):timeout(TIMEOUTS.LayerStart)
 	end)
 	
@@ -398,8 +403,8 @@ Promise.resolve()
 		-- Expose for debugging (only in Studio)
 		if game:GetService("RunService"):IsStudio() then
 			_G.Services = {
-				-- Core
 				NetworkHandler = NetworkHandler,
+				CmdrService = CmdrService,  -- ✅ เพิ่มบรรทัดนี้
 				
 				-- Data
 				PlayerDataService = PlayerDataService,
