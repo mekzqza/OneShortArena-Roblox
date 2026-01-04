@@ -12,3 +12,6 @@ Trove = 'sleitnick/trove@1.3.0'
 Component = 'sleitnick/component@2.4.8'
 Sift = 'csqrl/sift@0.0.9'
 Flipper = 'reselim/flipper@2.0.0'
+
+# ✅ เพิ่มบรรทัดนี้ลงไป
+TestEZ = "roblox/testez@0.4.1"

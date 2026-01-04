@@ -181,9 +181,9 @@ print("════════════════════════�
 local layerTimes: {[string]: number} = {}
 
 Promise.resolve()
-	--
+
 	-- ═══════════════════════════════════════════════════════════
-	-- REGISTER SERVICES IN LOCATOR
+	-- 0️⃣ REGISTER SERVICES IN LOCATOR
 	-- ═══════════════════════════════════════════════════════════
 	
 	:andThen(function()
