@@ -15,6 +15,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
+local ServiceLocator = require(ServerScriptService.Utils.ServiceLocator)
 
 -- Load ProfileService from Libs
 local Libs = ServerScriptService:FindFirstChild("Libs")
@@ -351,6 +352,32 @@ function PlayerDataService:Start()
 	
 	Players.PlayerAdded:Connect(loadPlayerProfile)
 	Players.PlayerRemoving:Connect(releasePlayerProfile)
+	
+	-- ✨ Register request handler
+	local NetworkHandler = ServiceLocator:Get("NetworkHandler")
+	
+	if NetworkHandler then
+		NetworkHandler:RegisterRequestHandler("GetPlayerData", function(player: Player, data: any)
+			-- Get all player data
+			local playerData = self:GetAll(player)
+			
+			if playerData then
+				return true, playerData -- Success
+			else
+				return false, "Data not loaded" -- Error
+			end
+		end)
+		
+		NetworkHandler:RegisterRequestHandler("GetPlayerCoins", function(player: Player, data: any)
+			local coins = self:Get(player, "Coins")
+			
+			if coins then
+				return true, { coins = coins }
+			else
+				return false, "Could not get coins"
+			end
+		end)
+	end
 	
 	print("[PlayerDataService] 🚀 Started")
 end

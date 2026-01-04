@@ -315,20 +315,43 @@ function NetworkHandler:Start()
     end
     
     -- Handle incoming events
-    remoteEvent.OnServerEvent:Connect(function(player: Player, eventName: string, ...)
+    remoteEvent.OnServerEvent:Connect(function(player: Player, payload: any)
         analytics.totalReceived += 1
         
-        local args = {...}
-        local data = args[1]
-        
-        -- ✅ Check 0: Payload validation
-        if type(data) == "table" then
-            local payloadValid, payloadReason = validatePayload(data)
+        -- ✅ FIX: Payload validation
+        if type(payload) == "table" then
+            local payloadValid, payloadReason = validatePayload(payload)
             if not payloadValid then
                 log("Warn", `⚠️ {player.Name} invalid payload: {payloadReason}`)
                 addSuspiciousActivity(player, "invalid_payload")
                 return
             end
+        end
+        
+        -- ✨ Check if it's a request
+        if type(payload) == "table" and payload._isRequest then
+            self:_HandleRequest(player, payload)
+            return
+        end
+        
+        -- ✅ FIX: Handle regular events properly
+        -- Payload structure: { _eventName = "EventName", _data = {...} }
+        -- หรือ แค่ string eventName
+        
+        local eventName: string
+        local eventData: any = nil
+        
+        if type(payload) == "table" and payload._eventName then
+            -- ✅ New format: { _eventName, _data }
+            eventName = payload._eventName
+            eventData = payload._data
+        elseif type(payload) == "string" then
+            -- ✅ Simple format: just event name
+            eventName = payload
+        else
+            log("Warn", `⚠️ {player.Name} invalid payload format`)
+            addSuspiciousActivity(player, "invalid_format")
+            return
         end
         
         -- ✅ Check 1: Per-event rate limit
@@ -364,7 +387,7 @@ function NetworkHandler:Start()
         end
         
         -- ✅ Check 4: Anti-replay
-        if not checkAntiReplay(data) then
+        if not checkAntiReplay(payload) then
             analytics.blockedByAntiReplay += 1
             
             warn(string.format("[NetworkHandler] ⚠️ %s replay attack detected", player.Name))
@@ -372,12 +395,16 @@ function NetworkHandler:Start()
             return
         end
         
-        -- ✅ All checks passed
-        EventBus:Emit(eventName, player, ...)
+        -- ✅ FIX: Emit event properly
+        if eventData ~= nil then
+            EventBus:Emit(eventName, player, eventData)
+        else
+            EventBus:Emit(eventName, player)
+        end
         
         -- Send ACK
-        if type(data) == "table" and data._msgId then
-            self:SendToClient(player, "__ACK", {messageId = data._msgId})
+        if type(payload) == "table" and payload._msgId then
+            self:SendToClient(player, "__ACK", {messageId = payload._msgId})
         end
     end)
     
@@ -412,7 +439,7 @@ function NetworkHandler:Start()
         end
     end)
     
-    log("Info", "🚀 Started - Listening for events")
+    print("[NetworkHandler] 🚀 Started - Listening for events")
 end
 
 function NetworkHandler:AllowClientEvent(eventName: string)
@@ -421,12 +448,47 @@ end
 
 function NetworkHandler:SendToClient(player: Player, eventName: string, ...: any)
     analytics.totalSent += 1
-    remoteEvent:FireClient(player, eventName, ...)
+    
+    -- ✅ FIX: Pack data into structured payload
+    local args = {...}
+    
+    if #args == 0 then
+        -- Simple event (no data)
+        remoteEvent:FireClient(player, eventName)
+    elseif #args == 1 then
+        -- Event with single data
+        remoteEvent:FireClient(player, {
+            _eventName = eventName,
+            _data = args[1]
+        })
+    else
+        -- Event with multiple args
+        remoteEvent:FireClient(player, {
+            _eventName = eventName,
+            _data = args
+        })
+    end
 end
 
 function NetworkHandler:Broadcast(eventName: string, ...: any)
     analytics.totalSent += 1
-    remoteEvent:FireAllClients(eventName, ...)
+    
+    -- ✅ FIX: Same logic for broadcast
+    local args = {...}
+    
+    if #args == 0 then
+        remoteEvent:FireAllClients(eventName)
+    elseif #args == 1 then
+        remoteEvent:FireAllClients({
+            _eventName = eventName,
+            _data = args[1]
+        })
+    else
+        remoteEvent:FireAllClients({
+            _eventName = eventName,
+            _data = args
+        })
+    end
 end
 
 function NetworkHandler:GetAnalytics(): {[string]: any}
@@ -457,6 +519,186 @@ end
 -- ✅ NEW: Update rate limit (runtime)
 function NetworkHandler:SetEventRateLimit(eventName: string, rate: number, window: number)
     NetworkConfig.SetEventRateLimit(eventName, rate, window)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- ✨ NEW: REQUEST HANDLERS REGISTRY
+-- ═══════════════════════════════════════════════════════════════
+
+--[[
+	Request handlers are functions that process client requests
+	and return results.
+	
+	Signature: function(player: Player, data: any): (boolean, any?)
+		- Return (true, result) for success
+		- Return (false, errorMessage) for failure
+]]
+local requestHandlers: {[string]: (player: Player, data: any) -> (boolean, any?)} = {}
+
+-- Analytics
+local requestAnalytics = {
+	totalRequests = 0,
+	successfulRequests = 0,
+	failedRequests = 0,
+	processingErrors = 0,
+}
+
+-- ═══════════════════════════════════════════════════════════════
+-- REGISTER REQUEST HANDLER
+-- ═══════════════════════════════════════════════════════════════
+
+--[[
+	Register a handler for client requests
+	
+	@param eventName string - Name of the request
+	@param handler function - Handler function(player, data) -> (success, result)
+	
+	Example:
+		NetworkHandler:RegisterRequestHandler("GetPlayerData", function(player, data)
+			local userId = data.userId
+			local playerData = PlayerDataService:GetAll(player)
+			return true, playerData -- Success
+		end)
+		
+		NetworkHandler:RegisterRequestHandler("BuyItem", function(player, data)
+			local itemId = data.itemId
+			local success = ShopService:ProcessPurchase(player, itemId)
+			
+			if success then
+				return true, { purchased = true, itemId = itemId }
+			else
+				return false, "Not enough coins"
+			end
+		end)
+]]
+        
+function NetworkHandler:RegisterRequestHandler(eventName: string, handler: (player: Player, data: any) -> (boolean, any?))
+	if requestHandlers[eventName] then
+		warn(`[NetworkHandler] ⚠️ Request handler '{eventName}' already registered, overwriting`)
+	end
+	
+	requestHandlers[eventName] = handler
+	print(`[NetworkHandler] ✅ Registered request handler: {eventName}`)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- HANDLE REQUEST (Internal)
+-- ═══════════════════════════════════════════════════════════════
+
+function NetworkHandler:_HandleRequest(player: Player, payload: any)
+	local reqId = payload._reqId
+	local eventName = payload._eventName
+	local data = payload._data
+	
+	if not reqId or not eventName then
+		warn("[NetworkHandler] ⚠️ Invalid request payload")
+		return
+	end
+	
+	requestAnalytics.totalRequests += 1
+	
+	print(`[NetworkHandler] 📥 Request received: {eventName} from {player.Name} (reqId: {reqId:sub(1, 8)}...)`)
+	
+	-- Find handler
+	local handler = requestHandlers[eventName]
+	
+	if not handler then
+		warn(`[NetworkHandler] ⚠️ No handler registered for request: {eventName}`)
+		self:_SendResponse(player, {
+			_reqId = reqId,
+			_success = false,
+			_error = `No handler for '{eventName}'`,
+		})
+		requestAnalytics.failedRequests += 1
+		return
+	end
+	
+	-- Execute handler with error protection
+	local startTime = os.clock()
+	
+	task.spawn(function()
+		local success, result, errorMessage = pcall(function()
+			return handler(player, data)
+		end)
+		
+		local duration = os.clock() - startTime
+		
+		if not success then
+			-- Handler crashed
+			requestAnalytics.processingErrors += 1
+			warn(`[NetworkHandler] ❌ Handler '{eventName}' crashed: {result}`)
+			
+			self:_SendResponse(player, {
+				_reqId = reqId,
+				_success = false,
+				_error = "Internal server error",
+			})
+			return
+		end
+		
+		-- Handler returned (success, result/error)
+		local handlerSuccess = result
+		local handlerResult = errorMessage
+		
+		if handlerSuccess then
+			requestAnalytics.successfulRequests += 1
+			print(`[NetworkHandler] ✅ Request '{eventName}' processed ({string.format("%.3f", duration)}s)`)
+			
+			self:_SendResponse(player, {
+				_reqId = reqId,
+				_success = true,
+				_result = handlerResult,
+			})
+		else
+			requestAnalytics.failedRequests += 1
+			warn(`[NetworkHandler] ❌ Request '{eventName}' failed: {handlerResult}`)
+			
+			self:_SendResponse(player, {
+				_reqId = reqId,
+				_success = false,
+				_error = handlerResult or "Unknown error",
+			})
+		end
+	end)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- SEND RESPONSE (Internal)
+-- ═══════════════════════════════════════════════════════════════
+
+function NetworkHandler:_SendResponse(player: Player, response: any)
+	if not player or not player.Parent then
+		warn("[NetworkHandler] ⚠️ Cannot send response - player disconnected")
+		return
+	end
+	
+	response._isResponse = true
+	remoteEvent:FireClient(player, response)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- GET ANALYTICS
+-- ═══════════════════════════════════════════════════════════════
+
+function NetworkHandler:GetRequestAnalytics(): {[string]: any}
+	return {
+		totalRequests = requestAnalytics.totalRequests,
+		successfulRequests = requestAnalytics.successfulRequests,
+		failedRequests = requestAnalytics.failedRequests,
+		processingErrors = requestAnalytics.processingErrors,
+		registeredHandlers = self:GetRegisteredHandlers(),
+		successRate = requestAnalytics.totalRequests > 0 
+			and (requestAnalytics.successfulRequests / requestAnalytics.totalRequests * 100) 
+			or 0,
+	}
+end
+
+function NetworkHandler:GetRegisteredHandlers(): {string}
+	local handlers = {}
+	for name in pairs(requestHandlers) do
+		table.insert(handlers, name)
+	end
+	return handlers
 end
 
 return NetworkHandler
