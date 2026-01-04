@@ -181,6 +181,31 @@ print("════════════════════════�
 local layerTimes: {[string]: number} = {}
 
 Promise.resolve()
+	--
+	-- ═══════════════════════════════════════════════════════════
+	-- REGISTER SERVICES IN LOCATOR
+	-- ═══════════════════════════════════════════════════════════
+	
+	:andThen(function()
+		print("\n[Init] 📋 Registering services in ServiceLocator...")
+		
+		ServiceLocator:Register("NetworkHandler", NetworkHandler)
+		ServiceLocator:Register("CmdrService", CmdrService)  -- ✅ เพิ่มบรรทัดนี้
+		ServiceLocator:Register("PocketBaseService", PocketBaseService)
+		ServiceLocator:Register("PlayerDataService", PlayerDataService)
+		ServiceLocator:Register("PlayerStateService", PlayerStateService)
+		ServiceLocator:Register("LobbyService", LobbyService)
+		ServiceLocator:Register("ArenaService", ArenaService)
+		ServiceLocator:Register("CombatService", CombatService)
+		ServiceLocator:Register("DeathService", DeathService)
+		ServiceLocator:Register("DownedService", DownedService)
+		ServiceLocator:Register("RespawnService", RespawnService)
+		ServiceLocator:Register("MatchService", MatchService)
+		ServiceLocator:Register("CooldownService", CooldownService)
+		ServiceLocator:Register("GameService", GameService)
+		
+		print("[Init] ✅ All services registered")
+	end)
 	-- 1️⃣ Core Layer
 	:andThen(function()
 		print("[Init] 1️⃣ Core Layer...")
@@ -268,31 +293,6 @@ Promise.resolve()
 				warn(`[Init] ⚠️ Test Layer failed: {err}`)
 				return Promise.resolve()
 			end)
-	end)
-	
-	-- ═══════════════════════════════════════════════════════════
-	-- REGISTER SERVICES IN LOCATOR
-	-- ═══════════════════════════════════════════════════════════
-	
-	:andThen(function()
-		print("\n[Init] 📋 Registering services in ServiceLocator...")
-		
-		ServiceLocator:Register("NetworkHandler", NetworkHandler)
-		ServiceLocator:Register("CmdrService", CmdrService)  -- ✅ เพิ่มบรรทัดนี้
-		ServiceLocator:Register("PocketBaseService", PocketBaseService)
-		ServiceLocator:Register("PlayerDataService", PlayerDataService)
-		ServiceLocator:Register("PlayerStateService", PlayerStateService)
-		ServiceLocator:Register("LobbyService", LobbyService)
-		ServiceLocator:Register("ArenaService", ArenaService)
-		ServiceLocator:Register("CombatService", CombatService)
-		ServiceLocator:Register("DeathService", DeathService)
-		ServiceLocator:Register("DownedService", DownedService)
-		ServiceLocator:Register("RespawnService", RespawnService)
-		ServiceLocator:Register("MatchService", MatchService)
-		ServiceLocator:Register("CooldownService", CooldownService)
-		ServiceLocator:Register("GameService", GameService)
-		
-		print("[Init] ✅ All services registered")
 	end)
 	
 	-- ═══════════════════════════════════════════════════════════
