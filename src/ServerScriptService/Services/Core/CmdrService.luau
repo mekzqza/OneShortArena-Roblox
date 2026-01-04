@@ -89,11 +89,18 @@ function CmdrService:Start()
 	print("[CmdrService] 🚀 Starting...")
 	
 
+	local success = Cmdr:RegisterCommandsIn(ServerScriptService.CmdrCommands) -- Register hooks from Cmdr built-in folder.
 
-	local success1 = Cmdr:RegisterDefaultCommands() -- This loads the default set of commands that Cmdr comes with. (Optional)
-	-- Cmdr:RegisterCommandsIn(script.Parent.CmdrCommands) -- Register commands from your own folder. (Optional)
+	local success1 = Cmdr:RegisterDefaultCommands() 
+
+
 	local success2 = Cmdr:RegisterHooksIn(ServerStorage.Secrets.Hooks) -- Register hooks from your own folder. (Optional)
 	
+	if success then
+		analytics.commandsRegistered += 1
+		print("[CmdrService] ✅ Registered commands from MyCmdrCommands")
+	end
+
 	if success1 then
 		analytics.commandsRegistered += 1
 		print("[CmdrService] ✅ Registered default commands")
