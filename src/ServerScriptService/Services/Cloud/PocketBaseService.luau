@@ -5,16 +5,7 @@
 ║           POCKETBASE SERVICE - PRODUCTION GRADE                ║
 ╠════════════════════════════════════════════════════════════════╣
 ║ Purpose: Sync player data to external PocketBase VPS          ║
-║ Features:                                                      ║
-║  ✅ HTTPS connection to VPS                                   ║
-║  ✅ Auto-authentication with token refresh                    ║
-║  ✅ Hybrid sync with PlayerDataService                        ║
-║  ✅ Retry logic with exponential backoff                      ║
-║  ✅ Queue system for offline handling                         ║
-║  ✅ Analytics integration                                     ║
 ╚════════════════════════════════════════════════════════════════╝
-
--- Note: Requires ServerStorage/Secrets/PocketBaseSecret.luau
 ]]
 
 local HttpService = game:GetService("HttpService")
@@ -28,7 +19,6 @@ local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 local DataMapper = require(ServerScriptService.Utils.DataMapper)
 local IdempotencyKey = require(ServerScriptService.Utils.IdempotencyKey)
-local ServiceLocator = require(ServerScriptService.Utils.ServiceLocator)
 
 -- ═══════════════════════════════════════════════════════════════
 -- TYPE DEFINITIONS
@@ -65,7 +55,7 @@ export type PocketBaseService = {
 -- CONSTANTS & CONFIG
 -- ═══════════════════════════════════════════════════════════════
 
-local PocketBaseService = {} :: PocketBaseService
+local PocketBaseService = {}
 
 local guard = IdempotentGuard.new("PocketBaseService", true)
 
@@ -362,9 +352,6 @@ function PocketBaseService:Start()
 		return
 	end
 	
-	-- ❌ REMOVE THIS LINE - Already registered in Init.server.luau
-	-- ServiceLocator:Register("PocketBaseService", self)
-	
 	-- Initial auth attempt
 	task.spawn(function()
 		authenticate()
@@ -457,20 +444,43 @@ function PocketBaseService:Start()
 end
 
 -- ═══════════════════════════════════════════════════════════════
--- SYNC METHODS (UPDATED with DataMapper & IdempotencyKey)
+-- SYNC METHODS (FIXED)
 -- ═══════════════════════════════════════════════════════════════
 
--- ✅ Sync with idempotency guarantee
+--[[::
+	Queue a sync operation (non-blocking)
+	@param userId number - Player user ID
+	@param data table - Player data to sync
+]]
+function PocketBaseService:SyncPlayer(userId: number, data: {[string]: any})
+	-- Validate input
+	if not userId or not data then
+		warn("[PocketBaseService] ⚠️ Invalid sync params")
+		return
+	end
+	
+	-- Add to queue
+	queueSync(userId, data)
+	
+	print(`[PocketBaseService] 📥 Queued sync for user {userId}`)
+end
+
+--[[::
+	Sync player data immediately and wait for completion (blocking)
+	@param userId number - Player user ID
+	@param data table - Player data to sync
+	@return boolean - True if sync succeeded
+]]
 function PocketBaseService:SyncPlayerAsync(userId: number, data: {[string]: any}): boolean
-	-- Generate deterministic key for this sync operation
-	local idempotencyKey = IdempotencyKey.GenerateDeterministic("sync", userId, os.time() // 5) -- 5 second window
+	-- Generate deterministic key
+	local idempotencyKey = IdempotencyKey.GenerateDeterministic("sync", userId, os.time() // 5)
 	
 	-- Execute with idempotency
 	local success, result = IdempotencyKey:Execute(idempotencyKey, "PlayerSync", function()
 		analytics.totalSyncs += 1
 		lastSyncTime[userId] = os.time()
 		
-		-- ✅ Use DataMapper for explicit field mapping
+		-- Use DataMapper
 		local remoteData = DataMapper.ToRemote("PlayerData", data, userId)
 		
 		-- Try sync with retries
@@ -496,12 +506,16 @@ function PocketBaseService:SyncPlayerAsync(userId: number, data: {[string]: any}
 		end
 		
 		return false
-	end, 300) -- 5 minute TTL
+	end, 300)
 	
 	return success and result == true
 end
 
--- ✅ Fetch with DataMapper conversion
+--[[::
+	Fetch player data from PocketBase
+	@param userId number - Player user ID
+	@return table? - Player data or nil
+]]
 function PocketBaseService:FetchPlayer(userId: number): {[string]: any}?
 	if not authenticate() then
 		return nil
@@ -521,7 +535,7 @@ function PocketBaseService:FetchPlayer(userId: number): {[string]: any}?
 	if success and response.StatusCode == 200 then
 		local result = HttpService:JSONDecode(response.Body)
 		if result.items and #result.items > 0 then
-			-- ✅ Convert from remote format to Roblox format
+			-- Convert from remote format to Roblox format
 			return DataMapper.FromRemote("PlayerData", result.items[1])
 		end
 	end

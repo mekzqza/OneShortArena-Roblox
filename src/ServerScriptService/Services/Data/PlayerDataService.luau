@@ -200,11 +200,16 @@ local function shouldSyncToCloud(userId: number, key: string?): boolean
 	return true
 end
 
+-- ❌ NOT RECOMMENDED (blocking)
 local function syncToCloud(userId: number, data: {[string]: any})
 	local pbs = getPocketBaseService()
 	if not pbs then return end
-	lastCloudSync[userId] = os.time()
-	pbs:SyncPlayer(userId, data)
+	lastCloudSync[userId] = os.time()  -- ❌ Method ไม่มี!
+	
+	-- Spawn async to not block
+	task.spawn(function()
+		pbs:SyncPlayerAsync(userId, data)
+	end)
 end
 
 -- ✅ NEW: Migrate OwnedItems from Array to Dictionary
