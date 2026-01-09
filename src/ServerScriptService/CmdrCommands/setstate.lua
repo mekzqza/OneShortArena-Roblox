@@ -1,18 +1,18 @@
 return {
 	Name = "setstate",
-	Aliases = {},
-	Description = "เปลี่ยนสถานะผู้เล่น",
-	Group = "DefaultAdmin",
+	Aliases = {"state"},
+	Description = "เปลี่ยนสถานะของผู้เล่น",
+	Group = "Admin",
 	Args = {
 		{
 			Type = "player",
-			Name = "target",
-			Description = "ผู้เล่นที่จะเปลี่ยนสถานะ",
+			Name = "ผู้เล่น",
+			Description = "ผู้เล่นที่ต้องการเปลี่ยนสถานะ",
 		},
 		{
 			Type = "string",
-			Name = "state",
-			Description = "สถานะใหม่ (Lobby/Arena/Playing/Downed)",
+			Name = "สถานะ",
+			Description = "สถานะใหม่ (Lobby, Arena, Playing, Downed, Spectating, Died)",
 		},
 	},
 }

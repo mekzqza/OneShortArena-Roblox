@@ -9,10 +9,11 @@ return function(context, targetPlayer, newState)
 		Playing = true,
 		Downed = true,
 		Spectating = true,
+		Died = true,  -- ✅ เพิ่ม Died state
 	}
 	
 	if not validStates[newState] then
-		return `❌ สถานะไม่ถูกต้อง! ใช้ได้: Lobby, Arena, Playing, Downed, Spectating`
+		return `❌ สถานะไม่ถูกต้อง! ใช้ได้: Lobby, Arena, Playing, Downed, Spectating, Died`
 	end
 	
 	-- Get PlayerStateService
@@ -21,11 +22,13 @@ return function(context, targetPlayer, newState)
 		return "❌ PlayerStateService ไม่พร้อม!"
 	end
 	
-	-- Transition
-	local success, err = PSS:TransitionTo(targetPlayer, newState, {
-		reason = "Admin command",
-		forced = true,
-	})
+	-- ✅ FIX: ใช้ SetState() แทน TransitionTo()
+	local success, err = pcall(function()
+		PSS:SetState(targetPlayer, newState, {
+			reason = "Admin command",
+			forced = true,
+		})
+	end)
 	
 	if success then
 		return `✅ เปลี่ยนสถานะ {targetPlayer.Name} เป็น {newState} สำเร็จ!`
