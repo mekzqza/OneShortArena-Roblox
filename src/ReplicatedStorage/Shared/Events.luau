@@ -199,6 +199,12 @@ Events.PLAYER_ITEM_ADDED = "PlayerItemAdded"
 Events.PLAYER_ITEM_REMOVED = "PlayerItemRemoved"
 Events.PLAYER_ITEM_EQUIPPED = "PlayerItemEquipped"
 
+
+
+Events.GET_PLAYER_DATA = "GetPlayerData"
+Events.GET_PLAYER_COINS = "GetPlayerCoins"
+Events.SET_PLAYER_DATA = "SetPlayerData"
+
 --[[
 	GetAllEvents: ดูรายการ Events ทั้งหมด
 	@return table - ตารางที่เก็บชื่อ events ทั้งหมด

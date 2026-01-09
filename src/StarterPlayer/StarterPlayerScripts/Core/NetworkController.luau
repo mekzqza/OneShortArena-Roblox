@@ -145,7 +145,7 @@ end
 -- ✨ NEW: INVOKE (Request-Response)
 -- ═══════════════════════════════════════════════════════════════
 
---[[]
+--[[
 	Invoke a server function and wait for response
 	
 	@param eventName string - Name of the server function to call
@@ -162,6 +162,7 @@ end
 				warn("Error:", err)
 			end)
 ]]
+
 function Module:Invoke(eventName: string, data: any?, timeout: number?): any
 	timeout = timeout or REQUEST_TIMEOUT
 	

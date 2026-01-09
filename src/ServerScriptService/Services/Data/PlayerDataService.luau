@@ -362,7 +362,7 @@ function PlayerDataService:Start()
 	local NetworkHandler = ServiceLocator:Get("NetworkHandler")
 	
 	if NetworkHandler then
-		NetworkHandler:RegisterRequestHandler("GetPlayerData", function(player: Player, data: any)
+		NetworkHandler:RegisterRequestHandler(Events.GET_PLAYER_DATA, function(player: Player, data: any)
 			-- Get all player data
 			local playerData = self:GetAll(player)
 			
@@ -373,7 +373,7 @@ function PlayerDataService:Start()
 			end
 		end)
 		
-		NetworkHandler:RegisterRequestHandler("GetPlayerCoins", function(player: Player, data: any)
+		NetworkHandler:RegisterRequestHandler(Events.GET_PLAYER_COINS, function(player: Player, data: any)
 			local coins = self:Get(player, "Coins")
 			
 			if coins then
