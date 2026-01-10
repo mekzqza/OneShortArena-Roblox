@@ -1,7 +1,7 @@
 --!strict
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local ServerStorage = game:GetService("ServerStorage")
+-- local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- ═══════════════════════════════════════════════════════════════
@@ -50,12 +50,11 @@ local Player = Services:WaitForChild("Player")
 local Data = Services:WaitForChild("Data")
 local Cloud = Services:WaitForChild("Cloud")
 
--- ✅ Preload NetworkConfig
-local Configs = ServerStorage:WaitForChild("Configs")
-local NetworkConfig = require(Configs.NetworkConfig)
+-- -- ✅ Preload NetworkConfig
+-- local Configs = ServerStorage:WaitForChild("Configs")
+-- local NetworkConfig = require(Configs.NetworkConfig)
 
-print("[Init] 📡 Loaded NetworkConfig")
-NetworkConfig.PrintSummary()
+
 
 -- ═══════════════════════════════════════════════════════════════
 -- LOAD SERVICES

@@ -17,19 +17,24 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
+-- local Players = game:GetService("Players")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
 local NetworkHandler = require(ServerScriptService.Services.Core.NetworkHandler)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 
+
+export type SpawnPoint = BasePart
 export type LobbyService = {
+	Init: (self: LobbyService) -> (),
+	Start: (self: LobbyService) -> (),
 	SpawnPlayerInLobby: (self: LobbyService, player: Player) -> boolean,
-	GetRandomSpawnPoint: (self: LobbyService) -> SpawnPoint?,
+	GetRandomSpawnPoint: (self: LobbyService) -> SpawnPoint,
 	IsSpawnPointOccupied: (self: LobbyService, spawnPoint: SpawnPoint, radius: number?) -> boolean,
 	TeleportPlayerToLobby: (self: LobbyService, player: Player) -> boolean,
 	GetAnalytics: (self: LobbyService) -> {[string]: any},
+	GetRandomSpawnPoint: (self: LobbyService) -> SpawnPoint?,
 }
 
 local LobbyService = {} :: LobbyService
@@ -175,10 +180,11 @@ function LobbyService:Start()
 			return
 		end
 		
-		-- ✅ NEW: Check previous state - only spawn if coming from valid state
+		-- ✅ FIX: เพิ่ม "Downed" เข้าไปใน validPreviousStates
 		local validPreviousStates = {
 			["Arena"] = true,
 			["Died"] = true,
+			["Downed"] = true,      -- ✅ เพิ่มบรรทัดนี้!
 			["Spectating"] = true,
 		}
 		

@@ -19,7 +19,6 @@ local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
 
 local EventBus = require(ReplicatedStorage.SystemsShared.EventBus)
-local Events = require(ReplicatedStorage.Shared.Events)
 local IdempotentGuard = require(ServerScriptService.Utils.IdempotentGuard)
 
 -- ✅ Load NetworkConfig
@@ -39,6 +38,14 @@ export type NetworkHandler = {
     GetEventRateLimitConfig: (self: NetworkHandler) -> {[string]: {rate: number, window: number}},
     SetEventRateLimit: (self: NetworkHandler, eventName: string, rate: number, window: number) -> (),
     GetPlayerEventStats: (self: NetworkHandler, player: Player) -> {[string]: any},
+    GetConfig: (self: NetworkHandler) -> typeof(NetworkConfig),    
+    
+    RegisterRequestHandler: (self: NetworkHandler, eventName: string, handler: (player: Player, data: any) -> (boolean, any?)) -> (),
+    _HandleRequest: (self: NetworkHandler, player: Player, payload: any) -> (),
+    _SendResponse: (self: NetworkHandler, player: Player, response: any) -> (),
+    GetRequestAnalytics: (self: NetworkHandler) -> {[string]: any},
+    GetRegisteredHandlers: (self: NetworkHandler) -> {string},
+    
 }
 
 local NetworkHandler = {} :: NetworkHandler
@@ -55,15 +62,9 @@ local REMOTE_EVENT_NAME = "NetworkBridge"
 -- ✅ Use config values
 local GLOBAL_RATE_LIMIT = NetworkConfig.GlobalRateLimit
 local GLOBAL_RATE_WINDOW = NetworkConfig.GlobalRateWindow
-local BURST_LIMIT = NetworkConfig.BurstLimit
-local BURST_WINDOW = NetworkConfig.BurstWindow
 
 local EVENT_RATE_LIMITS = NetworkConfig.EventRateLimits
-local DEFAULT_EVENT_RATE_LIMIT = NetworkConfig.DefaultEventRateLimit
 
-local MAX_STRIKES = NetworkConfig.MaxStrikes
-local MESSAGE_ID_TTL = NetworkConfig.MessageIdTTL
-local MAX_PAYLOAD_SIZE = NetworkConfig.MaxPayloadSize
 local MAX_STRING_LENGTH = NetworkConfig.MaxStringLength
 local MAX_TABLE_DEPTH = NetworkConfig.MaxTableDepth
 
